@@ -1,0 +1,351 @@
+{
+ "constant_columns": {
+  "constant_in_every_split": [
+   "af_1kg_afr",
+   "af_1kg_amr",
+   "af_1kg_eas",
+   "af_1kg_eur",
+   "af_1kg_sas",
+   "alphafold_plddt",
+   "clingen_validity_score",
+   "codon_position",
+   "dbsnp_af",
+   "dist_to_active_site",
+   "dist_to_splice_site",
+   "esm2_delta_norm",
+   "eve_score",
+   "exon_number",
+   "finngen_af_fin",
+   "finngen_af_nfsee",
+   "finngen_enrichment",
+   "gene_constraint_oe",
+   "gene_is_constrained",
+   "gtex_is_eqtl",
+   "gtex_max_abs_effect",
+   "gtex_max_tpm",
+   "gtex_min_eqtl_pval",
+   "gtex_n_tissues_expressed",
+   "gtex_tissue_specificity",
+   "has_uniprot_annotation",
+   "hgmd_is_disease_mutation",
+   "hgmd_n_reports",
+   "is_canonical_splice",
+   "maxentscan_score",
+   "n_known_pathogenic_protein_variants",
+   "omim_is_autosomal_dominant",
+   "omim_n_diseases",
+   "phylop_score",
+   "secondary_structure_context",
+   "solvent_accessibility"
+  ],
+  "count_constant_in_every_split": 36,
+  "per_split": {
+   "test": {
+    "columns": 78,
+    "columns_with_nulls": [],
+    "constant": [
+     "af_1kg_afr",
+     "af_1kg_amr",
+     "af_1kg_eas",
+     "af_1kg_eur",
+     "af_1kg_sas",
+     "alphafold_plddt",
+     "clingen_validity_score",
+     "codon_position",
+     "dbsnp_af",
+     "dist_to_active_site",
+     "dist_to_splice_site",
+     "esm2_delta_norm",
+     "eve_score",
+     "exon_number",
+     "finngen_af_fin",
+     "finngen_af_nfsee",
+     "finngen_enrichment",
+     "gene_constraint_oe",
+     "gene_is_constrained",
+     "gtex_is_eqtl",
+     "gtex_max_abs_effect",
+     "gtex_max_tpm",
+     "gtex_min_eqtl_pval",
+     "gtex_n_tissues_expressed",
+     "gtex_tissue_specificity",
+     "has_uniprot_annotation",
+     "hgmd_is_disease_mutation",
+     "hgmd_n_reports",
+     "is_canonical_splice",
+     "maxentscan_score",
+     "n_known_pathogenic_protein_variants",
+     "omim_is_autosomal_dominant",
+     "omim_n_diseases",
+     "phylop_score",
+     "secondary_structure_context",
+     "solvent_accessibility"
+    ],
+    "rows": 304711,
+    "sha256": "a1a8f225d0be4c8e8530a729f799dec4e576480d9d717cbf866f7fd675d850b5"
+   },
+   "train": {
+    "columns": 78,
+    "columns_with_nulls": [],
+    "constant": [
+     "af_1kg_afr",
+     "af_1kg_amr",
+     "af_1kg_eas",
+     "af_1kg_eur",
+     "af_1kg_sas",
+     "alphafold_plddt",
+     "clingen_validity_score",
+     "codon_position",
+     "dbsnp_af",
+     "dist_to_active_site",
+     "dist_to_splice_site",
+     "esm2_delta_norm",
+     "eve_score",
+     "exon_number",
+     "finngen_af_fin",
+     "finngen_af_nfsee",
+     "finngen_enrichment",
+     "gene_constraint_oe",
+     "gene_is_constrained",
+     "gtex_is_eqtl",
+     "gtex_max_abs_effect",
+     "gtex_max_tpm",
+     "gtex_min_eqtl_pval",
+     "gtex_n_tissues_expressed",
+     "gtex_tissue_specificity",
+     "has_uniprot_annotation",
+     "hgmd_is_disease_mutation",
+     "hgmd_n_reports",
+     "is_canonical_splice",
+     "maxentscan_score",
+     "n_known_pathogenic_protein_variants",
+     "omim_is_autosomal_dominant",
+     "omim_n_diseases",
+     "phylop_score",
+     "secondary_structure_context",
+     "solvent_accessibility"
+    ],
+    "rows": 1038974,
+    "sha256": "061d979d124b535bfa331500dd1c8c3e99b12ef2186f6a25125153c633055622"
+   },
+   "val": {
+    "columns": 78,
+    "columns_with_nulls": [],
+    "constant": [
+     "af_1kg_afr",
+     "af_1kg_amr",
+     "af_1kg_eas",
+     "af_1kg_eur",
+     "af_1kg_sas",
+     "alphafold_plddt",
+     "clingen_validity_score",
+     "codon_position",
+     "dbsnp_af",
+     "dist_to_active_site",
+     "dist_to_splice_site",
+     "esm2_delta_norm",
+     "eve_score",
+     "exon_number",
+     "finngen_af_fin",
+     "finngen_af_nfsee",
+     "finngen_enrichment",
+     "gene_constraint_oe",
+     "gene_is_constrained",
+     "gtex_is_eqtl",
+     "gtex_max_abs_effect",
+     "gtex_max_tpm",
+     "gtex_min_eqtl_pval",
+     "gtex_n_tissues_expressed",
+     "gtex_tissue_specificity",
+     "has_uniprot_annotation",
+     "hgmd_is_disease_mutation",
+     "hgmd_n_reports",
+     "is_canonical_splice",
+     "lovd_variant_class",
+     "maxentscan_score",
+     "n_known_pathogenic_protein_variants",
+     "omim_is_autosomal_dominant",
+     "omim_n_diseases",
+     "phylop_score",
+     "secondary_structure_context",
+     "solvent_accessibility"
+    ],
+    "rows": 146329,
+    "sha256": "103160d8a75d052aa4ed0816f87f959301c3cb0380e22814981887edd049976d"
+   }
+  }
+ },
+ "corrects": {
+  "file": "measure_1d1_audit.json",
+  "sha256": "7de888a837794d7f233e061cc353810cb32c09ab6e43c09fbbefb974b91db7eb"
+ },
+ "eve_source_join_run15": {
+  "eve_score_constant_in": {
+   "test": true,
+   "train": true,
+   "val": true
+  },
+  "finding": "the EVE connector ran with no source configured, so no variant was joined to an EVE score; every row holds the fill default (raw 0.5, scaled 0.0). Run 15 EVE coverage = 0 variants, by configuration. Gene-level and variant-level EVE coverage are therefore both unmeasured.",
+  "log": {
+   "file": "run15_baseline_master.log",
+   "line": 83,
+   "sha256": "21461f9bd71a9ea6a530a2d8681885e19d266e73ce3dbe3e5610c0c7501a7c3d",
+   "text": "2026-06-05 22:50:50  WARNING   genomic_variant_classifier.data.eve  EVEConnector: eve_path not set \u2014 returning eve_score=0.5 (not covered).  Download EVE scores from https://evemodel.org."
+  }
+ },
+ "retained_sections": {
+  "auroc_decomposition_test": {
+   "af_log10": {
+    "between_gene_auroc": 0.743,
+    "pooled_auroc": 0.7428,
+    "within_gene_auroc": 0.7075,
+    "within_gene_pair_fraction": 0.004
+   },
+   "alphamissense_score": {
+    "between_gene_auroc": 0.645,
+    "pooled_auroc": 0.6449,
+    "within_gene_auroc": 0.6263,
+    "within_gene_pair_fraction": 0.004
+   },
+   "cadd_phred": {
+    "between_gene_auroc": 0.886,
+    "pooled_auroc": 0.8859,
+    "within_gene_auroc": 0.8742,
+    "within_gene_pair_fraction": 0.004
+   },
+   "clingen_validity_score": {
+    "between_gene_auroc": 0.5,
+    "pooled_auroc": 0.5,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "consequence_severity": {
+    "between_gene_auroc": 0.6611,
+    "pooled_auroc": 0.6611,
+    "within_gene_auroc": 0.6714,
+    "within_gene_pair_fraction": 0.004
+   },
+   "esm2_delta_norm": {
+    "between_gene_auroc": 0.5,
+    "pooled_auroc": 0.5,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "eve_score": {
+    "between_gene_auroc": 0.5,
+    "pooled_auroc": 0.5,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "gene_constraint_oe": {
+    "between_gene_auroc": 0.5,
+    "pooled_auroc": 0.5,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "gene_has_known_disease": {
+    "between_gene_auroc": 0.553,
+    "pooled_auroc": 0.5528,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "gtex_max_tpm": {
+    "between_gene_auroc": 0.5,
+    "pooled_auroc": 0.5,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "has_uniprot_annotation": {
+    "between_gene_auroc": 0.5,
+    "pooled_auroc": 0.5,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "loeuf": {
+    "between_gene_auroc": 0.4897,
+    "pooled_auroc": 0.4898,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "mis_z": {
+    "between_gene_auroc": 0.4935,
+    "pooled_auroc": 0.4935,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "n_known_pathogenic_protein_variants": {
+    "between_gene_auroc": 0.5,
+    "pooled_auroc": 0.5,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "n_pathogenic_in_gene": {
+    "between_gene_auroc": 0.7189,
+    "pooled_auroc": 0.7181,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "n_tools_pathogenic": {
+    "between_gene_auroc": 0.8769,
+    "pooled_auroc": 0.8769,
+    "within_gene_auroc": 0.8648,
+    "within_gene_pair_fraction": 0.004
+   },
+   "omim_n_diseases": {
+    "between_gene_auroc": 0.5,
+    "pooled_auroc": 0.5,
+    "within_gene_auroc": 0.5,
+    "within_gene_pair_fraction": 0.004
+   },
+   "revel_score": {
+    "between_gene_auroc": 0.6641,
+    "pooled_auroc": 0.664,
+    "within_gene_auroc": 0.646,
+    "within_gene_pair_fraction": 0.004
+   }
+  },
+  "components": {
+   "components": 16647,
+   "components_with_more_than_one_gene": 541,
+   "genes": 17387,
+   "largest_component_genes": 20,
+   "largest_component_row_fraction": 0.0134,
+   "largest_component_rows": 19985,
+   "rows_with_two_or_more_tokens": 1838,
+   "rows_without_a_gene_token": 0,
+   "second_largest_component_genes": 12
+  },
+  "embargo_gene_split_20pct": {
+   "embargo_fraction": 0.0006,
+   "embargoed_rows": 888,
+   "evaluation_rows": 296398,
+   "training_rows": 1192728
+  },
+  "gene_label_purity": {
+   "all_benign": 12882,
+   "all_pathogenic": 289,
+   "gene_strings": 17694,
+   "mixed": 4523,
+   "positives": 210549,
+   "positives_in_mixed": 210145,
+   "row_fraction_in_mixed": 0.8991,
+   "rows_in_mixed_gene_strings": 1339615
+  },
+  "positives": {
+   "test": 44832,
+   "train": 146442,
+   "val": 19275
+  },
+  "rows": {
+   "test": 304711,
+   "train": 1038974,
+   "val": 146329
+  }
+ },
+ "retained_sections_note": "auroc_decomposition_test is retained: a per-column StandardScaler map is affine and increasing, and AUROC is invariant to increasing maps.",
+ "schema": "gvc.measure-1d1-correction/1",
+ "withdrawn_sections": {
+  "default_indicator_train": "EVE-COVERAGE-IDENTITY-1: compared StandardScaler output with a raw fill default; a numerical default cannot establish source coverage",
+  "eve_gene_coverage_train": "EVE-COVERAGE-IDENTITY-1: compared StandardScaler output with a raw fill default; a numerical default cannot establish source coverage"
+ }
+}

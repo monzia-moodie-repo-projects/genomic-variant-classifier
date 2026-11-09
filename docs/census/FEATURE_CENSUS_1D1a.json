@@ -1,0 +1,4949 @@
+{
+  "authority": {
+    "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
+    "file_sha256_at_capture": "626ac4db7a6740de89f65a335dd4040df8adae4fdf73920c5f7619520c5df8c7",
+    "path": "src/genomic_variant_classifier/models/variant_ensemble.py"
+  },
+  "consumer_sites": {
+    "scripts/ablate_gnn.py": {
+      "classes": [
+        "experiment"
+      ],
+      "reason": "GNN timing and ablation harness; its scores are not model inputs",
+      "symbols": [
+        "StringDBGraph",
+        "build_pyg_dataset",
+        "train_gnn_pipeline"
+      ]
+    },
+    "scripts/build_schema_baseline.py": {
+      "classes": [
+        "monitoring"
+      ],
+      "reason": "builds the drift-monitoring schema baseline",
+      "symbols": [
+        "TABULAR_FEATURES",
+        "engineer_features"
+      ]
+    },
+    "scripts/diff_engineer_features.py": {
+      "classes": [
+        "diagnostic"
+      ],
+      "reason": "compares feature builders",
+      "symbols": [
+        "TABULAR_FEATURES",
+        "_engineer_features",
+        "engineer_features"
+      ]
+    },
+    "scripts/preflight_run16_inputs.py": {
+      "classes": [
+        "diagnostic"
+      ],
+      "reason": "pre-flight input check",
+      "symbols": [
+        "TABULAR_FEATURES"
+      ]
+    },
+    "scripts/prove_engineer_features_equivalence.py": {
+      "classes": [
+        "diagnostic"
+      ],
+      "reason": "historical equivalence proof",
+      "symbols": [
+        "_engineer_features",
+        "engineer_features"
+      ]
+    },
+    "scripts/run_benchmark.py": {
+      "classes": [
+        "surface:evaluation"
+      ],
+      "reason": "benchmarks learners on the contract's columns",
+      "symbols": [
+        "TABULAR_FEATURES"
+      ]
+    },
+    "scripts/run_drift_monitor.py": {
+      "classes": [
+        "monitoring"
+      ],
+      "reason": "drift monitoring of engineered features",
+      "symbols": [
+        "engineer_features"
+      ]
+    },
+    "scripts/run_phase2_eval.py": {
+      "classes": [
+        "surface:gnn_node_attributes",
+        "surface:hetero_gnn_node_attributes",
+        "surface:split_persistence",
+        "surface:evaluation"
+      ],
+      "reason": "the run driver: GNN and hetero-GNN node attributes, split re-persistence, evaluation",
+      "symbols": [
+        "HeteroGNNTrainer",
+        "StringDBGraph",
+        "build_hetero_focal_graph",
+        "build_pyg_dataset",
+        "load_kg_edge_specs",
+        "string_graph_to_edges",
+        "train_gnn_pipeline"
+      ]
+    },
+    "src/genomic_variant_classifier/agent_layer/harness/correctness_harness.py": {
+      "classes": [
+        "diagnostic"
+      ],
+      "reason": "correctness harness",
+      "symbols": [
+        "engineer_features"
+      ]
+    },
+    "src/genomic_variant_classifier/api/pipeline.py": {
+      "classes": [
+        "surface:inference"
+      ],
+      "reason": "inference rendering of the contract",
+      "symbols": [
+        "INFERENCE_FEATURE_COLUMNS",
+        "TABULAR_FEATURES",
+        "engineer_features"
+      ]
+    },
+    "src/genomic_variant_classifier/data/real_data_prep.py": {
+      "classes": [
+        "surface:tabular_fit",
+        "surface:scaler_fit",
+        "surface:split_persistence"
+      ],
+      "reason": "builds, guards, scales and writes the training matrix",
+      "symbols": [
+        "TABULAR_FEATURES",
+        "_engineer_features",
+        "engineer_features"
+      ]
+    },
+    "src/genomic_variant_classifier/evaluation/benchmark.py": {
+      "classes": [
+        "surface:evaluation"
+      ],
+      "reason": "benchmark runner",
+      "symbols": [
+        "TABULAR_FEATURES"
+      ]
+    },
+    "src/genomic_variant_classifier/information_sources/consumers.py": {
+      "classes": [
+        "diagnostic"
+      ],
+      "reason": "this census's measurement",
+      "symbols": [
+        "engineer_features"
+      ]
+    },
+    "src/genomic_variant_classifier/models/gnn.py": {
+      "classes": [
+        "definition"
+      ],
+      "reason": "defines the GNN graph and dataset builders",
+      "symbols": [
+        "StringDBGraph",
+        "build_pyg_dataset",
+        "train_gnn_pipeline"
+      ]
+    },
+    "src/genomic_variant_classifier/models/hetero_gnn_scorer.py": {
+      "classes": [
+        "definition"
+      ],
+      "reason": "defines the hetero-GNN builders",
+      "symbols": [
+        "HeteroGNNTrainer",
+        "build_hetero_focal_graph",
+        "load_kg_edge_specs",
+        "string_graph_to_edges"
+      ]
+    },
+    "src/genomic_variant_classifier/models/variant_ensemble.py": {
+      "classes": [
+        "definition",
+        "surface:feature_engineering",
+        "surface:evaluation"
+      ],
+      "reason": "defines the contract and the builder; prediction consumes the columns recorded at fit",
+      "symbols": [
+        "TABULAR_FEATURES",
+        "engineer_features"
+      ]
+    },
+    "src/genomic_variant_classifier/training/continual_trainer.py": {
+      "classes": [
+        "surface:continual_training"
+      ],
+      "reason": "continual refits on engineer_features output",
+      "symbols": [
+        "INFERENCE_FEATURE_COLUMNS",
+        "engineer_features"
+      ]
+    }
+  },
+  "datasets": {
+    "alphamissense": {
+      "access": "public (CC BY-NC-SA)",
+      "description": "AlphaMissense hg38 precomputed missense pathogenicity",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#df[\"alphamissense_score\"] = merged[\"alphamissense_score\"].fillna(DEFAULT).values"
+      ]
+    },
+    "clingen": {
+      "access": "public",
+      "description": "ClinGen Gene-Disease Validity classifications",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/clingen.py#When a gene appears in multiple disease-gene pairs, the MAXIMUM score"
+      ]
+    },
+    "clinvar_cohort": {
+      "access": "public",
+      "description": "ClinVar GRCh38 clean cohort: variant identity, consequence, clinical significance (the label)",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#df.loc[df[\"clinical_sig\"].isin(PATHOGENIC_TERMS), \"label\"] = 1"
+      ]
+    },
+    "cosmic_cmc": {
+      "access": "licensed",
+      "description": "COSMIC Cancer Mutation Census",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/connectors/connector_cosmic.py#_C_TIER = \"MUTATION_SIGNIFICANCE_TIER\""
+      ]
+    },
+    "dbnsfp": {
+      "access": "academic",
+      "description": "dbNSFP index of precomputed SIFT, PolyPhen-2 HDIV, REVEL, CADD, phyloP100way and GERP++ scores",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/dbnsfp.py#Delivers six pre-computed pathogenicity and conservation scores for all"
+      ]
+    },
+    "dbsnp": {
+      "access": "public",
+      "description": "dbSNP build 156 allele frequency",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/dbsnp.py#Build 156 VCF"
+      ]
+    },
+    "esm2": {
+      "access": "public",
+      "description": "ESM-2 protein language model and a UniProt sequence index",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/esm2.py#L2 distance between the wildtype and mutant residue embeddings at the"
+      ]
+    },
+    "eve": {
+      "access": "public",
+      "description": "EVE per-protein variant scores (evemodel.org)",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/eve.py#DEFAULT_SCORE = 0.5"
+      ]
+    },
+    "finngen": {
+      "access": "public",
+      "description": "FinnGen annotated-variant allele frequencies (Finnish and non-Finnish-Swedish-Estonian)",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/finngen.py## Data source: https://r10.finngen.fi/"
+      ]
+    },
+    "gnomad_af": {
+      "access": "public",
+      "description": "gnomAD allele frequencies joined by chrom:pos:ref:alt",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#gnomad_path, columns=[\"variant_id\", \"allele_freq\"]"
+      ]
+    },
+    "gnomad_constraint": {
+      "access": "public",
+      "description": "gnomAD v4.1 gene constraint metrics (pLI, LOEUF, lof.oe, syn_z, mis_z)",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py#gnomAD v4.1 gene constraint connector."
+      ]
+    },
+    "gtex": {
+      "access": "public",
+      "description": "GTEx gene median TPM per tissue (bulk parquet); single-tissue eQTL via the per-gene API path",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/gtex.py#gtex_min_eqtl_pval        max -log10(p) across tissues"
+      ]
+    },
+    "kegg": {
+      "access": "academic",
+      "description": "KEGG human pathway memberships (REST)",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/kegg.py#hsa05xxx: cancers, neurodegenerative, immune,"
+      ]
+    },
+    "kg_1000g": {
+      "access": "public",
+      "description": "1000 Genomes Phase 3 (release 20130502) global and super-population allele frequencies",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py#ALL.chr*.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+      ]
+    },
+    "kg_gene_sets": {
+      "access": "mixed",
+      "description": "gene-set files for knowledge-graph relations: Reactome GMT, KEGG GMT, GO GMT, ClinGen CSV, OMIM table",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/kg_edges.py#KG_SOURCES = {"
+      ]
+    },
+    "lovd": {
+      "access": "public",
+      "description": "LOVD variant classifications",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/lovd.py#This ordinal encoding preserves the clinical severity ranking and lets"
+      ]
+    },
+    "nucleotide_transformer": {
+      "access": "public",
+      "description": "Nucleotide Transformer v2 DNA language model and the 101 bp sequence windows",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/genomic_lm.py#masked-LM log-likelihood ratio at the"
+      ]
+    },
+    "omim": {
+      "access": "licensed",
+      "description": "OMIM mim2gene and genemap2 (registration and licence)",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/omim.py#MIM_type values that count as phenotype:"
+      ]
+    },
+    "phylop_bigwig": {
+      "access": "public",
+      "description": "PhyloP conservation BigWig track (second phyloP producer)",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#PHYLOPLOG-1 (2026-08-12)."
+      ]
+    },
+    "protein_coordinates": {
+      "access": "public",
+      "description": "AlphaMissense-derived protein coordinates, with an HGVSp fallback",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#pc = ProteinCoordConnector(alphamissense_file=_am_tsv)"
+      ]
+    },
+    "reactome": {
+      "access": "public (CC0)",
+      "description": "Reactome gene-to-pathway membership (all levels) and ReactomePathways.gmt",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/reactome.py#Reactome pathway-membership connector"
+      ]
+    },
+    "rnaseq_matrix": {
+      "access": "project-built",
+      "description": "quantified RNA-seq expression matrix with optional case/control contrast",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/rnaseq.py#rnaseq_log2fc          float  log2 fold-change case/control (0 if no DE)"
+      ]
+    },
+    "spliceai": {
+      "access": "public",
+      "description": "SpliceAI precomputed masked SNV delta scores (hg38)",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/spliceai.py#File: spliceai_scores.masked.snv.hg38.vcf.gz"
+      ]
+    },
+    "string": {
+      "access": "public (CC BY)",
+      "description": "STRING v12 human protein links (detailed channels) and protein info",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/gnn.py#\"\"\"Builds a NetworkX protein-interaction graph from STRING DB.\"\"\""
+      ]
+    },
+    "uniprot_variants": {
+      "access": "public",
+      "description": "UniProt humsavar-style variant table grouped by gene symbol",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#lambda x: (x == \"pathogenic\").sum(),"
+      ]
+    }
+  },
+  "entries": [
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"af_raw\"] = af",
+        "doi:10.1038/gim.2015.30"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "Allele frequency clipped at 0: gnomAD AF (cohort column, else gnomAD join), else the 1000 Genomes global AF; a variant with no frequency becomes 0.0. (finngen.py's comment calls FinnGen a third AF fallback; FinnGenConnector does not write allele_freq.)",
+      "name": "af_raw",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Population allele frequency is measured, unsupervised evidence of purifying selection. It is also the evidence of ACMG/AMP BA1, BS1 and PM2, so the label was partly assigned from it (annotation circularity, recorded in label_criterion_use); 1D-2 must report a criterion-independent evaluation. Absence is not separable from a failed join (MISSINGNESS-SEMANTICS-1); the representation, not the information, is defective.",
+      "source_ids": [
+        "dataset:gnomad_af",
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_gnomad"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "af_raw"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"af_log10\"] = np.log10(af + 1e-8)",
+        "doi:10.1038/gim.2015.30"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "log10(af_raw + 1e-8); absent AF maps to -8.",
+      "name": "af_log10",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Population allele frequency is measured, unsupervised evidence of purifying selection. It is also the evidence of ACMG/AMP BA1, BS1 and PM2, so the label was partly assigned from it (annotation circularity, recorded in label_criterion_use); 1D-2 must report a criterion-independent evaluation. Absence is not separable from a failed join (MISSINGNESS-SEMANTICS-1); the representation, not the information, is defective.",
+      "source_ids": [
+        "dataset:gnomad_af",
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_gnomad"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "af_raw"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"af_is_absent\"] = (af == 0).astype(int)",
+        "doi:10.1038/gim.2015.30"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "1 when af_raw == 0: absent from every joined frequency source OR never joined.",
+      "name": "af_is_absent",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Population allele frequency is measured, unsupervised evidence of purifying selection. It is also the evidence of ACMG/AMP BA1, BS1 and PM2, so the label was partly assigned from it (annotation circularity, recorded in label_criterion_use); 1D-2 must report a criterion-independent evaluation. Absence is not separable from a failed join (MISSINGNESS-SEMANTICS-1); the representation, not the information, is defective.",
+      "source_ids": [
+        "dataset:gnomad_af",
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_gnomad"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "af_raw"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"af_is_ultra_rare\"] = (af < 0.0001).astype(int)",
+        "doi:10.1038/gim.2015.30"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "1 when af_raw < 1e-4 (absent variants included).",
+      "name": "af_is_ultra_rare",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Population allele frequency is measured, unsupervised evidence of purifying selection. It is also the evidence of ACMG/AMP BA1, BS1 and PM2, so the label was partly assigned from it (annotation circularity, recorded in label_criterion_use); 1D-2 must report a criterion-independent evaluation. Absence is not separable from a failed join (MISSINGNESS-SEMANTICS-1); the representation, not the information, is defective.",
+      "source_ids": [
+        "dataset:gnomad_af",
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_gnomad"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "af_raw"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"af_is_rare\"] = ((af >= 0.0001) & (af < 0.001)).astype(int)",
+        "doi:10.1038/gim.2015.30"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "1 when 1e-4 <= af_raw < 1e-3.",
+      "name": "af_is_rare",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Population allele frequency is measured, unsupervised evidence of purifying selection. It is also the evidence of ACMG/AMP BA1, BS1 and PM2, so the label was partly assigned from it (annotation circularity, recorded in label_criterion_use); 1D-2 must report a criterion-independent evaluation. Absence is not separable from a failed join (MISSINGNESS-SEMANTICS-1); the representation, not the information, is defective.",
+      "source_ids": [
+        "dataset:gnomad_af",
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_gnomad"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "af_raw"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"af_is_common\"] = (af >= 0.01).astype(int)",
+        "doi:10.1038/gim.2015.30"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "1 when af_raw >= 0.01 (a project cut, not the BA1 0.05).",
+      "name": "af_is_common",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Population allele frequency is measured, unsupervised evidence of purifying selection. It is also the evidence of ACMG/AMP BA1, BS1 and PM2, so the label was partly assigned from it (annotation circularity, recorded in label_criterion_use); 1D-2 must report a criterion-independent evaluation. Absence is not separable from a failed join (MISSINGNESS-SEMANTICS-1); the representation, not the information, is defective.",
+      "source_ids": [
+        "dataset:gnomad_af",
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_gnomad"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"ref_len\"] = ref_len"
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "Length of the reference allele (minimum 1).",
+      "name": "ref_len",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Derived from the variant's own reference and alternate alleles; no external source, no supervision. In-frame length change is PM4 evidence, recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"alt_len\"] = alt_len"
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "Length of the alternate allele (minimum 1).",
+      "name": "alt_len",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Derived from the variant's own reference and alternate alleles; no external source, no supervision. In-frame length change is PM4 evidence, recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"len_diff\"] = (alt_len - ref_len).abs()"
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "|alt_len - ref_len|.",
+      "name": "len_diff",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Derived from the variant's own reference and alternate alleles; no external source, no supervision. In-frame length change is PM4 evidence, recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_snv\"] = ((ref_len == 1) & (alt_len == 1)).astype(int)"
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "1 when both alleles have length 1.",
+      "name": "is_snv",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Derived from the variant's own reference and alternate alleles; no external source, no supervision. In-frame length change is PM4 evidence, recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_insertion\"] = (alt_len > ref_len).astype(int)"
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "1 when the alternate allele is longer.",
+      "name": "is_insertion",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Derived from the variant's own reference and alternate alleles; no external source, no supervision. In-frame length change is PM4 evidence, recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_deletion\"] = (ref_len > alt_len).astype(int)"
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "1 when the reference allele is longer.",
+      "name": "is_deletion",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Derived from the variant's own reference and alternate alleles; no external source, no supervision. In-frame length change is PM4 evidence, recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "is_insertion",
+        "is_deletion"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_indel\"] = (feats[\"is_insertion\"] | feats[\"is_deletion\"]).astype(int)"
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "is_insertion OR is_deletion (equal-length multi-base substitutions are 0).",
+      "name": "is_indel",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Derived from the variant's own reference and alternate alleles; no external source, no supervision. In-frame length change is PM4 evidence, recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"consequence_severity\"] = consequence.map("
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "Maximum project ordinal (CONSEQUENCE_SEVERITY) over the '&'-separated consequence terms; unknown terms 0.",
+      "name": "consequence_severity",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "The consequence class is a property of the variant on its transcript; it is the evidence of PVS1 (null variants), PM4 and BP7, recorded as label-criterion use. Its annotation source and transcript choice are inherited from the cohort build.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_loss_of_function\"] = consequence.str.contains(",
+        "doi:10.1038/gim.2015.30"
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "1 when the consequence names stop_gained, frameshift, splice donor/acceptor, start_lost or stop_lost.",
+      "name": "is_loss_of_function",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "The consequence class is a property of the variant on its transcript; it is the evidence of PVS1 (null variants), PM4 and BP7, recorded as label-criterion use. Its annotation source and transcript choice are inherited from the cohort build.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_missense\"] = consequence.str.contains("
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "1 when the consequence contains 'missense'.",
+      "name": "is_missense",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "The consequence class is a property of the variant on its transcript; it is the evidence of PVS1 (null variants), PM4 and BP7, recorded as label-criterion use. Its annotation source and transcript choice are inherited from the cohort build.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_synonymous\"] = consequence.str.contains("
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "1 when the consequence contains 'synonymous'.",
+      "name": "is_synonymous",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "The consequence class is a property of the variant on its transcript; it is the evidence of PVS1 (null variants), PM4 and BP7, recorded as label-criterion use. Its annotation source and transcript choice are inherited from the cohort build.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_splice\"] = consequence.str.contains("
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "1 when the consequence contains 'splice' (region and canonical alike).",
+      "name": "is_splice",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "The consequence class is a property of the variant on its transcript; it is the evidence of PVS1 (null variants), PM4 and BP7, recorded as label-criterion use. Its annotation source and transcript choice are inherited from the cohort build.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"in_coding\"] = consequence.str.contains("
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "1 when the consequence names a coding or splice class.",
+      "name": "in_coding",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "The consequence class is a property of the variant on its transcript; it is the evidence of PVS1 (null variants), PM4 and BP7, recorded as label-criterion use. Its annotation source and transcript choice are inherited from the cohort build.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"cadd_phred\": 15.0,",
+        "url:https://pubmed.ncbi.nlm.nih.gov/24487276/",
+        "url:https://pubmed.ncbi.nlm.nih.gov/36413997/"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "CADD PHRED-scaled score from dbNSFP (or the optional REST connector); absent 15.0.",
+      "name": "cadd_phred",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Trained to separate simulated variants from human-derived alleles: a non-clinical proxy objective. It is PP3/BP4 evidence (ClinGen calibration), recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector",
+        "code:src/genomic_variant_classifier/data/cadd.py::CADDConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "proxy_nonclinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"sift_score\": 0.5,",
+        "url:https://pubmed.ncbi.nlm.nih.gov/36413997/"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "SIFT score in [0,1] from dbNSFP; absent 0.5 (the code's neutral fill).",
+      "name": "sift_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Homology-based and unsupervised. PP3/BP4 evidence, recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"polyphen2_score\": 0.5,",
+        "url:https://pubmed.ncbi.nlm.nih.gov/20354512/",
+        "doi:10.1002/humu.22768"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "PolyPhen-2 HDIV probability from dbNSFP; absent 0.5.",
+      "name": "polyphen2_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Trained on HumDiv: UniProtKB damaging alleles of Mendelian disease against divergence from close mammalian homologs -- clinically supervised, with unknown overlap with the ClinVar-labelled cohort (type-1 circularity, Grimm et al. 2015). Admissible only in an evaluation cohort verified disjoint from its training data (for example a time split after the tool's release), as a separately versioned claim.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"revel_score\": 0.5,",
+        "url:https://pmc.ncbi.nlm.nih.gov/articles/PMC5065685",
+        "doi:10.1002/humu.22768",
+        "url:https://pubmed.ncbi.nlm.nih.gov/36413997/"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "REVEL ensemble score in [0,1] from dbNSFP; absent 0.5.",
+      "name": "revel_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Trained on HGMD disease mutations against rare putatively neutral variants: clinically supervised, overlap with the ClinVar label set unknown and plausibly large (type-1 circularity). Conditional on a verified-disjoint evaluation cohort.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"phylop_score\": 0.0,",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#Sources are NOT reconciled."
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "phyloP conservation: the dbNSFP phyloP100way value where dbNSFP covers the variant, the PhyloP BigWig connector otherwise; the two producers are not reconciled (PHYLOP-RECONCILE-1). Absent 0.0.",
+      "name": "phylop_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Unsupervised evolutionary conservation; admissible. The unreconciled double producer is a representation defect already registered as PHYLOP-RECONCILE-1.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector",
+        "dataset:phylop_bigwig",
+        "code:src/genomic_variant_classifier/data/phylop.py::PhyloPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"gerp_score\": 0.0,"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "GERP++ rejected-substitution score from dbNSFP; absent 0.0.",
+      "name": "gerp_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Unsupervised evolutionary constraint.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"alphamissense_score\": 0.5,",
+        "url:https://pubmed.ncbi.nlm.nih.gov/37733863/"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "AlphaMissense pathogenicity in [0,1] joined by chrom:pos:ref:alt; absent 0.5.",
+      "name": "alphamissense_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Fine-tuned on weak labels from population frequency (common human and primate variants as benign); its published class thresholds were set on ClinVar but no threshold is used here. Admissible; PP3/BP4-type evidence recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:alphamissense",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_alphamissense",
+        "code:src/genomic_variant_classifier/data/alphamissense.py::AlphaMissenseConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "proxy_nonclinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"splice_ai_score\": 0.0,",
+        "url:https://pubmed.ncbi.nlm.nih.gov/30661751/",
+        "url:https://pubmed.ncbi.nlm.nih.gov/37352859/"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "max(DS_AG, DS_AL, DS_DG, DS_DL) over overlapping genes; absent 0.0.",
+      "name": "splice_ai_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Trained on annotated GENCODE splice junctions, not on clinical labels. PP3/BP7 evidence for splicing (ClinGen 2023), recorded as label-criterion use.",
+      "source_ids": [
+        "dataset:spliceai",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_spliceai",
+        "code:src/genomic_variant_classifier/data/spliceai.py::SpliceAIConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "proxy_nonclinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"eve_score\": 0.5,",
+        "code:src/genomic_variant_classifier/data/eve.py#n_covered = (result[\"eve_score\"] != DEFAULT_SCORE).sum()",
+        "doi:10.1038/s41586-021-04043-8",
+        "record:docs/census/measure_1d1_correction.json"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "EVE score in [0,1]; the connector fills unmatched variants with 0.5 and counts coverage as score != 0.5, so a genuine 0.5 is counted uncovered. Run 15: connector unconfigured, every row the default.",
+      "name": "eve_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned CONDITIONAL_ONLY (ruling c34eb717): admissible only within a frozen exact-variant-matched stratum (protein accession and isoform, reference residue, position, source release), coverage determined by join membership, never by value; scores are normalised within protein (EVE-COVERAGE-IDENTITY-1).",
+      "source_ids": [
+        "dataset:eve",
+        "code:src/genomic_variant_classifier/data/eve.py::EVEConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "cadd_phred"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"cadd_high\"] = (feats[\"cadd_phred\"] >= 20).astype(int)"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "1 when cadd_phred >= 20 (top 1% of all possible substitutions by construction).",
+      "name": "cadd_high",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "A fixed cut of an admitted score; the cut is rank-based, not fitted to clinical labels.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "proxy_nonclinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "sift_score"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"sift_deleterious\"] = (feats[\"sift_score\"] < 0.05).astype(int)"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "1 when sift_score < 0.05 (absent variants, filled 0.5, are 0).",
+      "name": "sift_deleterious",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "A fixed cut of an admitted score. The provenance of the conventional 0.05 cut was not verified in this review (recorded as unknown); a single fixed cut-point can carry at most one fitted scalar, so it adds no label information beyond its admitted score.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "unknown",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "polyphen2_score"
+      ],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"polyphen_probably_damaging\"] = (feats[\"polyphen2_score\"] >= 0.908).astype(",
+        "url:https://pubmed.ncbi.nlm.nih.gov/20354512/"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "1 when polyphen2_score >= 0.908 (the HDIV 'probably damaging' cut).",
+      "name": "polyphen_probably_damaging",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Inherits polyphen2_score's clinical supervision; its cut was itself set on the HumDiv disease set.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "clinical",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "revel_score"
+      ],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"revel_pathogenic\"] = (feats[\"revel_score\"] >= 0.5).astype(int)"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "1 when revel_score >= 0.5.",
+      "name": "revel_pathogenic",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Inherits revel_score's clinical supervision and conditional admission.",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "unknown",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "cadd_high",
+        "sift_deleterious",
+        "polyphen_probably_damaging",
+        "revel_pathogenic"
+      ],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"n_tools_pathogenic\"] = ("
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "Sum of cadd_high, sift_deleterious, polyphen_probably_damaging and revel_pathogenic.",
+      "name": "n_tools_pathogenic",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Two of its four terms are clinically supervised; a sum cannot be more admissible than its least admissible term (monotone admission).",
+      "source_ids": [
+        "dataset:dbnsfp",
+        "code:src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "mixed",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "mixed"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"gene_constraint_oe\"] = pd.to_numeric("
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "gnomAD lof.oe, the observed/expected loss-of-function ratio (NaN preserved when unmeasured).",
+      "name": "gene_constraint_oe",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Gene-level mutational constraint from a population mutation-rate model: no clinical labels, transferable to unseen genes. Defaults for genes without a measurement are values (MISSINGNESS-SEMANTICS-1).",
+      "source_ids": [
+        "dataset:gnomad_constraint",
+        "code:src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py::GnomADConstraintConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "loeuf"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#LEGACY_GENE_CONSTRAINT_LOEUF_THRESHOLD = 0.35"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "1.0 when LOEUF < 0.35 (retained project policy; gnomAD v4.1.1 recommends 0.45), NaN when LOEUF is unmeasured.",
+      "name": "gene_is_constrained",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Gene-level mutational constraint from a population mutation-rate model: no clinical labels, transferable to unseen genes. Defaults for genes without a measurement are values (MISSINGNESS-SEMANTICS-1).",
+      "source_ids": [
+        "dataset:gnomad_constraint",
+        "code:src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py::GnomADConstraintConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "retire_predictive",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"n_pathogenic_in_gene\"] = (",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#already present in enriched parquet -- skip duplicate merge",
+        "record:docs/claims/README.md"
+      ],
+      "label_criterion_use": "clinical_classification",
+      "meaning": "Count of label-1 rows in the variant's gene: corpus-wide by enrich_gene_counts, overwritten with train-only counts after the split and per fold inside the ensemble; unseen genes 0.",
+      "name": "n_pathogenic_in_gene",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned RETIRE_PREDICTIVE: a count of the target labels themselves. Within-gene AUROC exactly 0.5 and between-gene 0.7189 on Run 15 test (measured). enrich_gene_counts also returns early when the column already exists in the input, so a pre-enriched parquet's provenance is unbound.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::enrich_gene_counts",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._gene_aware_split"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "verified_overlap",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "n_pathogenic_in_gene"
+      ],
+      "disposition": "retire_predictive",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"gene_has_known_disease\"] = (feats[\"n_pathogenic_in_gene\"] > 0).astype(int)"
+      ],
+      "label_criterion_use": "clinical_classification",
+      "meaning": "1 when n_pathogenic_in_gene > 0.",
+      "name": "gene_has_known_disease",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned RETIRE_PREDICTIVE: derived from the label count.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::enrich_gene_counts"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "verified_overlap",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"has_uniprot_annotation\"] = ("
+      ],
+      "label_criterion_use": "clinical_classification",
+      "meaning": "1 when the gene has any row in the UniProt variant table (gene-symbol join); never wired in the Run 17 launchers (constant 0 in Run 15).",
+      "name": "has_uniprot_annotation",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: annotation availability encodes ascertainment of disease-studied genes.",
+      "source_ids": [
+        "dataset:uniprot_variants",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_uniprot"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"n_known_pathogenic_protein_variants\"] = (",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#lambda x: (x == \"pathogenic\").sum(),"
+      ],
+      "label_criterion_use": "clinical_classification",
+      "meaning": "Count of UniProt variant rows labelled 'pathogenic' in the gene.",
+      "name": "n_known_pathogenic_protein_variants",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: a curated clinical pathogenic-variant count.",
+      "source_ids": [
+        "dataset:uniprot_variants",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_uniprot"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"gtex_max_tpm\": 0.0,"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "Maximum across tissues of the gene's median TPM (bulk GTEx parquet).",
+      "name": "gtex_max_tpm",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured tissue expression of the gene: non-clinical biology, transferable to unseen genes.",
+      "source_ids": [
+        "dataset:gtex",
+        "code:src/genomic_variant_classifier/data/gtex.py::annotate_gtex_expression_from_parquet"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"gtex_n_tissues_expressed\": 0,"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "Number of tissues with median TPM >= 1.",
+      "name": "gtex_n_tissues_expressed",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured tissue expression breadth.",
+      "source_ids": [
+        "dataset:gtex",
+        "code:src/genomic_variant_classifier/data/gtex.py::annotate_gtex_expression_from_parquet"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"gtex_tissue_specificity\": 0.0,"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "1 - mean/max median TPM across tissues.",
+      "name": "gtex_tissue_specificity",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured tissue specificity.",
+      "source_ids": [
+        "dataset:gtex",
+        "code:src/genomic_variant_classifier/data/gtex.py::annotate_gtex_expression_from_parquet"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"gtex_is_eqtl\": 0,",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#eQTL trio stays at defaults."
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "1 when the variant has a GTEx single-tissue eQTL association (per-gene API path).",
+      "name": "gtex_is_eqtl",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "eQTL membership is non-clinical biology, but the production bulk path writes the default for every row (GTEX-EQTL-PRODUCTION-DEFAULT-1) and the API path is not exercised by any launcher.",
+      "source_ids": [
+        "dataset:gtex",
+        "code:src/genomic_variant_classifier/data/gtex.py::build_gtex_feature_df"
+      ],
+      "source_state": "unavailable",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"gtex_min_eqtl_pval\": 0.0,",
+        "code:src/genomic_variant_classifier/data/gtex.py#gtex_min_eqtl_pval        max -log10(p) across tissues"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "Despite its name: the maximum -log10(p) of the variant's eQTL associations (0 = none).",
+      "name": "gtex_min_eqtl_pval",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "As gtex_is_eqtl.",
+      "source_ids": [
+        "dataset:gtex",
+        "code:src/genomic_variant_classifier/data/gtex.py::build_gtex_feature_df"
+      ],
+      "source_state": "unavailable",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#\"gtex_max_abs_effect\": 0.0,"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "Maximum |beta| of the variant's eQTL associations.",
+      "name": "gtex_max_abs_effect",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "As gtex_is_eqtl.",
+      "source_ids": [
+        "dataset:gtex",
+        "code:src/genomic_variant_classifier/data/gtex.py::build_gtex_feature_df"
+      ],
+      "source_state": "unavailable",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"codon_position\"] = (",
+        "code:src/genomic_variant_classifier/data/vep.py#return (aa_pos - 1) % 3 + 1  # 1-indexed codon position",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#pc = ProteinCoordConnector(alphamissense_file=_am_tsv)"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "Two incompatible quantities in one column: VEPConnector writes (aa_pos - 1) % 3 + 1 from the FIRST digit run of protein_change (an accession's digits can match), then the annotation stage overwrites it with protein_pos, an unbounded residue index, wherever protein coordinates exist; neither is the nucleotide position within a codon.",
+      "name": "codon_position",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Excluded: the column has no single meaning (CODON-POSITION-SEMANTICS-1). A corrected codon-phase or residue-position feature is a NEW identity with its own census entry.",
+      "source_ids": [
+        "dataset:protein_coordinates",
+        "code:src/genomic_variant_classifier/data/vep.py::VEPConnector",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._annotate_scores"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"dbsnp_af\"] = ("
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "dbSNP build 156 allele frequency clipped at 0; absent 0.0.",
+      "name": "dbsnp_af",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured allele frequency (population-data evidence).",
+      "source_ids": [
+        "dataset:dbsnp",
+        "code:src/genomic_variant_classifier/data/dbsnp.py::DbSNPConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"omim_n_diseases\"] = ("
+      ],
+      "label_criterion_use": "acmg_gene_disease_curation",
+      "meaning": "Number of OMIM phenotype entries linked to the gene.",
+      "name": "omim_n_diseases",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: curated gene-disease evidence.",
+      "source_ids": [
+        "dataset:omim",
+        "code:src/genomic_variant_classifier/data/omim.py::OMIMConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"omim_n_diseases_molecular\"] = ("
+      ],
+      "label_criterion_use": "acmg_gene_disease_curation",
+      "meaning": "Number of the gene's OMIM phenotypes with a known molecular basis (genemap2).",
+      "name": "omim_n_diseases_molecular",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: curated gene-disease evidence.",
+      "source_ids": [
+        "dataset:omim",
+        "code:src/genomic_variant_classifier/data/omim.py::OMIMConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"omim_is_autosomal_dominant\"] = ("
+      ],
+      "label_criterion_use": "acmg_gene_disease_curation",
+      "meaning": "1 when any of the gene's OMIM phenotypes is autosomal dominant.",
+      "name": "omim_is_autosomal_dominant",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: gene-disease mode of inheritance.",
+      "source_ids": [
+        "dataset:omim",
+        "code:src/genomic_variant_classifier/data/omim.py::OMIMConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"clingen_validity_score\"] = ("
+      ],
+      "label_criterion_use": "acmg_gene_disease_curation",
+      "meaning": "Maximum ClinGen gene-disease validity class over the gene's disease pairs (Definitive 5 ... No Known Disease Relationship 1; absent 0).",
+      "name": "clingen_validity_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: curated gene-disease validity; the maximum discards which disease.",
+      "source_ids": [
+        "dataset:clingen",
+        "code:src/genomic_variant_classifier/data/clingen.py::ClinGenConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "retire_predictive",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"lovd_variant_class\"] = ("
+      ],
+      "label_criterion_use": "clinical_classification",
+      "meaning": "LOVD classification ordinal: 0 absent, 1 benign/likely benign, 2 VUS, 3 likely pathogenic, 4 pathogenic.",
+      "name": "lovd_variant_class",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned RETIRE_PREDICTIVE: another resource's clinical classification of the same variant.",
+      "source_ids": [
+        "dataset:lovd",
+        "code:src/genomic_variant_classifier/data/lovd.py::LOVDConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_autosome\"] = chrom.isin([str(i) for i in range(1, 23)]).astype(int)"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "1 for chromosomes 1-22.",
+      "name": "is_autosome",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Genomic location of the variant; no source beyond the variant itself.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_sex_chrom\"] = chrom.isin([\"X\", \"Y\"]).astype(int)"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "1 for X or Y.",
+      "name": "is_sex_chrom",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Genomic location of the variant.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_mitochondrial\"] = chrom.isin([\"MT\", \"M\"]).astype(int)"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "1 for MT or M.",
+      "name": "is_mitochondrial",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Genomic location of the variant.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "hetero_gnn_score",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "string_edge_attribute:coexpression",
+        "string_edge_attribute:database",
+        "string_edge_attribute:experimental",
+        "string_relation:combined_score_threshold",
+        "supervision:gnn_label",
+        "syn_z"
+      ],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"gnn_score\"] = (",
+        "code:scripts/run_phase2_eval.py#X_split[\"gnn_score\"] = (",
+        "code:scripts/run_phase2_eval.py#gnn_df[\"acmg_label\"] = y_train.values"
+      ],
+      "label_criterion_use": "clinical_classification",
+      "meaning": "Gene-level STRING-GNN probability injected by the run driver AFTER the ensemble was fitted on the default 0.5 (GNN-FEATURE-ORDER-1), unscaled into a standardised matrix in training and evaluation but scaled at inference (GNN-SCALE-SKEW-1); 0.5 also stands for 'gene not scored'.",
+      "name": "gnn_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned CONDITIONAL_ONLY pending its move to a first-class ensemble member (1D-3). Trained on the training labels, with node attributes that include the retired label count and the excluded curated features (GNN-NODE-LABEL-COUNT-1) and edges selected by a mixed-origin STRING score (STRING-CHANNEL-ORIGIN-1).",
+      "source_ids": [
+        "dataset:string",
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/models/gnn.py::GNNScorer",
+        "code:src/genomic_variant_classifier/models/gnn.py::build_pyg_dataset",
+        "code:src/genomic_variant_classifier/models/gnn.py::StringDBGraph"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "verified_overlap",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "kg_relation:clingen",
+        "kg_relation:go",
+        "kg_relation:kegg",
+        "kg_relation:omim",
+        "kg_relation:reactome",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "string_relation:combined_score_threshold",
+        "supervision:hetero_gnn_label",
+        "syn_z"
+      ],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"hetero_gnn_score\"] = (",
+        "code:scripts/run_phase2_eval.py#hetero_df[\"acmg_label\"] = y_train.values",
+        "code:scripts/launch_run17_baseline.sh#ARGS=\"$ARGS --hetero-gnn --kg-edges reactome:$REACTOME_GMT\""
+      ],
+      "label_criterion_use": "clinical_classification",
+      "meaning": "Gene-level heterogeneous knowledge-graph GNN probability (STRING interacts_with plus --kg-edges relations), injected after fit; never computed at inference (the default 0.5 is rendered).",
+      "name": "hetero_gnn_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned CONDITIONAL_ONLY. Its relation table accepts ClinGen and OMIM shares_disease edges and KEGG/Reactome shares_pathway edges (KG-DISEASE-RELATION-1); the Run 17 launchers pass Reactome only.",
+      "source_ids": [
+        "dataset:string",
+        "dataset:kg_gene_sets",
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/models/hetero_gnn_scorer.py::HeteroGNNScorer",
+        "code:src/genomic_variant_classifier/models/hetero_gnn_scorer.py::build_hetero_focal_graph",
+        "code:src/genomic_variant_classifier/models/hetero_gnn_scorer.py::load_kg_edge_specs"
+      ],
+      "source_state": "verified",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "verified_overlap",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"maxentscan_score\"] = (",
+        "code:src/genomic_variant_classifier/pipelines/rna_pipeline.py#splice_mask    = (is_splice.astype(int) == 1) | (consev.astype(int) >= 7)"
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "MaxEntScan splice-site strength of the 9-mer donor or 23-mer acceptor context; default 0.0.",
+      "name": "maxentscan_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Splice-site context is non-clinical sequence biology, admissible in principle; but the producer gates on is_splice and consequence_severity, which do not exist until engineer_features runs AFTER annotation, so every row receives the default (RNA-SPLICE-GATE-ORDER-1; Run 15: constant). Withheld until a run measures real coverage.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/pipelines/rna_pipeline.py::RNASpliceIsoformPipeline"
+      ],
+      "source_state": "unavailable",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "proxy_nonclinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"maxentscan_delta\"] = ("
+      ],
+      "label_criterion_use": "acmg_computational_evidence",
+      "meaning": "Change in MaxEntScan strength caused by the variant; default 0.0.",
+      "name": "maxentscan_delta",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Splice-site context is non-clinical sequence biology, admissible in principle; but the producer gates on is_splice and consequence_severity, which do not exist until engineer_features runs AFTER annotation, so every row receives the default (RNA-SPLICE-GATE-ORDER-1; Run 15: constant). Withheld until a run measures real coverage.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/pipelines/rna_pipeline.py::RNASpliceIsoformPipeline"
+      ],
+      "source_state": "unavailable",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "proxy_nonclinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"dist_to_splice_site\"] = ("
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "Distance in bp to the nearest canonical donor or acceptor; default 50.",
+      "name": "dist_to_splice_site",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Splice-site context is non-clinical sequence biology, admissible in principle; but the producer gates on is_splice and consequence_severity, which do not exist until engineer_features runs AFTER annotation, so every row receives the default (RNA-SPLICE-GATE-ORDER-1; Run 15: constant). Withheld until a run measures real coverage.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/pipelines/rna_pipeline.py::RNASpliceIsoformPipeline"
+      ],
+      "source_state": "unavailable",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"exon_number\"] = ("
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "Exon number parsed from the VEP exon annotation; 0 for non-exonic OR unknown.",
+      "name": "exon_number",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Splice-site context is non-clinical sequence biology, admissible in principle; but the producer gates on is_splice and consequence_severity, which do not exist until engineer_features runs AFTER annotation, so every row receives the default (RNA-SPLICE-GATE-ORDER-1; Run 15: constant). Withheld until a run measures real coverage.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/pipelines/rna_pipeline.py::RNASpliceIsoformPipeline"
+      ],
+      "source_state": "unavailable",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"is_canonical_splice\"] = ("
+      ],
+      "label_criterion_use": "acmg_variant_type",
+      "meaning": "1 inside the canonical GT-AG dinucleotides (+1/+2 donor, -2/-1 acceptor).",
+      "name": "is_canonical_splice",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Splice-site context is non-clinical sequence biology, admissible in principle; but the producer gates on is_splice and consequence_severity, which do not exist until engineer_features runs AFTER annotation, so every row receives the default (RNA-SPLICE-GATE-ORDER-1; Run 15: constant). Withheld until a run measures real coverage.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/pipelines/rna_pipeline.py::RNASpliceIsoformPipeline"
+      ],
+      "source_state": "unavailable",
+      "source_time_status": "not_applicable",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#for col in (\"af_1kg_afr\", \"af_1kg_eur\", \"af_1kg_eas\", \"af_1kg_sas\", \"af_1kg_amr\"):",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py#ALL.chr*.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "1000 Genomes Phase 3 AFR super-population allele frequency; absent 0.0.",
+      "name": "af_1kg_afr",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured frequency from a fixed 2013 release (population-data evidence); absence is not separable from a failed join.",
+      "source_ids": [
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py::ThousandGenomesConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "verified_as_of",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#for col in (\"af_1kg_afr\", \"af_1kg_eur\", \"af_1kg_eas\", \"af_1kg_sas\", \"af_1kg_amr\"):",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py#ALL.chr*.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "1000 Genomes Phase 3 EUR super-population allele frequency; absent 0.0.",
+      "name": "af_1kg_eur",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured frequency from a fixed 2013 release (population-data evidence); absence is not separable from a failed join.",
+      "source_ids": [
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py::ThousandGenomesConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "verified_as_of",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#for col in (\"af_1kg_afr\", \"af_1kg_eur\", \"af_1kg_eas\", \"af_1kg_sas\", \"af_1kg_amr\"):",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py#ALL.chr*.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "1000 Genomes Phase 3 EAS super-population allele frequency; absent 0.0.",
+      "name": "af_1kg_eas",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured frequency from a fixed 2013 release (population-data evidence); absence is not separable from a failed join.",
+      "source_ids": [
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py::ThousandGenomesConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "verified_as_of",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#for col in (\"af_1kg_afr\", \"af_1kg_eur\", \"af_1kg_eas\", \"af_1kg_sas\", \"af_1kg_amr\"):",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py#ALL.chr*.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "1000 Genomes Phase 3 SAS super-population allele frequency; absent 0.0.",
+      "name": "af_1kg_sas",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured frequency from a fixed 2013 release (population-data evidence); absence is not separable from a failed join.",
+      "source_ids": [
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py::ThousandGenomesConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "verified_as_of",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#for col in (\"af_1kg_afr\", \"af_1kg_eur\", \"af_1kg_eas\", \"af_1kg_sas\", \"af_1kg_amr\"):",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py#ALL.chr*.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "1000 Genomes Phase 3 AMR super-population allele frequency; absent 0.0.",
+      "name": "af_1kg_amr",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured frequency from a fixed 2013 release (population-data evidence); absence is not separable from a failed join.",
+      "source_ids": [
+        "dataset:kg_1000g",
+        "code:src/genomic_variant_classifier/data/thousandgenomes.py::ThousandGenomesConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "verified_as_of",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#(\"finngen_af_fin\", 0.0),"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "FinnGen Finnish allele frequency; absent 0.0.",
+      "name": "finngen_af_fin",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured allele frequency in a population biobank; no supervision. Population-data evidence (BA1/BS1/PM2). The R12 and R13 releases are two measurements of overlapping participants, not independent evidence.",
+      "source_ids": [
+        "dataset:finngen",
+        "code:src/genomic_variant_classifier/data/finngen.py::FinnGenConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#(\"finngen_af_nfsee\", 0.0),"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "FinnGen non-Finnish (Swedish-Estonian) allele frequency; absent 0.0.",
+      "name": "finngen_af_nfsee",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured allele frequency in a population biobank; no supervision. Population-data evidence (BA1/BS1/PM2). The R12 and R13 releases are two measurements of overlapping participants, not independent evidence.",
+      "source_ids": [
+        "dataset:finngen",
+        "code:src/genomic_variant_classifier/data/finngen.py::FinnGenConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "finngen_af_fin",
+        "finngen_af_nfsee"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#(\"finngen_enrichment\", 1.0),"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "af_fin / (af_nfsee + 1e-9); absent 1.0.",
+      "name": "finngen_enrichment",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured allele frequency in a population biobank; no supervision. Population-data evidence (BA1/BS1/PM2). The R12 and R13 releases are two measurements of overlapping participants, not independent evidence.",
+      "source_ids": [
+        "dataset:finngen",
+        "code:src/genomic_variant_classifier/data/finngen.py::FinnGenConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#(\"finngen_r13_af_fin\", 0.0),"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "FinnGen R13 Finnish allele frequency; absent 0.0.",
+      "name": "finngen_r13_af_fin",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured allele frequency in a population biobank; no supervision. Population-data evidence (BA1/BS1/PM2). The R12 and R13 releases are two measurements of overlapping participants, not independent evidence.",
+      "source_ids": [
+        "dataset:finngen",
+        "code:src/genomic_variant_classifier/data/finngen.py::FinnGenConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#(\"finngen_r13_af_nfsee\", 0.0),"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "FinnGen R13 non-Finnish allele frequency; absent 0.0.",
+      "name": "finngen_r13_af_nfsee",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured allele frequency in a population biobank; no supervision. Population-data evidence (BA1/BS1/PM2). The R12 and R13 releases are two measurements of overlapping participants, not independent evidence.",
+      "source_ids": [
+        "dataset:finngen",
+        "code:src/genomic_variant_classifier/data/finngen.py::FinnGenConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee"
+      ],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#(\"finngen_r13_enrichment\", 1.0),"
+      ],
+      "label_criterion_use": "acmg_population_data",
+      "meaning": "R13 af_fin / (af_nfsee + 1e-9); absent 1.0.",
+      "name": "finngen_r13_enrichment",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Measured allele frequency in a population biobank; no supervision. Population-data evidence (BA1/BS1/PM2). The R12 and R13 releases are two measurements of overlapping participants, not independent evidence.",
+      "source_ids": [
+        "dataset:finngen",
+        "code:src/genomic_variant_classifier/data/finngen.py::FinnGenConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"esm2_delta_norm\"] = ("
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "L2 distance between wild-type and mutant ESM-2 residue embeddings at the variant; 0.0 for non-missense or unavailable.",
+      "name": "esm2_delta_norm",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Self-supervised protein language model; no clinical labels. 0.0 conflates 'no change' with 'not computed'.",
+      "source_ids": [
+        "dataset:esm2",
+        "code:src/genomic_variant_classifier/data/esm2.py::ESM2Connector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"esm2_llr\"] = ("
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "ESM-2 masked-marginal log-likelihood ratio (mutant minus wild type; negative = damaging); 0.0 unavailable.",
+      "name": "esm2_llr",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Self-supervised; 0.0 is also the neutral value.",
+      "source_ids": [
+        "dataset:esm2",
+        "code:src/genomic_variant_classifier/data/esm2.py::ESM2Connector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"genomiclm_delta_norm\"] = (",
+        "doi:10.1038/s41592-024-02523-z"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "L2 norm of the mean-pooled alt minus ref Nucleotide Transformer embedding over the 101 bp window; 0.0 unavailable.",
+      "name": "genomiclm_delta_norm",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Self-supervised DNA language model.",
+      "source_ids": [
+        "dataset:nucleotide_transformer",
+        "code:src/genomic_variant_classifier/data/genomic_lm.py::NucleotideTransformerConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"genomiclm_llr\"] = (  # SIGNED feature; NO clip",
+        "doi:10.1038/s41592-024-02523-z"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "Masked-LM log-likelihood ratio at the variant-centre token; 0.0 unavailable.",
+      "name": "genomiclm_llr",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Self-supervised DNA language model.",
+      "source_ids": [
+        "dataset:nucleotide_transformer",
+        "code:src/genomic_variant_classifier/data/genomic_lm.py::NucleotideTransformerConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"cosmic_recurrence\"] = (",
+        "code:src/genomic_variant_classifier/data/connectors/connector_cosmic.py#(0.0 when untested / absent / non-substitution)."
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "COSMIC CMC recurrence count; 0.0 for untested, absent or non-substitution.",
+      "name": "cosmic_recurrence",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: untested, unobserved and observed-zero are one value; a redesign keeps mutated and tested counts with an observation status under a new identity.",
+      "source_ids": [
+        "dataset:cosmic_cmc",
+        "code:src/genomic_variant_classifier/data/connectors/connector_cosmic.py::CosmicCmcConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "retire_predictive",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"cosmic_sig_tier\"] = ("
+      ],
+      "label_criterion_use": "clinical_classification",
+      "meaning": "COSMIC CMC MUTATION_SIGNIFICANCE_TIER ordinal (1 high, 2 medium, 3 low; Other and absent 0).",
+      "name": "cosmic_sig_tier",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned RETIRE_PREDICTIVE: CMC Tier 1 draws on ClinVar pathogenic classification; the annotation is kept as interpretive evidence only.",
+      "source_ids": [
+        "dataset:cosmic_cmc",
+        "code:src/genomic_variant_classifier/data/connectors/connector_cosmic.py::CosmicCmcConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "clinical",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"kegg_pathway_count\"] = ("
+      ],
+      "label_criterion_use": "acmg_gene_disease_curation",
+      "meaning": "Number of distinct KEGG pathways containing the gene, disease maps (hsa05xxx) included.",
+      "name": "kegg_pathway_count",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: counts disease maps; a disease-free count is a new identity requiring a verified pathway_is_disease classification.",
+      "source_ids": [
+        "dataset:kegg",
+        "code:src/genomic_variant_classifier/data/kegg.py::KEGGConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "mixed"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"kegg_disease_pathway_flag\"] = ("
+      ],
+      "label_criterion_use": "acmg_gene_disease_curation",
+      "meaning": "1 when the gene is in any KEGG Human Diseases map (hsa05xxx).",
+      "name": "kegg_disease_pathway_flag",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: curated disease-map membership.",
+      "source_ids": [
+        "dataset:kegg",
+        "code:src/genomic_variant_classifier/data/kegg.py::KEGGConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"pli_score\"] = ("
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "gnomAD v4.1 probability of loss-of-function intolerance; absent 0.0.",
+      "name": "pli_score",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Gene-level mutational constraint from a population mutation-rate model: no clinical labels, transferable to unseen genes. Defaults for genes without a measurement are values (MISSINGNESS-SEMANTICS-1).",
+      "source_ids": [
+        "dataset:gnomad_constraint",
+        "code:src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py::GnomADConstraintConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"loeuf\"] = ("
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "gnomAD v4.1 LOEUF, the upper 90% bound of lof.oe, clipped to [0, 5]; absent 1.0 (a value).",
+      "name": "loeuf",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Gene-level mutational constraint from a population mutation-rate model: no clinical labels, transferable to unseen genes. Defaults for genes without a measurement are values (MISSINGNESS-SEMANTICS-1).",
+      "source_ids": [
+        "dataset:gnomad_constraint",
+        "code:src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py::GnomADConstraintConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"syn_z\"] = ("
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "gnomAD synonymous Z-score; absent 0.0.",
+      "name": "syn_z",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Gene-level mutational constraint from a population mutation-rate model: no clinical labels, transferable to unseen genes. Defaults for genes without a measurement are values (MISSINGNESS-SEMANTICS-1).",
+      "source_ids": [
+        "dataset:gnomad_constraint",
+        "code:src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py::GnomADConstraintConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "admit_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"mis_z\"] = ("
+      ],
+      "label_criterion_use": "unknown",
+      "meaning": "gnomAD missense Z-score; absent 0.0.",
+      "name": "mis_z",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Gene-level mutational constraint from a population mutation-rate model: no clinical labels, transferable to unseen genes. Defaults for genes without a measurement are values (MISSINGNESS-SEMANTICS-1). Some laboratories cite missense constraint for PP2; whether the cohort's submitters did is unknown.",
+      "source_ids": [
+        "dataset:gnomad_constraint",
+        "code:src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py::GnomADConstraintConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"reactome_pathway_count\"] = ("
+      ],
+      "label_criterion_use": "acmg_gene_disease_curation",
+      "meaning": "Number of distinct Reactome pathways (all hierarchy levels) containing the gene; the Disease hierarchy is not excluded.",
+      "name": "reactome_pathway_count",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned WITHHOLD_PENDING_EVIDENCE: Reactome's Disease hierarchy (isInDisease) is counted; the same source supplies the hetero-GNN shares_pathway relation.",
+      "source_ids": [
+        "dataset:reactome",
+        "code:src/genomic_variant_classifier/data/reactome.py::ReactomeConnector"
+      ],
+      "source_state": "verified",
+      "source_time_status": "current_only",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "mixed"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/rnaseq.py#rnaseq_mean_log_tpm    float  mean log1p(TPM) across samples"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "Mean log1p(TPM) of the gene across the RNA-seq matrix's samples.",
+      "name": "rnaseq_mean_log_tpm",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "The ruling admits the three summary features only after their source populations are reviewed; the matrix's sample population is not recorded in the repository.",
+      "source_ids": [
+        "dataset:rnaseq_matrix",
+        "code:src/genomic_variant_classifier/data/rnaseq.py::annotate_rnaseq_from_parquet"
+      ],
+      "source_state": "unknown",
+      "source_time_status": "unknown",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/rnaseq.py#rnaseq_detection_rate  float  fraction of samples expressing the gene"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "Fraction of samples expressing the gene.",
+      "name": "rnaseq_detection_rate",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "As rnaseq_mean_log_tpm.",
+      "source_ids": [
+        "dataset:rnaseq_matrix",
+        "code:src/genomic_variant_classifier/data/rnaseq.py::annotate_rnaseq_from_parquet"
+      ],
+      "source_state": "unknown",
+      "source_time_status": "unknown",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/rnaseq.py#rnaseq_log2_cv         float  log2(1 + CV) of TPM across samples (dispersion)"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "log2(1 + coefficient of variation) of TPM across samples.",
+      "name": "rnaseq_log2_cv",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "As rnaseq_mean_log_tpm.",
+      "source_ids": [
+        "dataset:rnaseq_matrix",
+        "code:src/genomic_variant_classifier/data/rnaseq.py::annotate_rnaseq_from_parquet"
+      ],
+      "source_state": "unknown",
+      "source_time_status": "unknown",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/rnaseq.py#rnaseq_log2fc          float  log2 fold-change case/control (0 if no DE)"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "log2 fold change, case against control (0 without a contrast).",
+      "name": "rnaseq_log2fc",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: a disease contrast, not an intrinsic gene property.",
+      "source_ids": [
+        "dataset:rnaseq_matrix",
+        "code:src/genomic_variant_classifier/data/rnaseq.py::annotate_rnaseq_from_parquet"
+      ],
+      "source_state": "verified",
+      "source_time_status": "unknown",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "continual_training",
+        "evaluation",
+        "feature_engineering",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "split_persistence",
+        "tabular_fit"
+      ],
+      "depends_on": [],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/rnaseq.py#rnaseq_de_neglog10p    float  -log10(p) case-vs-control test (0 if no DE)"
+      ],
+      "label_criterion_use": "none_known",
+      "meaning": "-log10(p) of the case-control test (0 without a contrast).",
+      "name": "rnaseq_de_neglog10p",
+      "producer": "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features",
+      "reason": "Pinned EXCLUDE_STRICT: a disease contrast.",
+      "source_ids": [
+        "dataset:rnaseq_matrix",
+        "code:src/genomic_variant_classifier/data/rnaseq.py::annotate_rnaseq_from_parquet"
+      ],
+      "source_state": "verified",
+      "source_time_status": "unknown",
+      "threshold_supervision": "none",
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    }
+  ],
+  "expected_feature_count": 91,
+  "graph_inventory": {
+    "kg_relation_sources": {
+      "clingen": "shares_disease",
+      "go": "shares_function",
+      "kegg": "shares_pathway",
+      "omim": "shares_disease",
+      "reactome": "shares_pathway"
+    },
+    "string_edge_attribute_channels": [
+      "experimental",
+      "database",
+      "coexpression"
+    ],
+    "string_edge_selection": "links_df = links_df[links_df[\"combined_score\"] >= self.threshold]"
+  },
+  "information_sources": [
+    {
+      "consumers": [
+        "hetero_gnn_relations"
+      ],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/kg_edges.py#\"url\": \"https://search.clinicalgenome.org/kb/gene-validity/download\","
+      ],
+      "kind": "graph_relation",
+      "meaning": "shares_disease edges between genes curated to the same ClinGen disease label.",
+      "name": "kg_relation:clingen",
+      "origin": "clinical_disease",
+      "producer": "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::load_kg_edge_specs",
+      "reason": "Clinical gene-disease curation: the same information as the excluded clingen_validity_score, re-entering as topology (KG-DISEASE-RELATION-1). Not used by the Run 17 launchers; the code accepts it.",
+      "source_ids": [
+        "dataset:kg_gene_sets",
+        "dataset:clingen",
+        "code:src/genomic_variant_classifier/data/kg_edges.py::clingen_edges"
+      ],
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "hetero_gnn_relations"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/kg_edges.py#\"url\": \"MSigDB c5.go.bp.*.symbols.gmt (or goa_human.gaf)\","
+      ],
+      "kind": "graph_relation",
+      "meaning": "shares_function edges between genes co-annotated to a GO term (MSigDB GMT).",
+      "name": "kg_relation:go",
+      "origin": "unknown",
+      "producer": "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::load_kg_edge_specs",
+      "reason": "GO is functional biology, but annotations include inferred-from-mutant-phenotype evidence from disease studies and a GMT carries no evidence codes to filter them; withheld until an evidence-code-filtered source is used.",
+      "source_ids": [
+        "dataset:kg_gene_sets",
+        "code:src/genomic_variant_classifier/data/kg_edges.py::go_edges"
+      ],
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "unknown"
+    },
+    {
+      "consumers": [
+        "hetero_gnn_relations"
+      ],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/kg_edges.py#\"url\": \"MSigDB c2.cp.kegg_medicus.*.symbols.gmt (registration)\",",
+        "code:src/genomic_variant_classifier/data/kegg.py#hsa05xxx: cancers, neurodegenerative, immune,"
+      ],
+      "kind": "graph_relation",
+      "meaning": "shares_pathway edges between genes in the same KEGG gene set.",
+      "name": "kg_relation:kegg",
+      "origin": "mixed",
+      "producer": "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::load_kg_edge_specs",
+      "reason": "The same source class as the excluded KEGG features, disease maps included.",
+      "source_ids": [
+        "dataset:kg_gene_sets",
+        "dataset:kegg",
+        "code:src/genomic_variant_classifier/data/kg_edges.py::kegg_edges"
+      ],
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "mixed"
+    },
+    {
+      "consumers": [
+        "hetero_gnn_relations"
+      ],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/kg_edges.py#\"url\": \"OMIM genemap2.txt (license required)\","
+      ],
+      "kind": "graph_relation",
+      "meaning": "shares_disease edges between genes linked to the same OMIM phenotype.",
+      "name": "kg_relation:omim",
+      "origin": "clinical_disease",
+      "producer": "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::load_kg_edge_specs",
+      "reason": "Clinical gene-disease curation re-entering as topology (KG-DISEASE-RELATION-1).",
+      "source_ids": [
+        "dataset:kg_gene_sets",
+        "dataset:omim",
+        "code:src/genomic_variant_classifier/data/kg_edges.py::omim_edges"
+      ],
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "hetero_gnn_relations"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/kg_edges.py#\"url\": \"https://reactome.org/download/current/ReactomePathways.gmt\",",
+        "code:scripts/launch_run17_baseline.sh#ARGS=\"$ARGS --hetero-gnn --kg-edges reactome:$REACTOME_GMT\""
+      ],
+      "kind": "graph_relation",
+      "meaning": "shares_pathway edges between genes in the same ReactomePathways.gmt pathway (Disease hierarchy included).",
+      "name": "kg_relation:reactome",
+      "origin": "mixed",
+      "producer": "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::load_kg_edge_specs",
+      "reason": "Withheld with reactome_pathway_count (ruling c34eb717): the Disease hierarchy is not excluded. This is the relation the Run 17 launchers pass.",
+      "source_ids": [
+        "dataset:kg_gene_sets",
+        "dataset:reactome",
+        "code:src/genomic_variant_classifier/data/kg_edges.py::reactome_edges"
+      ],
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "mixed"
+    },
+    {
+      "consumers": [
+        "gnn_edge_attributes"
+      ],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "url:https://string-db.org/help/scores/",
+        "code:src/genomic_variant_classifier/models/gnn.py#_CHANNELS = ["
+      ],
+      "kind": "edge_attribute",
+      "meaning": "STRING co-expression channel score / 1000 as a GNN edge attribute.",
+      "name": "string_edge_attribute:coexpression",
+      "origin": "independent_biology",
+      "producer": "src/genomic_variant_classifier/models/gnn.py::build_pyg_dataset",
+      "reason": "Co-expression is measured biology, but it exists only on edges chosen by the mixed-origin combined score, so it is conditional on a channel-restricted edge selection (1D-3).",
+      "source_ids": [
+        "dataset:string",
+        "code:src/genomic_variant_classifier/models/gnn.py::StringDBGraph"
+      ],
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "gnn_edge_attributes"
+      ],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "url:https://string-db.org/help/scores/",
+        "code:src/genomic_variant_classifier/models/gnn.py#_CHANNELS = ["
+      ],
+      "kind": "edge_attribute",
+      "meaning": "STRING curated-database channel score / 1000 as a GNN edge attribute.",
+      "name": "string_edge_attribute:database",
+      "origin": "mixed",
+      "producer": "src/genomic_variant_classifier/models/gnn.py::build_pyg_dataset",
+      "reason": "STRING: 'associations derived from curated pathway and complex databases', including KEGG and Reactome -- the excluded and withheld pathway sources, disease maps included (STRING-CHANNEL-ORIGIN-1).",
+      "source_ids": [
+        "dataset:string",
+        "code:src/genomic_variant_classifier/models/gnn.py::StringDBGraph"
+      ],
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "mixed"
+    },
+    {
+      "consumers": [
+        "gnn_edge_attributes"
+      ],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "url:https://string-db.org/help/scores/",
+        "code:src/genomic_variant_classifier/models/gnn.py#_CHANNELS = ["
+      ],
+      "kind": "edge_attribute",
+      "meaning": "STRING experimental channel score / 1000 as a GNN edge attribute.",
+      "name": "string_edge_attribute:experimental",
+      "origin": "independent_biology",
+      "producer": "src/genomic_variant_classifier/models/gnn.py::build_pyg_dataset",
+      "reason": "Measured interaction evidence; conditional on a channel-restricted edge selection, as coexpression.",
+      "source_ids": [
+        "dataset:string",
+        "code:src/genomic_variant_classifier/models/gnn.py::StringDBGraph"
+      ],
+      "upstream_overlap": "not_applicable",
+      "upstream_supervision": "none"
+    },
+    {
+      "consumers": [
+        "gnn_edges",
+        "hetero_gnn_relations"
+      ],
+      "disposition": "exclude_strict",
+      "evidence_refs": [
+        "url:https://string-db.org/help/scores/",
+        "code:src/genomic_variant_classifier/models/gnn.py#links_df = links_df[links_df[\"combined_score\"] >= self.threshold]"
+      ],
+      "kind": "graph_relation",
+      "meaning": "Gene pairs whose STRING combined score >= the threshold (700 by default): the GNN edges and the hetero-GNN interacts_with relation.",
+      "name": "string_relation:combined_score_threshold",
+      "origin": "mixed",
+      "producer": "src/genomic_variant_classifier/models/gnn.py::StringDBGraph",
+      "reason": "The combined score integrates the curated-database channel (KEGG, Reactome) and literature text mining with measured channels, so edge existence is of mixed origin. A channel-restricted combined score is a new identity (STRING-CHANNEL-ORIGIN-1).",
+      "source_ids": [
+        "dataset:string",
+        "code:src/genomic_variant_classifier/models/gnn.py::StringDBGraph"
+      ],
+      "upstream_overlap": "unknown",
+      "upstream_supervision": "mixed"
+    },
+    {
+      "consumers": [
+        "gnn_supervision"
+      ],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:scripts/run_phase2_eval.py#gnn_df[\"acmg_label\"] = y_train.values"
+      ],
+      "kind": "supervision_label",
+      "meaning": "The STRING-GNN's training target: the ClinVar-derived label of the training rows.",
+      "name": "supervision:gnn_label",
+      "origin": "clinical_disease",
+      "producer": "src/genomic_variant_classifier/models/gnn.py::train_gnn_pipeline",
+      "reason": "A supervision label is legitimate for a first-class member trained out-of-fold (1D-3); as an input feature's producer it is the clinical label itself.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/models/gnn.py::train_gnn_pipeline"
+      ],
+      "upstream_overlap": "verified_overlap",
+      "upstream_supervision": "clinical"
+    },
+    {
+      "consumers": [
+        "hetero_gnn_supervision"
+      ],
+      "disposition": "conditional_only",
+      "evidence_refs": [
+        "code:scripts/run_phase2_eval.py#hetero_df[\"acmg_label\"] = y_train.values"
+      ],
+      "kind": "supervision_label",
+      "meaning": "The hetero-GNN's training target: the ClinVar-derived label of the training rows.",
+      "name": "supervision:hetero_gnn_label",
+      "origin": "clinical_disease",
+      "producer": "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::HeteroGNNTrainer",
+      "reason": "As supervision:gnn_label.",
+      "source_ids": [
+        "dataset:clinvar_cohort",
+        "code:src/genomic_variant_classifier/models/hetero_gnn_scorer.py::HeteroGNNTrainer"
+      ],
+      "upstream_overlap": "verified_overlap",
+      "upstream_supervision": "clinical"
+    }
+  ],
+  "measured_dependencies": {
+    "gnn_score": [
+      "surface:gnn_node_attributes",
+      "string_relation:combined_score_threshold",
+      "string_edge_attribute:experimental",
+      "string_edge_attribute:database",
+      "string_edge_attribute:coexpression",
+      "supervision:gnn_label"
+    ],
+    "hetero_gnn_score": [
+      "surface:hetero_gnn_node_attributes",
+      "string_relation:combined_score_threshold",
+      "kg_relation:clingen",
+      "kg_relation:go",
+      "kg_relation:kegg",
+      "kg_relation:omim",
+      "kg_relation:reactome",
+      "supervision:hetero_gnn_label"
+    ]
+  },
+  "producer_digests": {
+    "src/genomic_variant_classifier/data/alphamissense.py::AlphaMissenseConnector": "61344a6fb36d5eeee32228e409f7470b23508432d265446469980bc18729c11a",
+    "src/genomic_variant_classifier/data/cadd.py::CADDConnector": "3fff47e33776b1a333a22ceb0c0ab8550ff68d47048e651daf8b2fb5a0021c5f",
+    "src/genomic_variant_classifier/data/clingen.py::ClinGenConnector": "c588d73c5b37241ad51ffbd6b8ec63cb2d1fa628e18a87cf56f4c80cf31def9f",
+    "src/genomic_variant_classifier/data/connectors/connector_cosmic.py::CosmicCmcConnector": "55b985383733edc6a5c7d4523321503eb0b187ab226e94437482295c7876d437",
+    "src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py::GnomADConstraintConnector": "17d8fe61da5b1ae18c707722c62b2833411b2dbfc26e316de36c404d1b2f78c1",
+    "src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector": "766d2cf9d9713827b502becca829c54ddaccab3861d1141358c34254eff3a0b0",
+    "src/genomic_variant_classifier/data/dbsnp.py::DbSNPConnector": "b282869e1f1c597b03597bab2c3fc395a08216f643d37292d5de495378ed879e",
+    "src/genomic_variant_classifier/data/esm2.py::ESM2Connector": "0585b20decc8852543a3ec6db466c408c505ba172e83a3e01ac2b1222a19832a",
+    "src/genomic_variant_classifier/data/eve.py::EVEConnector": "006e2858b043503e87c7ff57d41920eda41ac71d04153b171b1d20707fca9047",
+    "src/genomic_variant_classifier/data/finngen.py::FinnGenConnector": "f8df0f1f6256a68d3ed4b8620f2815919282f743b64c6e02c8e79449477cbfd2",
+    "src/genomic_variant_classifier/data/genomic_lm.py::NucleotideTransformerConnector": "ed2a338347f9164c66343e86e7237353a4175e977b040d3a4d90d462b6c9e995",
+    "src/genomic_variant_classifier/data/gtex.py::annotate_gtex_expression_from_parquet": "92273459dad6238953c19d50ee3dcfe6c93fc9e1c2784b41d3fb0e587043dccd",
+    "src/genomic_variant_classifier/data/gtex.py::build_gtex_feature_df": "99a183d8ee11158770fac04fe1f4a767175233e91ae2c245591b339fbc6b09e8",
+    "src/genomic_variant_classifier/data/kegg.py::KEGGConnector": "51b3d348ef8de76932ec98edd7c0669f16710c936a56c28bfbe1bc0b879fc3f7",
+    "src/genomic_variant_classifier/data/kg_edges.py::clingen_edges": "4ebcc7e6b7ee52ad2afa558fe35a3ba65dd3b31d024ea052d6f7577a0fc6f88e",
+    "src/genomic_variant_classifier/data/kg_edges.py::go_edges": "50165fceb66ec4e5d2ac1c1c8101156dbdc4c74da0f418dae5305b17284075ec",
+    "src/genomic_variant_classifier/data/kg_edges.py::kegg_edges": "8c72e38b0c3580b45e6d89da402bfb6241d2a95408326f930d4ffb176cedf61b",
+    "src/genomic_variant_classifier/data/kg_edges.py::omim_edges": "6c4cd2d4566b6cf7c950e252ace7fe87dd0055c2da541a2702c1b357c6983ed1",
+    "src/genomic_variant_classifier/data/kg_edges.py::reactome_edges": "1493630d913179f3199a058f4475e7b3e173abb87ca35c11f9db5a12a82f6a47",
+    "src/genomic_variant_classifier/data/lovd.py::LOVDConnector": "1b13fe87f9f104f489b6d7d3f4ffc972524989b04d1ccbbe16daed6125943ffc",
+    "src/genomic_variant_classifier/data/omim.py::OMIMConnector": "ffef6ccc760cba6d940ea19256d52a22e0d76d548d3626e6605d9402b625f999",
+    "src/genomic_variant_classifier/data/phylop.py::PhyloPConnector": "c1cd55dd793bea7288127f99373e5c7f1aebc90193f6e5e4d6e58c22c0d5796e",
+    "src/genomic_variant_classifier/data/reactome.py::ReactomeConnector": "50e920c158411ba64b1a4d2edd20cd397f6c5e29a24260e563ae290a5a773367",
+    "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._annotate_scores": "55e1ada7416968d2c58cdcd2787931abcc9b14474e35d564000a1cacf88cd82d",
+    "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._gene_aware_split": "856374066692b25667a70b796efe818e4a34191e3c71507af18b77b45b221baa",
+    "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_alphamissense": "ac75bc7790e7e82c357c50648a3bc6aede56cd7fc985faca528f40e664126a68",
+    "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_gnomad": "0a344246b7c44b5ee8155dee82fa7b929d903b245d463784124dc8ab55bca388",
+    "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_spliceai": "e2160b39d31cc56f30ae66a08f0451431862a78a3c336ccb048441fcf7ca8e25",
+    "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_uniprot": "dbbf32e3e625fbc7123f28f59bba0098f05ed598c3b44545cde63d68069df797",
+    "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._load_and_label": "8e47bc2d4a7cb344f4cd0a95e1b9a0507becae109ae83a411b471276ad24ca4f",
+    "src/genomic_variant_classifier/data/real_data_prep.py::enrich_gene_counts": "d3c6074302ebf59d544fee7be3c4f1b37a697abbdf6c4d6d8b4c0f6d5c9b717c",
+    "src/genomic_variant_classifier/data/rnaseq.py::annotate_rnaseq_from_parquet": "916e3b611d7dc24ad339836f4a0cd9c6d8349ee69ffe8d7b8c8b3fad95cdf243",
+    "src/genomic_variant_classifier/data/spliceai.py::SpliceAIConnector": "b4f4151222e142094ba3731407dd1499cac95b3ee0b765e4c7f79bbc79dcff0f",
+    "src/genomic_variant_classifier/data/thousandgenomes.py::ThousandGenomesConnector": "7a0986205062eb081fd9c81d5409cababc4f576836f622cb17b77893c5ea1cf4",
+    "src/genomic_variant_classifier/data/vep.py::VEPConnector": "de90bc87129b9bbf08738a4ee1b52ad0d850985609a6d4fb01c3cdaaab8f4fae",
+    "src/genomic_variant_classifier/models/gnn.py::GNNScorer": "eba741510a769c8ba9491290273ae6a4f1fe26368c929b154d81dccfbf38dae2",
+    "src/genomic_variant_classifier/models/gnn.py::StringDBGraph": "9d6f495e7371d2d0d37ec437f2de5f9ffab31c74330f59691ab7294644c02618",
+    "src/genomic_variant_classifier/models/gnn.py::build_pyg_dataset": "db3c5c3ac6818968857b721dc82bda9dfc73b49f463f26a8f50f2d7f3d526560",
+    "src/genomic_variant_classifier/models/gnn.py::train_gnn_pipeline": "b6621a78c0e216e44086a0fe42c9f9503c8f61074ddf1b908fea8403e9a649f0",
+    "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::HeteroGNNScorer": "46f0aed90d61c7f62b34b5f73170c178a93523aecd7cb4586a7af34cc1e48646",
+    "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::HeteroGNNTrainer": "73b3078b1ff338b259819cc1545f96a675f37e159b0ca34e083170f745b06264",
+    "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::build_hetero_focal_graph": "17d0f4b79723a8322595c41bcc80808b100be797e81066429d302d0163dce669",
+    "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::load_kg_edge_specs": "bfe77eb2f61fd0cd91c0b6b35bc42d7b7de56968761ab07c6c14e0c7d858a31b",
+    "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features": "54d79e0936c460ec1da164501617af6fc6e2fd9c1120b9a357d79adc84901b2b",
+    "src/genomic_variant_classifier/pipelines/rna_pipeline.py::RNASpliceIsoformPipeline": "a124193a5ab553b1eb1ddad9eceab3250849b2000efd70cd837281d5f9b594d5"
+  },
+  "registered_defects": [
+    {
+      "affects": [
+        "eve_score"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/eve.py#n_covered = (result[\"eve_score\"] != DEFAULT_SCORE).sum()",
+        "record:docs/census/measure_1d1_correction.json"
+      ],
+      "id": "EVE-COVERAGE-IDENTITY-1",
+      "statement": "EVE coverage is inferred from the value: the connector fills unmatched variants with 0.5 and counts coverage as score != 0.5, so a genuine 0.5 is uncovered; the 1D-1 audit's measurement compared standardised matrices with raw defaults (withdrawn, docs/census/measure_1d1_correction.json)."
+    },
+    {
+      "affects": [
+        "af_raw",
+        "af_is_absent",
+        "sift_score",
+        "polyphen2_score",
+        "revel_score",
+        "alphamissense_score",
+        "eve_score",
+        "cadd_phred",
+        "phylop_score",
+        "gerp_score",
+        "splice_ai_score",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "loeuf",
+        "pli_score",
+        "syn_z",
+        "mis_z",
+        "dbsnp_af",
+        "gnn_score",
+        "hetero_gnn_score",
+        "finngen_enrichment",
+        "finngen_r13_enrichment"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#All missing columns are filled with safe defaults (df.get)"
+      ],
+      "id": "MISSINGNESS-SEMANTICS-1",
+      "statement": "(Registered by the owner, decision file 25691d66.) engineer_features fills an absent source with a value that is also a valid observation (0.5 for SIFT, PolyPhen-2, REVEL, AlphaMissense, EVE and both GNN scores; 15.0 for CADD; 0.0 for conservation, splicing, language-model, frequency and count features; 1.0 for LOEUF and FinnGen enrichment), so no model can tell 'not observed' from 'observed at the default'. The observation contract (value, status, source identity) is stage 1D-1b."
+    },
+    {
+      "affects": [
+        "gnn_score",
+        "hetero_gnn_score"
+      ],
+      "evidence_refs": [
+        "code:scripts/run_phase2_eval.py#X_split[\"gnn_score\"] = (",
+        "code:src/genomic_variant_classifier/api/pipeline.py#enriched[\"gnn_score\"] = gene_symbols.map(",
+        "record:docs/census/measure_1d1_correction.json"
+      ],
+      "id": "GNN-SCALE-SKEW-1",
+      "statement": "The run driver injects RAW gnn_score and hetero_gnn_score into matrices whose other columns are StandardScaler outputs, after the scaler was fitted on the constant default; inference instead adds gnn_score BEFORE scaling (a scaler fitted on a constant 0.5 has scale 1 and mean 0.5, so inference sees g - 0.5 where evaluation saw g) and never computes hetero_gnn_score. Measured on Run 15: persisted gnn_score spans [0.0012, 0.5] while cadd_phred has mean 0 and standard deviation 1."
+    },
+    {
+      "affects": [
+        "gnn_score",
+        "hetero_gnn_score"
+      ],
+      "evidence_refs": [
+        "code:scripts/run_phase2_eval.py#c for c in X_train.columns if c != \"gnn_score\""
+      ],
+      "id": "GNN-NODE-LABEL-COUNT-1",
+      "statement": "GNN node attributes are every training column but gnn_score -- including the retired label count n_pathogenic_in_gene, lovd_variant_class and cosmic_sig_tier and the excluded curated gene-disease features -- and the GNN is trained on the same training labels, so gnn_score inherits every retired and excluded dependency (measured_dependencies)."
+    },
+    {
+      "affects": [
+        "kg_relation:clingen",
+        "kg_relation:omim",
+        "kg_relation:kegg",
+        "kg_relation:reactome",
+        "hetero_gnn_score"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/hetero_gnn_scorer.py#\"clingen\": (_kg.clingen_edges, \"shares_disease\"),"
+      ],
+      "id": "KG-DISEASE-RELATION-1",
+      "statement": "The hetero-GNN relation table accepts ClinGen and OMIM shares_disease and KEGG and Reactome shares_pathway sources: curated disease information excluded from the tabular census can re-enter as graph topology."
+    },
+    {
+      "affects": [
+        "string_relation:combined_score_threshold",
+        "string_edge_attribute:database",
+        "gnn_score",
+        "hetero_gnn_score"
+      ],
+      "evidence_refs": [
+        "url:https://string-db.org/help/scores/",
+        "code:src/genomic_variant_classifier/models/gnn.py#links_df = links_df[links_df[\"combined_score\"] >= self.threshold]"
+      ],
+      "id": "STRING-CHANNEL-ORIGIN-1",
+      "statement": "GNN edges are selected on STRING's combined score, which integrates the curated-database channel (KEGG, Reactome, BioCyc) and literature text mining, and the database channel is itself an edge attribute."
+    },
+    {
+      "affects": [
+        "codon_position"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/vep.py#match = re.search(r'(\\d+)', protein_change)"
+      ],
+      "id": "CODON-POSITION-SEMANTICS-1",
+      "statement": "codon_position holds (aa_pos - 1) % 3 + 1 from the first digit run of protein_change, overwritten by the unbounded residue index protein_pos wherever protein coordinates exist."
+    },
+    {
+      "affects": [
+        "maxentscan_score",
+        "maxentscan_delta",
+        "dist_to_splice_site",
+        "exon_number",
+        "is_canonical_splice"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/pipelines/rna_pipeline.py#is_splice      = result.get(\"is_splice\", pd.Series(0, index=result.index))"
+      ],
+      "id": "RNA-SPLICE-GATE-ORDER-1",
+      "statement": "The splice-context pipeline runs during annotation but gates on is_splice and consequence_severity, which engineer_features creates afterwards; every row receives the defaults (Run 15's annotated rows carry neither column; four of its five outputs were constant)."
+    },
+    {
+      "affects": [
+        "gtex_is_eqtl",
+        "gtex_min_eqtl_pval",
+        "gtex_max_abs_effect"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#eQTL trio stays at defaults."
+      ],
+      "id": "GTEX-EQTL-PRODUCTION-DEFAULT-1",
+      "statement": "The production GTEx path (bulk parquet) writes the defaults for the three variant-level eQTL features; only the per-gene API path, which no launcher uses, computes them."
+    }
+  ],
+  "schema": "gvc.feature-census.1d1a/2",
+  "surfaces": {
+    "calibration": {
+      "anchor": null,
+      "line": null,
+      "note": "calibration consumes member and blend scores, never feature columns; no discovered site",
+      "observed": [],
+      "path": null,
+      "rule": "none"
+    },
+    "continual_training": {
+      "anchor": "X_new = engineer_features(new_clinvar)",
+      "line": 467,
+      "note": "continual refits build their matrix with engineer_features",
+      "observed": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gnn_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "hetero_gnn_score",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "syn_z"
+      ],
+      "path": "src/genomic_variant_classifier/training/continual_trainer.py",
+      "rule": "engineered"
+    },
+    "evaluation": {
+      "anchor": "self.tabular_columns_ = tuple(X_tab.columns)",
+      "line": 2994,
+      "note": "prediction and evaluation consume exactly the columns recorded at fit",
+      "observed": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gnn_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "hetero_gnn_score",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "syn_z"
+      ],
+      "path": "src/genomic_variant_classifier/models/variant_ensemble.py",
+      "rule": "contract"
+    },
+    "export": {
+      "anchor": null,
+      "line": null,
+      "note": "no exporter reads feature columns; no discovered site",
+      "observed": [],
+      "path": null,
+      "rule": "none"
+    },
+    "feature_engineering": {
+      "anchor": "def engineer_features(df: pd.DataFrame) -> pd.DataFrame:",
+      "line": 756,
+      "note": "the single feature builder; its output columns, measured by running it",
+      "observed": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gnn_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "hetero_gnn_score",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "syn_z"
+      ],
+      "path": "src/genomic_variant_classifier/models/variant_ensemble.py",
+      "rule": "engineered"
+    },
+    "gnn_node_attributes": {
+      "anchor": "c for c in X_train.columns if c != \"gnn_score\"",
+      "line": 667,
+      "note": "gene-level means of these columns over the training rows are the STRING-GNN node attributes",
+      "observed": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "hetero_gnn_score",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "syn_z"
+      ],
+      "path": "scripts/run_phase2_eval.py",
+      "rule": "comprehension"
+    },
+    "hetero_gnn_node_attributes": {
+      "anchor": "c for c in X_train.columns if c not in (\"gnn_score\", \"hetero_gnn_score\")",
+      "line": 892,
+      "note": "node attributes of the heterogeneous knowledge-graph GNN",
+      "observed": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "syn_z"
+      ],
+      "path": "scripts/run_phase2_eval.py",
+      "rule": "comprehension"
+    },
+    "inference": {
+      "anchor": "INFERENCE_FEATURE_COLUMNS: list[str] = list(TABULAR_FEATURES)",
+      "line": 84,
+      "note": "the inference pipeline renders the contract (or the fitted scaler's feature_names_in_)",
+      "observed": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gnn_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "hetero_gnn_score",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "syn_z"
+      ],
+      "path": "src/genomic_variant_classifier/api/pipeline.py",
+      "rule": "contract"
+    },
+    "scaler_fit": {
+      "anchor": "X_train_scaled = pd.DataFrame(self.scaler.fit_transform(X_train), columns=cols)",
+      "line": 1600,
+      "note": "StandardScaler fitted on every column of the guarded training matrix",
+      "observed": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gnn_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "hetero_gnn_score",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "syn_z"
+      ],
+      "path": "src/genomic_variant_classifier/data/real_data_prep.py",
+      "rule": "contract"
+    },
+    "split_persistence": {
+      "anchor": "X_train.to_parquet(out / \"X_train.parquet\", index=False, compression=\"zstd\")",
+      "line": 1622,
+      "note": "every column of the scaled matrices is written; the run driver re-writes them after GNN injection",
+      "observed": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gnn_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "hetero_gnn_score",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "syn_z"
+      ],
+      "path": "src/genomic_variant_classifier/data/real_data_prep.py",
+      "rule": "contract"
+    },
+    "tabular_fit": {
+      "anchor": "engineer_features output violates the TABULAR_FEATURES contract -- ",
+      "line": 1369,
+      "note": "the training matrix is refused unless its columns equal the contract in order; VariantEnsemble.fit records X_tab.columns as tabular_columns_",
+      "observed": [
+        "af_1kg_afr",
+        "af_1kg_amr",
+        "af_1kg_eas",
+        "af_1kg_eur",
+        "af_1kg_sas",
+        "af_is_absent",
+        "af_is_common",
+        "af_is_rare",
+        "af_is_ultra_rare",
+        "af_log10",
+        "af_raw",
+        "alphamissense_score",
+        "alt_len",
+        "cadd_high",
+        "cadd_phred",
+        "clingen_validity_score",
+        "codon_position",
+        "consequence_severity",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "dbsnp_af",
+        "dist_to_splice_site",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "eve_score",
+        "exon_number",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "gene_constraint_oe",
+        "gene_has_known_disease",
+        "gene_is_constrained",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "gerp_score",
+        "gnn_score",
+        "gtex_is_eqtl",
+        "gtex_max_abs_effect",
+        "gtex_max_tpm",
+        "gtex_min_eqtl_pval",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "has_uniprot_annotation",
+        "hetero_gnn_score",
+        "in_coding",
+        "is_autosome",
+        "is_canonical_splice",
+        "is_deletion",
+        "is_indel",
+        "is_insertion",
+        "is_loss_of_function",
+        "is_missense",
+        "is_mitochondrial",
+        "is_sex_chrom",
+        "is_snv",
+        "is_splice",
+        "is_synonymous",
+        "kegg_disease_pathway_flag",
+        "kegg_pathway_count",
+        "len_diff",
+        "loeuf",
+        "lovd_variant_class",
+        "maxentscan_delta",
+        "maxentscan_score",
+        "mis_z",
+        "n_known_pathogenic_protein_variants",
+        "n_pathogenic_in_gene",
+        "n_tools_pathogenic",
+        "omim_is_autosomal_dominant",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "phylop_score",
+        "pli_score",
+        "polyphen2_score",
+        "polyphen_probably_damaging",
+        "reactome_pathway_count",
+        "ref_len",
+        "revel_pathogenic",
+        "revel_score",
+        "rnaseq_de_neglog10p",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_mean_log_tpm",
+        "sift_deleterious",
+        "sift_score",
+        "splice_ai_score",
+        "syn_z"
+      ],
+      "path": "src/genomic_variant_classifier/data/real_data_prep.py",
+      "rule": "contract"
+    }
+  }
+}
