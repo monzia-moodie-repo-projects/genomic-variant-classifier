@@ -1,0 +1,652 @@
+{
+  "author": "Monzia Moodie",
+  "bound_code": {
+    "scripts/measure_1d1b3_graph_identity.py::run": "84950ba40389d1bd6b5e7fb0626478a01e54cc4adc1be405eae1e007555b2682",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::GraphPolicy": "2ef3c304fd4952010e16adc4c46f25b3f91f55d305280ef0940c754e8e95db3a",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::accept_graph": "253e33f0ab97f058f7d2f1a33eb3622077b41fa81e2665b758532f60b29e25df",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::classify_threshold": "5e48ea208385c467c35080ba08837586587a7ecb5ffa3d644226640be3fd2762",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::induced_subgraph_consistency": "c80b802cd702aaf79a8b93447652556e0edbe457b2be759b3bfa1bb29d438717",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::map_string_proteins": "49a85f77ba8a2331e4c6d374b0b63f11a062dc36a8d0088c76cfd933acc8ff07",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::materialize_string_graph": "4b750bcee65c2635d00941df450ba4921295feb3d762e16f3de17ee7549e7447",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::model_consistency": "e240b5617c857b38c6eafc862d4f14f94b2492db43185248abc260394d1f3195",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::project_pathways": "888e9a2af414b8a955b3b69cb8dd9f6a34880c9e41ceaa927d1b98b9ef8a97cd",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_gene_sets": "e2b8f6387bc24db446f6f985ec28a85406a94e8de5be1d6e7b0ea851af81eaa6",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_hgnc": "7b5b6291cb0fd2acaa83a90961dc317c674d15a43003739cf02cedb08bbd8950",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_string_info": "df1fcb896ddbfa9a52adac5e486daf84430622abca026b2b505e85f6d94449b6",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_string_pairs": "96446b384c25d53140ef783003fb63d12e3061315bb1c37907a7e8dc02a0fd51",
+    "src/genomic_variant_classifier/information_sources/labels.py::LabelAuthority": "6b2ae1074283158c946fe36632b1738fc6195a458474b673d0c1249481b3ab63"
+  },
+  "cohort": {
+    "canonical_gene_sets": {
+      "canonical_genes_on_both_sides": 419,
+      "components_straddling_split": 309,
+      "gene_components": 16599,
+      "genes_in_straddling_components": 660,
+      "heldout_rows_touching_a_training_gene": 82999,
+      "largest_component_genes": 11,
+      "largest_component_rows": 19985,
+      "multi_gene_symbols": 729,
+      "multi_gene_symbols_all_parts_resolve": 550,
+      "rows_in_straddling_components": 219128,
+      "rows_with_multi_gene_symbol": 1838,
+      "rows_with_no_resolvable_gene": 365,
+      "training_rows_touching_a_heldout_gene": 113568
+    },
+    "columns_not_read": [
+      "metadata"
+    ],
+    "hgnc_ids_under_two_or_more_symbols": 26,
+    "hgnc_ids_whose_symbols_straddle_train_and_heldout": 14,
+    "rows": 1490014,
+    "rows_of_those_symbols": 8324,
+    "rows_without_symbol": 0,
+    "split_symbols_not_in_cohort": 0,
+    "straddling_examples": [
+      [
+        "HGNC:1152",
+        [
+          "BVES",
+          "POPDC1"
+        ]
+      ],
+      [
+        "HGNC:14438",
+        [
+          "C2CD6",
+          "CATSPERT"
+        ]
+      ],
+      [
+        "HGNC:16894",
+        [
+          "MFSD10",
+          "SLC75A1"
+        ]
+      ],
+      [
+        "HGNC:17117",
+        [
+          "SLC35C2",
+          "SLC35H1"
+        ]
+      ],
+      [
+        "HGNC:18085",
+        [
+          "TMEM199",
+          "VMA12"
+        ]
+      ],
+      [
+        "HGNC:20329",
+        [
+          "SLC9D1",
+          "TMCO3"
+        ]
+      ],
+      [
+        "HGNC:20887",
+        [
+          "GTDC1",
+          "QTMAN"
+        ]
+      ],
+      [
+        "HGNC:25157",
+        [
+          "MFSD3",
+          "SLC33A2"
+        ]
+      ],
+      [
+        "HGNC:25984",
+        [
+          "SLC38A12",
+          "TMEM104"
+        ]
+      ],
+      [
+        "HGNC:26196",
+        [
+          "MFSD13A",
+          "SLC68A1"
+        ]
+      ],
+      [
+        "HGNC:28158",
+        [
+          "MFSD9",
+          "SLC67A2"
+        ]
+      ],
+      [
+        "HGNC:29937",
+        [
+          "CCDC65",
+          "DRC2"
+        ]
+      ],
+      [
+        "HGNC:4166",
+        [
+          "DRC4",
+          "GAS8"
+        ]
+      ],
+      [
+        "HGNC:6041",
+        [
+          "HACL2",
+          "ILVBL"
+        ]
+      ]
+    ],
+    "symbol_resolution": {
+      "approved_symbol": 16858,
+      "previous_symbol_unique": 85,
+      "unresolved": 751
+    },
+    "symbols": 17694,
+    "symbols_matching_a_string_preferred_name": 16542,
+    "symbols_reaching_string_only_by_hgnc_id": 250,
+    "symbols_reaching_string_only_by_name": 1,
+    "symbols_whose_hgnc_id_is_a_string_node": 16791,
+    "symbols_with_a_string_name_but_not_mapped": 2,
+    "test_symbols": 3539,
+    "val_symbols": 1770,
+    "val_test_symbol_overlap": 0
+  },
+  "graphs": {
+    "G1": {
+      "census": {
+        "information_sources": {
+          "string_edge_attribute:coexpression": "conditional_only",
+          "string_edge_attribute:experimental": "conditional_only",
+          "string_relation:combined_score_threshold": "exclude_strict"
+        },
+        "policy_sha256": "9cb24799f79bce9fb12735d03f8886625349de5b0c9590dc4c0e646f129abfc3",
+        "regime": "G1",
+        "strict_admissible": false,
+        "why": "every STRING regime selects through the published combined score (G1 is nested in G2), which the census excludes from the strict regime; G1 and G2 are research graphs"
+      },
+      "materialization": {
+        "edge_content_sha256": "26e350bebf119275bbc806917e55733bd5ee40b1d54ed0c8119dc161801438f6",
+        "graph_schema_version": "gvc.graph-materialization.1d1b3/1",
+        "mapping_sha256": "ef8b499f0d5d8d35cf12bf20dd0bed899bd40d9e76a6b15f180e82fec4053f67",
+        "node_universe_sha256": "b5992165df64bfc3fe307b29fdbbdaaa4280a5896e5ddfc4e5ae6445bf1c9908",
+        "relation_policy_sha256": "9cb24799f79bce9fb12735d03f8886625349de5b0c9590dc4c0e646f129abfc3",
+        "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+      },
+      "policy": {
+        "attribute_channels": [
+          "experimental",
+          "coexpression"
+        ],
+        "canonicalization": "hgnc_id:approved_or_unique_previous_symbol:approved_symbol_precedence",
+        "edge_reduction": "exact_undirected_pair",
+        "edge_semantics": "predicted_functional_association_not_physical_interaction",
+        "info_sha256": "144de4b0d98c6a7dfde6ddc2591cf88657f27b989eadff4f501450c3ed1f0f1c",
+        "mapping_source": "dataset:hgnc",
+        "mapping_source_sha256": "69bb5722d5a42bb355580deb2c9f197ce3d7f7d13807173b9674a7db65e52191",
+        "node_universe": "global_source",
+        "quantization": "rounded_channels_floored_combined",
+        "regime": "G1",
+        "release": "12.0",
+        "schema": "gvc.graph-materialization.1d1b3/1",
+        "selection_channels": [
+          "neighborhood",
+          "fusion",
+          "cooccurence",
+          "coexpression",
+          "experimental"
+        ],
+        "source": "dataset:string",
+        "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6",
+        "threshold_milli": 700,
+        "threshold_robust_only": false
+      },
+      "policy_sha256": "9cb24799f79bce9fb12735d03f8886625349de5b0c9590dc4c0e646f129abfc3",
+      "report": {
+        "edges": 83613,
+        "nodes": 19312,
+        "pairs": 6857702,
+        "selected_pairs": 84987,
+        "selected_pairs_becoming_self_loops": 0,
+        "selected_pairs_with_unmapped_endpoint": 1374,
+        "unmapped_endpoint_status_counts": {
+          "collision_superseded": 2,
+          "previous_symbol_ambiguous": 2,
+          "unresolved": 1375
+        }
+      }
+    },
+    "G1_threshold_robust": {
+      "census": {
+        "information_sources": {
+          "string_edge_attribute:coexpression": "conditional_only",
+          "string_edge_attribute:experimental": "conditional_only",
+          "string_relation:combined_score_threshold": "exclude_strict"
+        },
+        "policy_sha256": "cec9d385d7a19ea34d47798ab93f7818f09b349ce940db50f609aa055d82a2e1",
+        "regime": "G1",
+        "strict_admissible": false,
+        "why": "every STRING regime selects through the published combined score (G1 is nested in G2), which the census excludes from the strict regime; G1 and G2 are research graphs"
+      },
+      "materialization": {
+        "edge_content_sha256": "51eec4f427427358aa7760955842c5eef2d68c71ebc4ff9623b7710f2b2c026c",
+        "graph_schema_version": "gvc.graph-materialization.1d1b3/1",
+        "mapping_sha256": "ef8b499f0d5d8d35cf12bf20dd0bed899bd40d9e76a6b15f180e82fec4053f67",
+        "node_universe_sha256": "b5992165df64bfc3fe307b29fdbbdaaa4280a5896e5ddfc4e5ae6445bf1c9908",
+        "relation_policy_sha256": "cec9d385d7a19ea34d47798ab93f7818f09b349ce940db50f609aa055d82a2e1",
+        "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+      },
+      "policy": {
+        "attribute_channels": [
+          "experimental",
+          "coexpression"
+        ],
+        "canonicalization": "hgnc_id:approved_or_unique_previous_symbol:approved_symbol_precedence",
+        "edge_reduction": "exact_undirected_pair",
+        "edge_semantics": "predicted_functional_association_not_physical_interaction",
+        "info_sha256": "144de4b0d98c6a7dfde6ddc2591cf88657f27b989eadff4f501450c3ed1f0f1c",
+        "mapping_source": "dataset:hgnc",
+        "mapping_source_sha256": "69bb5722d5a42bb355580deb2c9f197ce3d7f7d13807173b9674a7db65e52191",
+        "node_universe": "global_source",
+        "quantization": "rounded_channels_floored_combined",
+        "regime": "G1",
+        "release": "12.0",
+        "schema": "gvc.graph-materialization.1d1b3/1",
+        "selection_channels": [
+          "neighborhood",
+          "fusion",
+          "cooccurence",
+          "coexpression",
+          "experimental"
+        ],
+        "source": "dataset:string",
+        "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6",
+        "threshold_milli": 700,
+        "threshold_robust_only": true
+      },
+      "policy_sha256": "cec9d385d7a19ea34d47798ab93f7818f09b349ce940db50f609aa055d82a2e1",
+      "report": {
+        "edges": 83501,
+        "nodes": 19312,
+        "pairs": 6857702,
+        "selected_pairs": 84874,
+        "selected_pairs_becoming_self_loops": 0,
+        "selected_pairs_with_unmapped_endpoint": 1373,
+        "unmapped_endpoint_status_counts": {
+          "collision_superseded": 2,
+          "previous_symbol_ambiguous": 2,
+          "unresolved": 1374
+        }
+      }
+    },
+    "G2": {
+      "census": {
+        "information_sources": {
+          "string_edge_attribute:coexpression": "conditional_only",
+          "string_edge_attribute:database": "exclude_strict",
+          "string_edge_attribute:experimental": "conditional_only",
+          "string_relation:combined_score_threshold": "exclude_strict"
+        },
+        "policy_sha256": "846fcdbae9a96749aeba17606455c6f99e52207d1039db52082867b1a73b6fa9",
+        "regime": "G2",
+        "strict_admissible": false,
+        "why": "every STRING regime selects through the published combined score (G1 is nested in G2), which the census excludes from the strict regime; G1 and G2 are research graphs"
+      },
+      "materialization": {
+        "edge_content_sha256": "ebc64a6e6db6e03b532a089640d4a4aba684621446ac8c4fce71bc15227fba10",
+        "graph_schema_version": "gvc.graph-materialization.1d1b3/1",
+        "mapping_sha256": "ef8b499f0d5d8d35cf12bf20dd0bed899bd40d9e76a6b15f180e82fec4053f67",
+        "node_universe_sha256": "b5992165df64bfc3fe307b29fdbbdaaa4280a5896e5ddfc4e5ae6445bf1c9908",
+        "relation_policy_sha256": "846fcdbae9a96749aeba17606455c6f99e52207d1039db52082867b1a73b6fa9",
+        "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+      },
+      "policy": {
+        "attribute_channels": [
+          "experimental",
+          "database",
+          "coexpression"
+        ],
+        "canonicalization": "hgnc_id:approved_or_unique_previous_symbol:approved_symbol_precedence",
+        "edge_reduction": "exact_undirected_pair",
+        "edge_semantics": "predicted_functional_association_not_physical_interaction",
+        "info_sha256": "144de4b0d98c6a7dfde6ddc2591cf88657f27b989eadff4f501450c3ed1f0f1c",
+        "mapping_source": "dataset:hgnc",
+        "mapping_source_sha256": "69bb5722d5a42bb355580deb2c9f197ce3d7f7d13807173b9674a7db65e52191",
+        "node_universe": "global_source",
+        "quantization": null,
+        "regime": "G2",
+        "release": "12.0",
+        "schema": "gvc.graph-materialization.1d1b3/1",
+        "selection_channels": [
+          "neighborhood",
+          "fusion",
+          "cooccurence",
+          "coexpression",
+          "experimental",
+          "database",
+          "textmining"
+        ],
+        "source": "dataset:string",
+        "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6",
+        "threshold_milli": 700,
+        "threshold_robust_only": false
+      },
+      "policy_sha256": "846fcdbae9a96749aeba17606455c6f99e52207d1039db52082867b1a73b6fa9",
+      "report": {
+        "edges": 234358,
+        "nodes": 19312,
+        "pairs": 6857702,
+        "selected_pairs": 236930,
+        "selected_pairs_becoming_self_loops": 0,
+        "selected_pairs_with_unmapped_endpoint": 2572,
+        "unmapped_endpoint_status_counts": {
+          "collision_superseded": 12,
+          "previous_symbol_ambiguous": 2,
+          "unresolved": 2567
+        }
+      }
+    }
+  },
+  "inputs": {
+    "cohort": {
+      "bytes": 142269185,
+      "file": "clinvar_grch38_clean.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "8d8747eb741cecd960ae3118d2b0b844a1cf55662ab617a1fd2b5dfc4f6e2c2c"
+    },
+    "hgnc": {
+      "bytes": 16940274,
+      "file": "hgnc_complete_set.txt",
+      "logical_source": "dataset:hgnc",
+      "sha256": "69bb5722d5a42bb355580deb2c9f197ce3d7f7d13807173b9674a7db65e52191"
+    },
+    "meta_test": {
+      "bytes": 14627756,
+      "file": "meta_test.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "43fe2694a662935aa94a401375d3886901ff4af743d5461c956843b33c7a7295"
+    },
+    "meta_val": {
+      "bytes": 7281137,
+      "file": "meta_val.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "f385c6e3be5888afe7cf029df6b60e16ed9108cb7620ce6173b4f939207dfa4b"
+    },
+    "reactome": {
+      "bytes": 1017374,
+      "file": "ReactomePathways.gmt",
+      "logical_source": "dataset:reactome",
+      "sha256": "cf17607f842c1742d3ecb96e6a4b03f11889c39f44005a37c31d12e4c006b65e"
+    },
+    "string_info": {
+      "bytes": 1970090,
+      "file": "9606.protein.info.v12.0.txt.gz",
+      "logical_source": "dataset:string",
+      "sha256": "144de4b0d98c6a7dfde6ddc2591cf88657f27b989eadff4f501450c3ed1f0f1c"
+    },
+    "string_links": {
+      "bytes": 139634808,
+      "file": "9606.protein.links.detailed.v12.0.txt.gz",
+      "logical_source": "dataset:string",
+      "sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+    }
+  },
+  "label_authority": {
+    "authorized_genes": 12360,
+    "authorized_rows": 1038768,
+    "gene_identity": "HGNC id where the symbol resolves (approved or unique previous), else 'unresolved:<symbol>'",
+    "heldout_genes": 5308,
+    "heldout_rows": 451040,
+    "refused_genes": [
+      "HGNC:1152",
+      "HGNC:14438",
+      "HGNC:16894",
+      "HGNC:17117",
+      "HGNC:18085",
+      "HGNC:20329",
+      "HGNC:20887",
+      "HGNC:25157",
+      "HGNC:25984",
+      "HGNC:26196",
+      "HGNC:28158",
+      "HGNC:29937",
+      "HGNC:4166",
+      "HGNC:6041"
+    ],
+    "refused_training_rows": 206
+  },
+  "legacy_cache": {
+    "filenames": 1,
+    "policies": 3,
+    "policies_per_filename": {
+      "string_graph_700.pkl": 3
+    },
+    "template": "string_graph_{threshold}.pkl"
+  },
+  "legacy_string_graph": {
+    "cache_returned_for_a_different_links_file": {
+      "edges": 236930,
+      "same_graph": true
+    },
+    "edges": 236930,
+    "nodes": 16201,
+    "nodes_kept_as_raw_protein_ids": 0,
+    "self_loops": 0
+  },
+  "mapping": {
+    "collisions": [
+      {
+        "claimants": [
+          [
+            "9606.ENSP00000366326",
+            "NEBL",
+            "approved_symbol"
+          ],
+          [
+            "9606.ENSP00000433646",
+            "C10orf113",
+            "previous_symbol_unique"
+          ]
+        ],
+        "hgnc_id": "HGNC:16932",
+        "kept": "9606.ENSP00000366326"
+      },
+      {
+        "claimants": [
+          [
+            "9606.ENSP00000373066",
+            "TXNRD3NB",
+            "previous_symbol_unique"
+          ],
+          [
+            "9606.ENSP00000430031",
+            "TXNRD3",
+            "approved_symbol"
+          ]
+        ],
+        "hgnc_id": "HGNC:20667",
+        "kept": "9606.ENSP00000430031"
+      },
+      {
+        "claimants": [
+          [
+            "9606.ENSP00000341963",
+            "RSC1A1",
+            "previous_symbol_unique"
+          ],
+          [
+            "9606.ENSP00000417748",
+            "DDI2",
+            "approved_symbol"
+          ]
+        ],
+        "hgnc_id": "HGNC:24578",
+        "kept": "9606.ENSP00000417748"
+      },
+      {
+        "claimants": [
+          [
+            "9606.ENSP00000352424",
+            "TIAF1",
+            "previous_symbol_unique"
+          ],
+          [
+            "9606.ENSP00000437073",
+            "MYO18A",
+            "approved_symbol"
+          ]
+        ],
+        "hgnc_id": "HGNC:31104",
+        "kept": "9606.ENSP00000437073"
+      }
+    ],
+    "info_proteins_without_links": 77,
+    "link_proteins_without_info": 0,
+    "mapping_sha256": "ef8b499f0d5d8d35cf12bf20dd0bed899bd40d9e76a6b15f180e82fec4053f67",
+    "note": "aliases are not used for canonical identity; the count shows what an alias rule would add",
+    "proteins": 19699,
+    "status_counts": {
+      "approved_symbol": 18837,
+      "collision_superseded": 4,
+      "previous_symbol_ambiguous": 1,
+      "previous_symbol_unique": 475,
+      "unresolved": 382
+    },
+    "unresolved_but_unique_alias": 0
+  },
+  "platform": {
+    "python": "3.12.3",
+    "system": "Linux"
+  },
+  "quantization": {
+    "bounds_floored_exactly": 0,
+    "consistent_fraction": 0.9999514414595443,
+    "inconsistent_pairs": 333,
+    "max_miss_thousandths": 1,
+    "model": "rounded_channels_floored_combined",
+    "pairs": 6857702
+  },
+  "reactome": {
+    "duplicate_names": 0,
+    "global_size_projection": {
+      "edges_global_universe": 1186406,
+      "edges_train_plus_heldout_universe": 910589,
+      "edges_train_universe": 459918,
+      "induced_subgraph_consistency": {
+        "added_by_growth": 0,
+        "consistent": 1,
+        "induced_edges": 459918,
+        "removed_by_growth": 0,
+        "reweighted_by_growth": 0,
+        "small_edges": 459918
+      },
+      "max_set_size_applied_to": "global canonical size"
+    },
+    "hypergraph_equivalence_max_abs_difference": 6.039613253960852e-14,
+    "largest_canonical_sets": [
+      2615,
+      2261,
+      2191,
+      2141,
+      2124
+    ],
+    "legacy": {
+      "edges_train_plus_heldout_universe": 1095962,
+      "edges_train_universe": 732550,
+      "max_set_size_applied_to": "cohort-restricted size",
+      "train_edges_added_by_adding_heldout_genes": 0,
+      "train_edges_removed_by_adding_heldout_genes": 180843
+    },
+    "legacy_sets_after_name_merge": 2855,
+    "member_resolution": {
+      "approved_symbol": 137201,
+      "previous_symbol_ambiguous": 5,
+      "previous_symbol_unique": 256,
+      "unresolved": 3176
+    },
+    "sets": 2855,
+    "sets_over_cap_globally": 110,
+    "uncapped_clique_pairs": 31388304,
+    "unresolved_members": 3181
+  },
+  "schema": "gvc.graph-identity-record.1d1b3/1",
+  "steps": [
+    {
+      "peak_rss_mib": 3132.0,
+      "seconds": 47.6,
+      "step": "legacy_string_graph"
+    },
+    {
+      "peak_rss_mib": 3132.0,
+      "seconds": 101.7,
+      "step": "read_string_pairs"
+    },
+    {
+      "peak_rss_mib": 3132.0,
+      "seconds": 108.9,
+      "step": "threshold"
+    },
+    {
+      "peak_rss_mib": 3132.0,
+      "seconds": 109.4,
+      "step": "mapping"
+    },
+    {
+      "peak_rss_mib": 3132.0,
+      "seconds": 177.2,
+      "step": "graphs"
+    },
+    {
+      "peak_rss_mib": 4335.1,
+      "seconds": 207.5,
+      "step": "cohort_and_labels"
+    },
+    {
+      "peak_rss_mib": 4335.1,
+      "seconds": 226.2,
+      "step": "reactome"
+    }
+  ],
+  "string_pairs": {
+    "content_sha256": "234e300cd8f640998ebf93bbdbd3bf441235d0f8b658db70b5f5fd848de4145b",
+    "max_partition_records": 215588,
+    "pairs": 6857702,
+    "partitions": 64,
+    "proteins": 19622,
+    "record_bytes": 25,
+    "records": 13715404,
+    "scratch_bytes": 342885100
+  },
+  "threshold": {
+    "channels": [
+      "neighborhood",
+      "fusion",
+      "cooccurence",
+      "coexpression",
+      "experimental"
+    ],
+    "crosstab": {
+      "excluded_robust|published_fails": 6620763,
+      "excluded_robust|published_passes": 151879,
+      "excluded_sensitive|published_fails": 9,
+      "excluded_sensitive|published_passes": 64,
+      "selected_robust|published_fails": 0,
+      "selected_robust|published_passes": 84874,
+      "selected_sensitive|published_fails": 0,
+      "selected_sensitive|published_passes": 113
+    },
+    "decided_exactly": {
+      "lower_bound": 0,
+      "reconstruction": 52,
+      "upper_bound": 0
+    },
+    "g1_selected": 84987,
+    "g2_published": 236930,
+    "model": "rounded_channels_floored_combined",
+    "threshold_milli": 700
+  }
+}

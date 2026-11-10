@@ -6,6 +6,8 @@ code, not asserted), and its ruled disposition. It changes no model behaviour. S
 on this census; stage 1D-1b.1 (set "ap") adds the typed observation contract (observation.py) and the shadow admission report
 derived from the census (admission.py); stage 1D-1b.2 (set "aq") adds lineage integrity (lineage.py), columnar observations and
 derived-feature propagation (columns.py), source materialisation with the EVE and allele-frequency pilots (materialization.py)
-and the source-absence census (absence_census.py). Nothing in production imports any of them yet.
+and the source-absence census (absence_census.py); stage 1D-1b.3 (set "ar") adds source-bound graph identity
+(graph_identity.py: exact STRING pairs, threshold status, canonical HGNC mapping, computed graph materialisations, pathway
+relations by global set size) and authorized labels (labels.py). Nothing in production imports any of them yet.
 """
 from __future__ import annotations

@@ -1,0 +1,118 @@
+{
+  "author": "Monzia Moodie",
+  "schema": "gvc.label-sites.1d1b3/1",
+  "scope": "modules of src/ and scripts/ that name the graph builders' label column (acmg_label) or define a function with a label_col/label_column parameter (labels.discover_label_sites). Out of scope, stated: the tabular fitters' y arrays and the cohort column 'label', whose fold boundary belongs to the leakage-free baseline (stage 1D-2).",
+  "sites": {
+    "scripts/ablate_gnn.py": {
+      "markers": [
+        "constant:_assemble"
+      ],
+      "reason": "GNN ablation and timing harness: reads the TRAINING split's labels (meta_train or y_train) to train a GNN for timing; its scores are not model inputs",
+      "roles": [
+        "experiment"
+      ]
+    },
+    "scripts/audit_npathogenic_leakage.py": {
+      "markers": [
+        "parameter:_load"
+      ],
+      "reason": "measures the n_pathogenic_in_gene leakage from the stored splits; fits no model",
+      "roles": [
+        "diagnostic"
+      ]
+    },
+    "scripts/clean_cohort.py": {
+      "markers": [
+        "parameter:run_clean"
+      ],
+      "reason": "Phase 0 cohort de-leak: detects the label column and resolves duplicate and label-conflict rows at the cohort source, before splits exist",
+      "roles": [
+        "label_definition"
+      ]
+    },
+    "scripts/probe_label_column_terms.py": {
+      "markers": [
+        "parameter:inspect_cohort"
+      ],
+      "reason": "checks the cohort's label column against the production term sets; fits no model",
+      "roles": [
+        "diagnostic"
+      ]
+    },
+    "scripts/probe_patch_6b.py": {
+      "markers": [
+        "constant:<module>"
+      ],
+      "reason": "500-row plumbing probe that builds gnn_df as the run driver does (gnn_df['acmg_label'] = y_train.values); trains nothing",
+      "roles": [
+        "diagnostic"
+      ]
+    },
+    "scripts/run_phase2_eval.py": {
+      "markers": [
+        "constant:main"
+      ],
+      "reason": "the run driver writes y_train into gnn_df and hetero_df: the graph builders' label boundary is set HERE, by the caller (training labels only, measured R-1); the builders cannot tell authorized from unauthorized rows",
+      "roles": [
+        "label_writer"
+      ]
+    },
+    "scripts/validate_clinvar_temporal.py": {
+      "markers": [
+        "constant:main"
+      ],
+      "reason": "temporal hold-out evaluation: scores predictions against the label of variants evaluated after the training cutoff",
+      "roles": [
+        "evaluation"
+      ]
+    },
+    "src/genomic_variant_classifier/data/spark_etl.py": {
+      "markers": [
+        "constant:enrich"
+      ],
+      "reason": "the Spark ETL's enrich stage derives acmg_label from pathogenicity terms",
+      "roles": [
+        "label_definition"
+      ]
+    },
+    "src/genomic_variant_classifier/data/splits.py": {
+      "markers": [
+        "parameter:split_summary"
+      ],
+      "reason": "split_summary reports per-split label prevalence when given a label column; it changes no split",
+      "roles": [
+        "diagnostic"
+      ]
+    },
+    "src/genomic_variant_classifier/information_sources/labels.py": {
+      "markers": [
+        "constant:<module>"
+      ],
+      "reason": "this stage's label authority: defines LABEL_COLUMN, the graph builders' label column name",
+      "roles": [
+        "label_definition"
+      ]
+    },
+    "src/genomic_variant_classifier/models/gnn.py": {
+      "markers": [
+        "constant:build_pyg_dataset",
+        "parameter:build_pyg_dataset"
+      ],
+      "reason": "build_pyg_dataset makes every labeled row of the frame it is given a focal sample: it reads whatever labels the caller passes (non-interference fails on raw labels, holds on the authority's masked labels: tests/unit/test_label_authority.py)",
+      "roles": [
+        "fitter"
+      ]
+    },
+    "src/genomic_variant_classifier/models/hetero_gnn_scorer.py": {
+      "markers": [
+        "constant:build_hetero_focal_graph",
+        "parameter:assemble_node_features_and_focal",
+        "parameter:build_hetero_focal_graph"
+      ],
+      "reason": "assemble_node_features_and_focal and build_hetero_focal_graph make every labeled row a focal sample: they read whatever labels the caller passes (non-interference fails on raw labels, holds on the authority's masked labels)",
+      "roles": [
+        "fitter"
+      ]
+    }
+  }
+}

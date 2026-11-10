@@ -1,3 +1,43 @@
+## 2026-11-10 (package 1D, stage 1D-1b.3, set "ar" revision B) -- line endings; owner ruling 68ca322f registered
+
+- Windows V1 of the first candidate stopped: 6 tests failed on CRLF fixtures written by Path.write_text. graph_identity: every
+  reader (STRING links and info, HGNC, GMT) refuses a carriage return by name (a CRLF GMT had silently made the last member of
+  every set unresolved). Tests write fixtures as bytes; test_carriage_returns_are_refused_by_every_reader (4 readers x every line or one row CRLF: 8);
+  test_fixtures_for_byte_strict_readers_are_written_as_bytes (AST guard).
+- Registered (owner ruling 68ca322f): LABEL-TYPE-IDENTITY-1, LABEL-DENIED-READ-AUDIT-1, GRAPH-MAPPING-RECEIPT-AUTHORITY-1,
+  GRAPH-MUTABLE-MATERIALIZATION-1 (each with a witness in tests/unit/test_registered_defect_witnesses.py), VARIANT-MULTIGENE-
+  ISOLATION-1 (measured in docs/census/GRAPH_IDENTITY_1D1b3.json, cohort.canonical_gene_sets), LABEL-ACCESS-DISCOVERY-SCOPE-1,
+  STRING-PROTEIN-GENE-REDUCTION-1. Records re-measured because the bound readers changed (every measured value identical);
+  benchmark re-run (54.3-58.4 s, 629-820 MiB, same content). Semantic digest unchanged (97f64bcb).
+- Suite 9,197 -> 9,210 (+14 / -1 by node identity, one parametrized case renamed; against main +74 / -0); README badge.
+
+## 2026-11-10 (package 1D, stage 1D-1b.3, set "ar") -- source-bound graph identity and authorized labels
+
+Owner rulings f2ec92cd (Unit 1D-1b.3; section III, the disk-backed exact-pair approach), 7f4b69d0 (sections 7-10) and 7a2a6ade
+(section 13). Shadow mode: no model, feature, scaler, graph, split or inference behaviour changes; no production module imports
+the new code; no GNN is retrained.
+
+- information_sources/graph_identity.py (new): read_string_pairs (one verified pass; 25-byte records spooled to hash partitions;
+  exact pairing; every deviation refused); read_string_info; combine_channels and combine_exact (rational, prior 41/1000);
+  channel_bounds and model_consistency; classify_threshold (four-way status with the published flag, integer thousandths,
+  boundary comparisons decided exactly); read_hgnc and map_string_proteins (approved, else unique previous symbol; collisions by
+  approved-symbol precedence, reported); GraphPolicy, GraphMaterialization, materialize_string_graph and accept_graph (identity
+  recomputed from content); legacy_string_cache_name and legacy_cache_collisions; census_admission; read_gene_sets,
+  project_pathways (global |S_s|, weight 1/(|S_s| - 1), exactly-rounded sums), induced_subgraph_consistency, hypergraph_matvec.
+- information_sources/labels.py (new): LabelRecord, FoldScopedLabelStore, LabelAuthority (scope derived from canonical genes),
+  masked labels, label_noninterference, output_digest, discover_label_sites and check_label_sites.
+- scripts/measure_1d1b3_graph_identity.py and docs/census/GRAPH_IDENTITY_1D1b3.json; scripts/benchmark_1d1b3_string_reader.py and
+  docs/census/STRING_READER_BENCHMARK_1D1b3.json; docs/census/LABEL_SITES_1D1b3.json (12 reviewed sites).
+- Census (scripts/build_feature_census_1d1a.py, docs/census/FEATURE_CENSUS_1D1a.json): dataset hgnc; the diagnostic site
+  scripts/measure_1d1b3_graph_identity.py; STRING-PAIR-ACCOUNTING-1, STRING-THRESHOLD-RECONSTRUCTION-1, STRING-GENE-MAPPING-1,
+  KG-COHORT-DEPENDENT-PROJECTION-1, KG-RELATION-SOURCE-MERGE-1, GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1 and
+  GENE-SYMBOL-SPLIT-IDENTITY-1, each with its measured numbers. Semantic digest unchanged (97f64bcb); SOURCE_ABSENCE_1D1b2.json and
+  ADMISSION_SHADOW_1D1b2.json re-derived (the ledger digest, 27 datasets, the defect attachments; admission counts unchanged).
+- ROADMAP: the 1D-1b.2 merge record, the maturity table (split identity; graph information), the entry. docs/census/README.md:
+  the stage 1D-1b.3 section.
+- Tests: +61 / -0 (tests/unit/test_graph_identity.py 37, test_label_authority.py 15, test_graph_identity_record.py 9;
+  test_admission_shadow.py's shadow-mode lists extended). Suite 9,136 -> 9,197. README: the badge.
+
 ## 2026-11-10 (package 1D, stage 1D-1b.2, set "aq") -- lineage integrity, source materialisation, source-absence census
 
 Owner ruling of 2026-11-09 (decision file 7f4b69d0...), sections 3, 4, 5, 15 and 19. Shadow mode: no model, feature, scaler,
