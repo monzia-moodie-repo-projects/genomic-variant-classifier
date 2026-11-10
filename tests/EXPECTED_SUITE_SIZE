@@ -8355,4 +8355,28 @@
 #   byte for byte and never overwrites; no production module imports the new modules, which are not contract consumers; they
 #   import without the model-training stack; observations: no boolean, non-finite or non-real value, NumPy numbers normalised, no
 #   sentinel on an absent state, the state decides whether a source is named). (tests_drift/: unchanged, 22.)
-9077
+# 2026-11-10  PACKAGE 1D, STAGE 1D-1b.2 (set "aq"; owner ruling 7f4b69d0) -- lineage integrity, source materialisation and the
+#   source-absence census. +66 / -7 by node identity (collected against main, 18fa338e). New files: +9 tests/unit/test_lineage.py
+#   (every cyclic component named, self-loops included; no recursion limit; deterministic order; the least fixed point never admits
+#   a cycle and equals the greatest on an acyclic graph; ancestors and grounding; the census acyclic and grounded; the census gate
+#   refuses a cycle and an ungrounded leaf); +13 tests/unit/test_observation_columns.py (logical source and content digest; the
+#   owner's digest table; derived states; no boolean, non-finite, non-real value or sentinel; ordered unique populations; rows
+#   reconciled with the population; every contract breach refused vectorised; reasons in the identity; a million rows; partial
+#   count and strict propagation; every census-derived feature has its rule; the scalar contract imports without numpy);
+#   +16 tests/unit/test_materialization.py (one pass binds the parse to the bytes; an early stop refuses; compressed and
+#   columnar sources; the directory manifest; registered sources only; the entry map equals the legacy loader; every EVE file
+#   parses as the connector parses it; a genuine 0.5 told from every absence; the projection equals the connector, its full
+#   read included, and the restricted lookup changes nothing; duplicated keys multiply legacy rows; source absent; population
+#   order; an observed zero; the AF projection equals the current join, keep-first and cohort precedence included; measured
+#   receipts); +12 tests/unit/test_absence_census.py (the committed census re-derives byte for byte; raw inputs by execution
+#   equal the source text; 89 of 91 fabricate; four indicators set by absence, reproduced directly; fills that equal a
+#   measurement; lineage through declared dependencies, a wrong declaration refused; the hermetic chain; the command line; a
+#   warning about a fabricated value refuses the silent claim; the builder's
+#   signals measured in a child process, so no warning filter of the caller changes; determinism); +9 tests/unit/test_pilot_record.py (receipts
+#   reconcile; the record bound to the materialisers and to every step's code; inputs by digest; the AF pilot reproduces the
+#   join; the absence arithmetic; the population without the unused column equals production's; the indicator AUROC; the
+#   registered defects). tests/unit/test_admission_shadow.py: -7 renamed or moved (the typed-observation tests to
+#   test_observation_columns.py; the greatest fixed point now refuses cycles), +7 (graded exposure; the shadow materialisers;
+#   the lineage block; least = greatest on the census; cycle refusal; an ungrounded leaf; only the absence census consumes the
+#   contract, classified diagnostic). (tests_drift/: unchanged, 22.)
+9136

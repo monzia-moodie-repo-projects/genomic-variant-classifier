@@ -1,3 +1,34 @@
+## 2026-11-10 (package 1D, stage 1D-1b.2, set "aq") -- lineage integrity, source materialisation, source-absence census
+
+Owner ruling of 2026-11-09 (decision file 7f4b69d0...), sections 3, 4, 5, 15 and 19. Shadow mode: no model, feature, scaler,
+graph, split or inference behaviour changes, and no production module imports the new code.
+
+- information_sources/lineage.py (new, standard library): every cyclic component named at once (iterative Tarjan, self-loops
+  included), a deterministic dependency order, the least fixed point, transitive ancestors, ungrounded leaves.
+  ADMISSION-CYCLIC-LINEAGE-1 is refused by the census gate (census.py, R7) and by the admission report, and admission is the
+  least fixed point, so a cycle cannot admit itself even past the structural check. Equal to 1D-1b.1 on the acyclic census.
+- information_sources/observation.py: SourceIdentity (logical source always; content digest only when bytes were read;
+  release); the owner's digest table per state; INPUT_UNOBSERVED and the derived-value states; NumericObservation now names its
+  feature and row. information_sources/columns.py (new): Population (ordered, order-binding SHA-256), ObservationColumn (float64
+  values, uint8 states, uint16 reasons; rows reconciled with the population; every rule checked vectorised), derive() with STRICT
+  and PARTIAL_COUNT propagation, and DERIVED_RULES for every derived feature of the census.
+- information_sources/materialization.py (new): VerifiedReader and parse_verified (the parser consumes exactly the hashed bytes);
+  receipts measured by the materialiser; the EVE and gnomAD allele-frequency pilots with legacy comparisons.
+- information_sources/admission.py: exposure graded DECLARED / STATICALLY_REACHABLE / MATERIALIZED / FITTED_INPUT /
+  INFERENCE_INPUT (the last three reported not established); available_to_fitted_model renamed statically_reachable; violations
+  renamed structural_exposure_risks; a lineage block. docs/census/ADMISSION_SHADOW_1D1b2.json replaces ADMISSION_SHADOW_1D1b1.json.
+  Counts unchanged: strict 55 / 47, conditional 65 / 37.
+- information_sources/absence_census.py (new) and docs/census/SOURCE_ABSENCE_1D1b2.json: 89 of 91 features fabricate a value when
+  their source is absent; absence alone sets af_is_absent, af_is_ultra_rare, is_snv and revel_pathogenic; the annotation chain
+  measured hermetically (0 network attempts).
+- scripts/measure_1d1b2_pilots.py and docs/census/PILOTS_1D1b2.json: the pilots on the real source joins and the Run 15 cohort
+  (1,490,014 rows); the record binds the digests of every step's code.
+- Census (scripts/build_feature_census_1d1a.py, docs/census/FEATURE_CENSUS_1D1a.json): two diagnostic consumer sites, the
+  uniprot_index dataset, and ABSENCE-AS-EVIDENCE-1, GNOMAD-CHRX-LOCUS-PARSE-1 and EVE-DUPLICATE-KEY-MULTIPLIES-ROWS-1.
+- ROADMAP: the two maturity states (section 2A), the 1D-1b.1 merge record, the corrected 177-edge statement, the entry.
+- Tests: +66 / -7 by node identity (five new files; test_admission_shadow.py renamed and moved seven). Suite 9,077 -> 9,136. README:
+  the badge.
+
 ## 2026-11-09 (package 1D, stage 1D-1b.1, set "ap") -- typed observations and shadow admission
 
 Owner ruling of 2026-11-09 (decision file f2ec92cd...): read-only, typed, shadow mode. No model, feature, scaler, graph, split

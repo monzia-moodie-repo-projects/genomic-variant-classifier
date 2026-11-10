@@ -37,6 +37,15 @@
         "engineer_features"
       ]
     },
+    "scripts/measure_1d1b2_pilots.py": {
+      "classes": [
+        "diagnostic"
+      ],
+      "reason": "stage 1D-1b.2 pilot measurement: the current builder's flags on the legacy joined values, for comparison; no model is fitted",
+      "symbols": [
+        "engineer_features"
+      ]
+    },
     "scripts/preflight_run16_inputs.py": {
       "classes": [
         "diagnostic"
@@ -132,6 +141,16 @@
       "reason": "benchmark runner",
       "symbols": [
         "TABULAR_FEATURES"
+      ]
+    },
+    "src/genomic_variant_classifier/information_sources/absence_census.py": {
+      "classes": [
+        "diagnostic"
+      ],
+      "reason": "the stage 1D-1b.2 source-absence census: executes the builder on absent, NaN and varied frames",
+      "symbols": [
+        "TABULAR_FEATURES",
+        "engineer_features"
       ]
     },
     "src/genomic_variant_classifier/information_sources/consumers.py": {
@@ -356,6 +375,13 @@
       "description": "STRING v12 human protein links (detailed channels) and protein info",
       "evidence_refs": [
         "code:src/genomic_variant_classifier/models/gnn.py#\"\"\"Builds a NetworkX protein-interaction graph from STRING DB.\"\"\""
+      ]
+    },
+    "uniprot_index": {
+      "access": "public",
+      "description": "UniProt reviewed human index: accession, entry name, HGNC symbol and sequence (EVE entry-name resolution; the ESM-2 sequence index)",
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/eve.py#def load_eve_entry_map(parquet_path: object) -> dict[str, str]:"
       ]
     },
     "uniprot_variants": {
@@ -4016,6 +4042,52 @@
       ],
       "id": "RNA-SPLICE-GATE-ORDER-1",
       "statement": "The splice-context pipeline runs during annotation but gates on is_splice and consequence_severity, which engineer_features creates afterwards; every row receives the defaults (Run 15's annotated rows carry neither column; four of its five outputs were constant)."
+    },
+    {
+      "affects": [
+        "af_is_absent",
+        "af_is_ultra_rare",
+        "is_snv",
+        "revel_pathogenic",
+        "n_tools_pathogenic"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"revel_pathogenic\"] = (feats[\"revel_score\"] >= 0.5).astype(int)",
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"af_is_ultra_rare\"] = (af < 0.0001).astype(int)",
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#ref = df.get(\"ref\", pd.Series([\"A\"] * len(df), index=df.index)).fillna(\"A\")",
+        "record:docs/census/SOURCE_ABSENCE_1D1b2.json",
+        "record:docs/census/PILOTS_1D1b2.json"
+      ],
+      "id": "ABSENCE-AS-EVIDENCE-1",
+      "statement": "An absent source becomes positive evidence (stage 1D-1b.2, measured by execution). engineer_features fills an absent REVEL with 0.5 and flags revel_score >= 0.5, so revel_pathogenic is 1 and n_tools_pathogenic counts it; fills an absent allele frequency with 0.0, which sets af_is_absent and af_is_ultra_rare (PM2-like rarity from missing data); fills an absent ref or alt with 'A', which sets is_snv (docs/census/SOURCE_ABSENCE_1D1b2.json). On the Run 15 cohort (1,490,014 rows, docs/census/PILOTS_1D1b2.json): 1,169,388 rows (78.5%) have no REVEL score and are all flagged pathogenic, so 90.1% of benign rows carry revel_pathogenic = 1; 497,970 rows (33.4%) have no gnomAD frequency and are all 'ultra-rare', and the missing frequency alone separates the labels (67.0% of pathogenic against 27.9% of benign rows; AUROC 0.695). No cohort row lacks ref or alt, so is_snv is latent there. Fix: stage 1D-1c (observed-only derivation, columns.DERIVED_RULES)."
+    },
+    {
+      "affects": [
+        "af_raw",
+        "af_log10",
+        "af_is_absent",
+        "af_is_ultra_rare",
+        "af_is_rare",
+        "af_is_common"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/real_data_prep.py#.replace(\"X\", \"\")",
+        "record:docs/census/PILOTS_1D1b2.json"
+      ],
+      "id": "GNOMAD-CHRX-LOCUS-PARSE-1",
+      "statement": "DataPrepPipeline._join_gnomad's locus parse drops a first field that is not digits once X, Y and M are removed, as a prefix: 'X' becomes '' and ''.isdigit() is False, so every chromosome-X gnomAD record (91,771 of 2,951,148 in gnomad_v4_exomes.parquet) is discarded and all 63,929 chromosome-X cohort rows get no frequency -- then 0.0 and 'ultra-rare' (ABSENCE-AS-EVIDENCE-1). Autosomes join: 990,350 of 1,424,307 observed, Run 15's logged count exactly (docs/census/PILOTS_1D1b2.json). Fix: stage 1D-1c."
+    },
+    {
+      "affects": [
+        "eve_score"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/data/eve.py#return normalize_gene_symbol(str(stem).split(\"_\")[0]), False",
+        "code:src/genomic_variant_classifier/data/eve.py#on=[\"_gene_symbol\", \"_aa_change\"],",
+        "record:docs/census/PILOTS_1D1b2.json"
+      ],
+      "id": "EVE-DUPLICATE-KEY-MULTIPLIES-ROWS-1",
+      "statement": "41 of the 3,211 EVE files do not resolve entry name -> HGNC and are keyed by their filename prefix (BRCA1_BRCT_HUMAN and BRCA1_RING_HUMAN both become BRCA1); 10,982 (gene, substitution) keys are then scored more than once, always with different scores, and EVEConnector._annotate's left join multiplies every matching cohort row: with EVE configured, 280 Run 15 cohort rows would each appear twice (1,490,294 rows for 1,490,014). Latent: Run 15 ran EVE unconfigured. The shadow materialiser records these rows as bad_mapping (ambiguous_source_record) instead (docs/census/PILOTS_1D1b2.json)."
     },
     {
       "affects": [

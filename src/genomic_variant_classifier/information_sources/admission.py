@@ -1,29 +1,35 @@
-"""Stage 1D-1b.1: semantic admission derived from the merged census, reported in SHADOW MODE.
+"""Stages 1D-1b.1 / 1D-1b.2: semantic admission derived from the merged census, reported in SHADOW MODE.
 
-Owner ruling f2ec92cd (2026-11-09), section XIII. Three things are kept apart, because they are not interchangeable:
+Owner rulings f2ec92cd (section XIII) and 7f4b69d0 (sections 2.2, 3 and 19). Things that are not interchangeable are kept
+apart:
 
-    scientifically admitted       the reviewed disposition in docs/census/FEATURE_CENSUS_1D1a.json, under a named regime;
-    actually observed             whether the producer recorded that a value was measured (none does yet: 1D-1b.2);
-    available to the fitted model the PREDICTIVE surfaces the census measured from the code as consuming the name.
+    scientifically admitted   the reviewed disposition in docs/census/FEATURE_CENSUS_1D1a.json, under a named regime;
+    observation               whether a producer records, per row, that a value was measured (two shadow materialisers do
+                              in 1D-1b.2: information_sources/materialization.py; no production producer does yet);
+    exposure                  DECLARED (in the feature contract or the measured graph inventory) and STATICALLY_REACHABLE
+                              (the predictive surfaces the census measured from the code as consuming the name) are
+                              established here; MATERIALIZED, FITTED_INPUT and INFERENCE_INPUT need execution evidence
+                              (materialisation receipts, fitted-model artefacts) and are reported NOT ESTABLISHED.
 
-The report lists, for every feature and every non-tabular information source, all three, and records as a VIOLATION
-every name that reaches a predictive surface without being admitted under the regime -- with its exact identity, its
-disposition and the reason. Nothing is enforced and nothing is changed: no model, matrix, split or prediction is read or
-written (shadow mode). Stage 1D-1c turns the violations into refusals.
-
-Two refinements over the ruling's sketch, each tested:
+The report lists all of them for every feature and every non-tabular information source, and records as a STRUCTURAL
+EXPOSURE RISK every name that is statically reachable by a predictive surface without being admitted under the regime --
+with its exact identity, its disposition and the reason. That is a structural statement about the code, not a claim that
+the name was consumed by a particular fit (ruling 7f4b69d0, section 2.2). Nothing is enforced and nothing is changed: no
+model, matrix, split or prediction is read or written. Stage 1D-1c turns the risks into refusals.
 
 * ONE authority. The disposition vocabulary is the census's own ``Disposition`` (minus ``pending_review``, which the
-  census refuses), not a second hand-maintained enum; the report is computed from the census only after the census gate
-  (``verify_census``) has re-measured the repository, so a stale or edited ledger cannot produce a report.
-* Admission is TRANSITIVE under every regime. The census enforced monotone admission only for ``admit_strict``. Under the
-  conditional regime ``gnn_score`` is ``conditional_only`` but its measured dependencies include the retired
-  ``n_pathogenic_in_gene`` and the excluded STRING combined-score relation, so it is not effectively admissible there
-  either. Effective admission is the greatest fixed point: a name is admitted iff its disposition is admitted by the
-  regime AND every dependency is effectively admitted.
+  census refuses); the report is computed from the census only after the census gate (``verify_census``) has re-measured
+  the repository, so a stale or edited ledger cannot produce a report.
+* Lineage is valid BEFORE admission is computed (ADMISSION-CYCLIC-LINEAGE-1, lineage.py): every dependency declared, no
+  cycle (every cyclic component named), every leaf grounded in a registered dataset. Admission is then the LEAST fixed
+  point, evaluated bottom-up in dependency order: a name is admitted iff its disposition is admitted by the regime AND
+  every dependency was admitted first. A cycle can therefore never admit itself, even past the structural check. On the
+  acyclic census this equals the 1D-1b.1 result exactly (55 strict, 65 conditional; tested).
+* Admission is TRANSITIVE under every regime: under the conditional regime ``gnn_score`` is ``conditional_only`` but its
+  measured dependencies include the retired ``n_pathogenic_in_gene`` and the excluded STRING combined-score relation.
 
-The module imports only the standard library and the census module (itself standard-library at import time); verifying
-the census, which the command line does, runs the repository's feature builder and therefore needs pandas.
+The module imports only the standard library and the census and lineage modules (standard-library at import time);
+verifying the census, which the command line does, runs the repository's feature builder and therefore needs pandas.
 """
 from __future__ import annotations
 
@@ -33,12 +39,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from enum import Enum
+
 from genomic_variant_classifier.information_sources import census as _census
+from genomic_variant_classifier.information_sources import lineage as _lineage
 
 logger = logging.getLogger(__name__)
 
-SCHEMA = "gvc.admission-shadow.1d1b1/1"
-REPORT_PATH = "docs/census/ADMISSION_SHADOW_1D1b1.json"
+SCHEMA = "gvc.admission-shadow.1d1b2/1"
+REPORT_PATH = "docs/census/ADMISSION_SHADOW_1D1b2.json"
 D = _census.Disposition
 
 #: The reviewed dispositions: the census vocabulary without pending_review, which the census gate refuses.
@@ -72,8 +81,35 @@ SURFACE_CLASS: Mapping[str, str] = {
     "hetero_gnn_supervision": "predictive",
 }
 
-#: What 1D-1b.1 can say about observation: no producer records an observation state yet (that is 1D-1b.2's work).
+#: No production producer records an observation state yet.
 OBSERVATION_NOT_RECORDED = "not_recorded_by_producer"
+#: The features a SHADOW materialiser (information_sources/materialization.py) observes per row, with its function. A test
+#: checks each function exists there; the materialisers are not wired into production.
+SHADOW_MATERIALIZERS: Mapping[str, str] = {
+    "af_raw": "src/genomic_variant_classifier/information_sources/materialization.py::materialize_gnomad_af",
+    "eve_score": "src/genomic_variant_classifier/information_sources/materialization.py::materialize_eve",
+}
+NOT_ESTABLISHED = "not_established"
+
+
+class InputExposure(str, Enum):
+    """Ruling 7f4b69d0, section 2.2: what is known about a name reaching a model, weakest to strongest evidence."""
+    DECLARED = "declared"                          # in the feature contract or the measured graph inventory
+    STATICALLY_REACHABLE = "statically_reachable"  # a predictive surface's code consumes it (census measurement)
+    MATERIALIZED = "materialized"                  # a materialisation receipt records it for a population
+    FITTED_INPUT = "fitted_input"                  # a fitted model artefact records it as an input
+    INFERENCE_INPUT = "inference_input"            # an inference record shows it consumed
+
+
+#: The evidence each exposure level needs, and whether this report can establish it.
+EXPOSURE_EVIDENCE: Mapping[InputExposure, str] = {
+    InputExposure.DECLARED: "the census ledger (features: the contract; sources: the measured graph inventory)",
+    InputExposure.STATICALLY_REACHABLE: "the census's measured consumer surfaces classified predictive",
+    InputExposure.MATERIALIZED: "a materialisation receipt for a named population (none in production; the 1D-1b.2 "
+                                "pilot receipts are shadow measurements, docs/census/PILOTS_1D1b2.json)",
+    InputExposure.FITTED_INPUT: "a fitted model artefact's recorded input columns (the model execution authority)",
+    InputExposure.INFERENCE_INPUT: "an inference record of the rendered input columns",
+}
 
 
 def surface_classes_cover(surfaces: Sequence[str], graph_consumers: Sequence[str]) -> None:
@@ -86,26 +122,36 @@ def surface_classes_cover(surfaces: Sequence[str], graph_consumers: Sequence[str
 
 def effective_admission(dispositions: Mapping[str, D], depends_on: Mapping[str, Sequence[str]],
                         admitted: frozenset[D]) -> dict[str, tuple[str, ...]]:
-    """Greatest fixed point of "admitted iff the disposition is admitted and every dependency is admitted".
+    """Least fixed point of "admitted iff the disposition is admitted and every dependency is admitted FIRST", after the
+    lineage is shown acyclic (refused otherwise, every cyclic component named).
 
     Returns {name: blocking dependencies}; a name is effectively admitted iff its tuple is empty AND its own disposition is
     admitted. A blocking dependency is a DIRECT dependency that is not effectively admitted."""
     unknown = sorted({d for deps in depends_on.values() for d in deps} - set(dispositions))
     if unknown:
         raise ValueError(f"dependencies name unknown entries: {unknown}")
-    ok = {n for n, d in dispositions.items() if d in admitted}
-    changed = True
-    while changed:
-        changed = False
-        for name in sorted(ok):
-            if any(dep not in ok for dep in depends_on.get(name, ())):
-                ok.discard(name)
-                changed = True
-    return {n: tuple(sorted(d for d in depends_on.get(n, ()) if d not in ok)) for n in dispositions}
+    deps = {n: tuple(depends_on.get(n, ())) for n in dispositions}
+    _lineage.require_acyclic(deps)
+    ok = _lineage.least_fixed_point({n: d in admitted for n, d in dispositions.items()}, deps)
+    return {n: tuple(sorted(d for d in deps[n] if not ok[d])) for n in dispositions}
+
+
+def lineage_summary(records: Sequence[Mapping[str, Any]], datasets: Sequence[str]) -> dict[str, Any]:
+    """The lineage graph's structural facts; refuses a cycle or an ungrounded leaf (ADMISSION-CYCLIC-LINEAGE-1)."""
+    deps = {r["name"]: tuple(r.get("depends_on", ())) for r in records}
+    _lineage.require_acyclic(deps)
+    ungrounded = _lineage.ungrounded_leaves({r["name"]: r["source_ids"] for r in records}, deps, datasets)
+    if ungrounded:
+        raise ValueError(f"lineage leaves name no registered dataset: {ungrounded}")
+    order = _lineage.dependency_order(deps)
+    return {"identities": len(deps), "dependency_edges": sum(len(v) for v in deps.values()),
+            "leaves": sum(1 for v in deps.values() if not v), "cyclic_components": [], "ungrounded_leaves": [],
+            "registered_datasets": len(datasets),
+            "dependency_order_sha256": _census.sha256_bytes(_census.canonical_bytes(list(order)))}
 
 
 @dataclass(frozen=True)
-class Violation:
+class ExposureRisk:
     regime: str
     name: str
     kind: str
@@ -135,6 +181,7 @@ def shadow_report(ledger: Mapping[str, Any], *, ledger_sha256: str, contract_dig
         if r["name"] in dispositions:
             raise ValueError(f"{r['name']}: named twice in the census")
         dispositions[r["name"]] = disp
+    lineage = lineage_summary([r for _k, r in records], sorted(ledger["datasets"]))
     depends_on = {r["name"]: tuple(r.get("depends_on", ())) for _k, r in records}
     defects: dict[str, list[str]] = {}
     for d in ledger["registered_defects"]:
@@ -143,7 +190,7 @@ def shadow_report(ledger: Mapping[str, Any], *, ledger_sha256: str, contract_dig
 
     blocking = {regime: effective_admission(dispositions, depends_on, admitted) for regime, admitted in REGIMES.items()}
     rows: list[dict[str, Any]] = []
-    violations: list[Violation] = []
+    risks: list[ExposureRisk] = []
     for kind, r in records:
         name, disp = r["name"], dispositions[r["name"]]
         consumers_ = sorted(r["consumers"])
@@ -163,11 +210,16 @@ def shadow_report(ledger: Mapping[str, Any], *, ledger_sha256: str, contract_dig
                 status, reason = "admitted", ""
             admission[regime] = status
             if status == "not_admitted" and predictive:
-                violations.append(Violation(regime, name, kind, disp.value, reason, predictive))
+                risks.append(ExposureRisk(regime, name, kind, disp.value, reason, predictive))
+        materializer = SHADOW_MATERIALIZERS.get(name)
         rows.append({
             "name": name, "kind": kind, "disposition": disp.value, "admission": admission,
-            "observation": OBSERVATION_NOT_RECORDED,
-            "available_to_fitted_model": list(predictive),
+            "observation": f"shadow_materializer:{materializer}" if materializer else OBSERVATION_NOT_RECORDED,
+            "exposure": {InputExposure.DECLARED.value: True,
+                         InputExposure.STATICALLY_REACHABLE.value: list(predictive),
+                         InputExposure.MATERIALIZED.value: NOT_ESTABLISHED,
+                         InputExposure.FITTED_INPUT.value: NOT_ESTABLISHED,
+                         InputExposure.INFERENCE_INPUT.value: NOT_ESTABLISHED},
             "computed_or_stored_only": [c for c in consumers_ if SURFACE_CLASS[c] != "predictive"],
             "registered_defects": sorted(defects.get(name, [])),
         })
@@ -175,14 +227,14 @@ def shadow_report(ledger: Mapping[str, Any], *, ledger_sha256: str, contract_dig
     counts: dict[str, dict[str, int]] = {}
     for regime in REGIMES:
         admitted_n = sum(1 for row in rows if row["admission"][regime] == "admitted")
-        regime_violations = [v for v in violations if v.regime == regime]
+        regime_risks = [v for v in risks if v.regime == regime]
         counts[regime] = {
             "admitted": admitted_n, "not_admitted": len(rows) - admitted_n,
-            "violations": len(regime_violations),
-            "violations_by_disposition": dict(sorted(
-                (k, sum(1 for v in regime_violations if v.disposition == k))
-                for k in {v.disposition for v in regime_violations})),
-            "transitive_only": sum(1 for v in regime_violations if v.reason.startswith("depends on")),
+            "structural_exposure_risks": len(regime_risks),
+            "risks_by_disposition": dict(sorted(
+                (k, sum(1 for v in regime_risks if v.disposition == k))
+                for k in {v.disposition for v in regime_risks})),
+            "transitive_only": sum(1 for v in regime_risks if v.reason.startswith("depends on")),
         }
     return {
         "schema": SCHEMA,
@@ -193,12 +245,18 @@ def shadow_report(ledger: Mapping[str, Any], *, ledger_sha256: str, contract_dig
         "surface_classes": dict(sorted(SURFACE_CLASS.items())),
         "observation_recording": {
             "state": OBSERVATION_NOT_RECORDED,
-            "meaning": "no producer records whether a value was measured or filled; every feature's observation is "
-                       "therefore unknown, not observed (stage 1D-1b.2 makes producers emit "
-                       "information_sources.observation.NumericObservation)"},
+            "shadow_materializers": dict(sorted(SHADOW_MATERIALIZERS.items())),
+            "meaning": "no production producer records whether a value was measured or filled; every feature's "
+                       "observation is therefore unknown, not observed. Two shadow materialisers (EVE, gnomAD allele "
+                       "frequency) record it per row; they are not wired into production (stage 1D-1c)."},
+        "exposure_levels": {e.value: EXPOSURE_EVIDENCE[e] for e in InputExposure},
+        "lineage": lineage,
         "counts": counts,
         "rows": rows,
-        "violations": [v.as_dict() for v in violations],
+        "structural_exposure_risks": [v.as_dict() for v in risks],
+        "structural_exposure_risk_meaning": (
+            "a name that is not admitted under the regime and is STATICALLY REACHABLE by a predictive surface of the "
+            "existing code; not a demonstration that a particular fit consumed it (that needs FITTED_INPUT evidence)"),
         "scientific_truth": _census.SCIENTIFIC_TRUTH_LINE,
     }
 
@@ -220,7 +278,7 @@ def report_bytes(report: Mapping[str, Any]) -> bytes:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Stage 1D-1b.1 shadow admission report (reads the census; changes nothing).")
+    parser = argparse.ArgumentParser(description="Stage 1D-1b.2 shadow admission report (reads the census; changes nothing).")
     parser.add_argument("--repo", type=Path, required=True)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--out", type=Path, help="write the report here (refuses to overwrite)")
@@ -236,9 +294,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{args.check}: DIFFERS from the report derived from the census now")
         return 1
     for regime, c in report["counts"].items():
-        print(f"{regime} regime: {c['admitted']} admitted, {c['not_admitted']} not admitted; {c['violations']} reach a "
-              f"predictive surface unadmitted ({c['transitive_only']} only through a dependency)")
-    print(f"observation: {OBSERVATION_NOT_RECORDED} for all {len(report['rows'])} names")
+        print(f"{regime} regime: {c['admitted']} admitted, {c['not_admitted']} not admitted; "
+              f"{c['structural_exposure_risks']} statically reachable by a predictive surface unadmitted "
+              f"({c['transitive_only']} only through a dependency)")
+    lin = report["lineage"]
+    print(f"lineage: {lin['identities']} identities, {lin['dependency_edges']} edges, {lin['leaves']} leaves; acyclic; "
+          f"every leaf grounded in one of {lin['registered_datasets']} registered datasets")
+    shadow = sum(1 for r in report["rows"] if r["observation"] != OBSERVATION_NOT_RECORDED)
+    print(f"observation: {OBSERVATION_NOT_RECORDED} for {len(report['rows']) - shadow} names; {shadow} observed by a "
+          "shadow materialiser only")
     print("mode: SHADOW -- nothing enforced, nothing changed")
     print(report["scientific_truth"])
     return 0

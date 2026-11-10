@@ -99,6 +99,9 @@ DATASETS = {
                                "public", [code(D + "genomic_lm.py", "masked-LM log-likelihood ratio at the")]),
     "protein_coordinates": ("AlphaMissense-derived protein coordinates, with an HGVSp fallback", "public",
                             [code(RDP, "pc = ProteinCoordConnector(alphamissense_file=_am_tsv)")]),
+    "uniprot_index": ("UniProt reviewed human index: accession, entry name, HGNC symbol and sequence (EVE entry-name "
+                      "resolution; the ESM-2 sequence index)", "public",
+                      [code(D + "eve.py", "def load_eve_entry_map(parquet_path: object) -> dict[str, str]:")]),
     "string": ("STRING v12 human protein links (detailed channels) and protein info", "public (CC BY)",
                [code("src/genomic_variant_classifier/models/gnn.py",
                      '"""Builds a NetworkX protein-interaction graph from STRING DB."""')]),
@@ -584,6 +587,8 @@ SITES = {
     "scripts/ablate_gnn.py": (["experiment"], "GNN timing and ablation harness; its scores are not model inputs"),
     "scripts/build_schema_baseline.py": (["monitoring"], "builds the drift-monitoring schema baseline"),
     "scripts/diff_engineer_features.py": (["diagnostic"], "compares feature builders"),
+    "scripts/measure_1d1b2_pilots.py": (["diagnostic"], "stage 1D-1b.2 pilot measurement: the current builder's flags on "
+                                        "the legacy joined values, for comparison; no model is fitted"),
     "scripts/preflight_run16_inputs.py": (["diagnostic"], "pre-flight input check"),
     "scripts/prove_engineer_features_equivalence.py": (["diagnostic"], "historical equivalence proof"),
     "scripts/run_benchmark.py": (["surface:evaluation"], "benchmarks learners on the contract's columns"),
@@ -597,6 +602,9 @@ SITES = {
                                                                "surface:split_persistence"],
                                                               "builds, guards, scales and writes the training matrix"),
     "src/genomic_variant_classifier/evaluation/benchmark.py": (["surface:evaluation"], "benchmark runner"),
+    "src/genomic_variant_classifier/information_sources/absence_census.py": (["diagnostic"], "the stage 1D-1b.2 "
+                                                                             "source-absence census: executes the builder "
+                                                                             "on absent, NaN and varied frames"),
     "src/genomic_variant_classifier/information_sources/consumers.py": (["diagnostic"], "this census's measurement"),
     "src/genomic_variant_classifier/models/gnn.py": (["definition"], "defines the GNN graph and dataset builders"),
     "src/genomic_variant_classifier/models/hetero_gnn_scorer.py": (["definition"], "defines the hetero-GNN builders"),
@@ -656,6 +664,35 @@ DEFECTS = [
      ["maxentscan_score", "maxentscan_delta", "dist_to_splice_site", "exon_number", "is_canonical_splice"],
      [code("src/genomic_variant_classifier/pipelines/rna_pipeline.py",
            'is_splice      = result.get("is_splice", pd.Series(0, index=result.index))')]),
+    ("ABSENCE-AS-EVIDENCE-1", "An absent source becomes positive evidence (stage 1D-1b.2, measured by execution). "
+     "engineer_features fills an absent REVEL with 0.5 and flags revel_score >= 0.5, so revel_pathogenic is 1 and "
+     "n_tools_pathogenic counts it; fills an absent allele frequency with 0.0, which sets af_is_absent and "
+     "af_is_ultra_rare (PM2-like rarity from missing data); fills an absent ref or alt with 'A', which sets is_snv "
+     "(docs/census/SOURCE_ABSENCE_1D1b2.json). On the Run 15 cohort (1,490,014 rows, docs/census/PILOTS_1D1b2.json): "
+     "1,169,388 rows (78.5%) have no REVEL score and are all flagged pathogenic, so 90.1% of benign rows carry "
+     "revel_pathogenic = 1; 497,970 rows (33.4%) have no gnomAD frequency and are all 'ultra-rare', and the missing "
+     "frequency alone separates the labels (67.0% of pathogenic against 27.9% of benign rows; AUROC 0.695). No cohort "
+     "row lacks ref or alt, so is_snv is latent there. Fix: stage 1D-1c (observed-only derivation, columns.DERIVED_RULES).",
+     ["af_is_absent", "af_is_ultra_rare", "is_snv", "revel_pathogenic", "n_tools_pathogenic"],
+     [ve('feats["revel_pathogenic"] = (feats["revel_score"] >= 0.5).astype(int)'),
+      ve('feats["af_is_ultra_rare"] = (af < 0.0001).astype(int)'),
+      ve('ref = df.get("ref", pd.Series(["A"] * len(df), index=df.index)).fillna("A")'),
+      "record:docs/census/SOURCE_ABSENCE_1D1b2.json", "record:docs/census/PILOTS_1D1b2.json"]),
+    ("GNOMAD-CHRX-LOCUS-PARSE-1", "DataPrepPipeline._join_gnomad's locus parse drops a first field that is not digits "
+     "once X, Y and M are removed, as a prefix: 'X' becomes '' and ''.isdigit() is False, so every chromosome-X gnomAD "
+     "record (91,771 of 2,951,148 in gnomad_v4_exomes.parquet) is discarded and all 63,929 chromosome-X cohort rows get "
+     "no frequency -- then 0.0 and 'ultra-rare' (ABSENCE-AS-EVIDENCE-1). Autosomes join: 990,350 of 1,424,307 observed, "
+     "Run 15's logged count exactly (docs/census/PILOTS_1D1b2.json). Fix: stage 1D-1c.",
+     ["af_raw", "af_log10", "af_is_absent", "af_is_ultra_rare", "af_is_rare", "af_is_common"],
+     [code(RDP, '.replace("X", "")'), "record:docs/census/PILOTS_1D1b2.json"]),
+    ("EVE-DUPLICATE-KEY-MULTIPLIES-ROWS-1", "41 of the 3,211 EVE files do not resolve entry name -> HGNC and are keyed "
+     "by their filename prefix (BRCA1_BRCT_HUMAN and BRCA1_RING_HUMAN both become BRCA1); 10,982 (gene, substitution) "
+     "keys are then scored more than once, always with different scores, and EVEConnector._annotate's left join "
+     "multiplies every matching cohort row: with EVE configured, 280 Run 15 cohort rows would each appear twice "
+     "(1,490,294 rows for 1,490,014). Latent: Run 15 ran EVE unconfigured. The shadow materialiser records these rows "
+     "as bad_mapping (ambiguous_source_record) instead (docs/census/PILOTS_1D1b2.json).", ["eve_score"],
+     [code(D + "eve.py", 'return normalize_gene_symbol(str(stem).split("_")[0]), False'),
+      code(D + "eve.py", 'on=["_gene_symbol", "_aa_change"],'), "record:docs/census/PILOTS_1D1b2.json"]),
     ("GTEX-EQTL-PRODUCTION-DEFAULT-1", "The production GTEx path (bulk parquet) writes the defaults for the three "
      "variant-level eQTL features; only the per-gene API path, which no launcher uses, computes them.",
      ["gtex_is_eqtl", "gtex_min_eqtl_pval", "gtex_max_abs_effect"], [code(RDP, "eQTL trio stays at defaults.")]),

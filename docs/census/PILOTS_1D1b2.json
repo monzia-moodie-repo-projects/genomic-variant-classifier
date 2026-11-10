@@ -1,0 +1,360 @@
+{
+  "allele_frequency": {
+    "by_chromosome_class": {
+      "MT": {
+        "observed": 1674,
+        "rows": 1732
+      },
+      "X": {
+        "observed": 0,
+        "rows": 63929
+      },
+      "Y": {
+        "observed": 20,
+        "rows": 46
+      },
+      "autosome": {
+        "observed": 990350,
+        "rows": 1424307
+      }
+    },
+    "legacy_af_is_absent": 538389,
+    "legacy_af_is_absent_observed_zero": 40419,
+    "legacy_af_is_absent_set_by_absence": 497970,
+    "legacy_af_is_ultra_rare": 1267474,
+    "legacy_af_is_ultra_rare_set_by_absence": 497970,
+    "legacy_equivalence": {
+      "differ": 0,
+      "equal": 1490014,
+      "identical": true,
+      "rows": 1490014
+    },
+    "legacy_value_filled": 497970,
+    "observed": 992044,
+    "observed_below_1e-4": 769504,
+    "observed_exactly_zero": 40419,
+    "receipt": {
+      "column_sha256": "73a36a9d621f88074be51e974a8507773365dc5a89676d92e90ed1856f4b087e",
+      "content_sha256": "d4c604277c2848e0a15d78810343219a2eab0088e627386c36b2a1281d3c6310",
+      "detail_counts": {
+        "not_in_source": {
+          "locus_not_in_source": 496652,
+          "record_without_value": 1318
+        },
+        "observed": {
+          "": 992044
+        }
+      },
+      "feature": "af_raw",
+      "inputs": {
+        "dataset:gnomad_af#records": {
+          "ambiguous_loci": 0,
+          "bytes": 39477981,
+          "distinct_loci": 2859377,
+          "duplicated_loci": 0,
+          "n_records": 2951148,
+          "unparsable_variant_ids": 91771
+        }
+      },
+      "logical_source": "dataset:gnomad_af",
+      "n_population": 1490014,
+      "notes": [
+        "91771 source variant_ids do not parse to a locus and are dropped, as the legacy join drops them"
+      ],
+      "parser": "src/genomic_variant_classifier/information_sources/materialization.py::materialize_gnomad_af",
+      "parser_sha256": "2d5729ba0ff163f8df8fec9a0cc9cbbd270c31bbd888726936809a2dbb81bffd",
+      "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+      "population_sha256": "d4085699adaf257ad032da6eb1284d5ea8d05d220defd7dc7144bfa2485d79f5",
+      "release": null,
+      "schema": "gvc.materialization-receipt.1d1b2/1",
+      "state_counts": {
+        "bad_mapping": 0,
+        "computation_failed": 0,
+        "input_unobserved": 0,
+        "not_in_source": 497970,
+        "observed": 992044,
+        "source_absent": 0,
+        "unsupported_variant": 0
+      }
+    },
+    "unobserved": 497970,
+    "unobserved_but_legacy_kept_a_first_record": 0,
+    "unobserved_by_label": {
+      "auroc_of_the_indicator_for_the_label": 0.69532,
+      "benign": {
+        "count": 356977,
+        "fraction": 0.279005,
+        "rows": 1279465
+      },
+      "pathogenic": {
+        "count": 140993,
+        "fraction": 0.669645,
+        "rows": 210549
+      }
+    }
+  },
+  "environments": {
+    "eve_parse": "3.10.12 Linux-6.8.0-138-generic-x86_64-with-glibc2.35 2.2.6 2.3.3 25.0.1",
+    "joins": "Python 3.12.3, numpy 2.4.4, pandas 2.3.3"
+  },
+  "eve": {
+    "fabricated_0_5": 1398850,
+    "legacy_coverage_count_score_ne_0_5": 91164,
+    "legacy_equivalence": {
+      "identical": false,
+      "legacy_join_on_the_whole_population": "the legacy EVE join returned 1490294 rows for 1490014: duplicated source keys multiplied cohort rows",
+      "on_rows_not_matching_a_duplicated_key": {
+        "differ": 0,
+        "equal": 1489734,
+        "identical": true,
+        "rows": 1489734
+      },
+      "rows_matching_a_key_scored_more_than_once": 280
+    },
+    "observed": 91164,
+    "observed_exactly_0_5": 0,
+    "receipt": {
+      "column_sha256": "79c559d8e5df9e381219e6b5f097e7e1c49e087c1b17133cb7bc68d425ecf857",
+      "content_sha256": "a544864fd521e08be5c0b4d93a752ad27bb04c7ccdce93ce031afa03708f413e",
+      "detail_counts": {
+        "bad_mapping": {
+          "ambiguous_source_record": 280,
+          "missense_without_protein_key": 12147
+        },
+        "not_in_source": {
+          "gene_not_modeled": 83638,
+          "substitution_not_in_source": 356,
+          "substitution_unscored": 14079
+        },
+        "observed": {
+          "": 91164
+        },
+        "unsupported_variant": {
+          "not_a_missense_substitution": 1288350
+        }
+      },
+      "feature": "eve_score",
+      "inputs": {
+        "dataset:eve#files": {
+          "by_fallback": 41,
+          "keys_scored_more_than_once": 10982,
+          "keys_with_differing_scores": 10982,
+          "modeled_genes": 3208,
+          "n_files": 3211,
+          "resolved_by_entry_map": 3170,
+          "scored_rows": 35978685,
+          "substitution_rows": 44477320,
+          "without_required_columns": 0
+        },
+        "entry_map": {
+          "bytes": 11682473,
+          "entries": 20190,
+          "equal_to_legacy_loader": true,
+          "logical_source": "dataset:uniprot_index",
+          "sha256": "3d8380bd3c67e77cd0e1a23b7491d534374e8d84eb226403b7dd101e51e68323"
+        }
+      },
+      "logical_source": "dataset:eve",
+      "n_population": 1490014,
+      "notes": [
+        "10982 (gene, substitution) keys are scored more than once in the source (10982 with differing scores): the legacy left join multiplies every cohort row that matches one",
+        "41 files did not resolve entry name -> HGNC and are keyed by the legacy filename-prefix fallback"
+      ],
+      "parser": "src/genomic_variant_classifier/information_sources/materialization.py::materialize_eve",
+      "parser_sha256": "5d2324a357e3be2fee7c1e4f6ba386f4f0b40d6d4ce6eabb0d6e99c5d4131858",
+      "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+      "population_sha256": "d4085699adaf257ad032da6eb1284d5ea8d05d220defd7dc7144bfa2485d79f5",
+      "release": null,
+      "schema": "gvc.materialization-receipt.1d1b2/1",
+      "state_counts": {
+        "bad_mapping": 12427,
+        "computation_failed": 0,
+        "input_unobserved": 0,
+        "not_in_source": 98073,
+        "observed": 91164,
+        "source_absent": 0,
+        "unsupported_variant": 1288350
+      }
+    },
+    "unobserved_among_missense_by_label": {
+      "auroc_of_the_indicator_for_the_label": 0.226732,
+      "benign": {
+        "count": 101222,
+        "fraction": 0.702068,
+        "rows": 144177
+      },
+      "pathogenic": {
+        "count": 8858,
+        "fraction": 0.155532,
+        "rows": 56953
+      }
+    },
+    "unobserved_by_label": {
+      "auroc_of_the_indicator_for_the_label": 0.402474,
+      "benign": {
+        "count": 1236448,
+        "fraction": 0.966379,
+        "rows": 1279465
+      },
+      "pathogenic": {
+        "count": 162402,
+        "fraction": 0.771326,
+        "rows": 210549
+      }
+    }
+  },
+  "eve_source": {
+    "bytes": 10654071064,
+    "directory_manifest_sha256": "a544864fd521e08be5c0b4d93a752ad27bb04c7ccdce93ce031afa03708f413e",
+    "fallback_files": [
+      "AFG2H_HUMAN.csv",
+      "ALEX_HUMAN.csv",
+      "APRIO_HUMAN.csv",
+      "ARF_HUMAN.csv",
+      "BRCA1_BRCT_HUMAN.csv",
+      "BRCA1_RING_HUMAN.csv",
+      "CC103_HUMAN.csv",
+      "CC115_HUMAN.csv",
+      "CENPJ_HUMAN.csv",
+      "CH037_HUMAN.csv",
+      "CL004_HUMAN.csv",
+      "CL065_HUMAN.csv",
+      "CMC1_HUMAN.csv",
+      "CMC2_HUMAN.csv",
+      "CRCM1_HUMAN.csv",
+      "CSCL1_HUMAN.csv",
+      "DDX58_HUMAN.csv",
+      "EP2A2_HUMAN.csv",
+      "ERCC6_HUMAN.csv",
+      "G6PC_HUMAN.csv",
+      "GLCM_HUMAN.csv",
+      "GNAS1_HUMAN.csv",
+      "GNAS2_HUMAN.csv",
+      "GNT2A_HUMAN.csv",
+      "GRP75_HUMAN.csv",
+      "K1109_HUMAN.csv",
+      "LAP2B_HUMAN.csv",
+      "MFTC_HUMAN.csv",
+      "MLRS_HUMAN.csv",
+      "MOC2A_HUMAN.csv",
+      "NAKD2_HUMAN.csv",
+      "NEPRO_HUMAN.csv",
+      "PORED_HUMAN.csv",
+      "RPC22_HUMAN.csv",
+      "SPYA_HUMAN.csv",
+      "STK19_HUMAN.csv",
+      "TILB_HUMAN.csv",
+      "TM199_HUMAN.csv",
+      "TRUA_HUMAN.csv",
+      "TXND3_HUMAN.csv",
+      "XPR1_HUMAN.csv"
+    ],
+    "files": 3211,
+    "files_by_filename_prefix_fallback": 41,
+    "files_resolved_by_entry_map": 3170,
+    "legacy_parse_equal_files": 3211,
+    "logical_source": "dataset:eve",
+    "parsed_on": "the owner's machine, through VerifiedReader (one pass per file)",
+    "scored_rows": 35978685,
+    "substitution_rows": 44477320,
+    "table_bytes": 489116274,
+    "table_sha256": "4f7e30870b3c85853052d2ab284d6d936744e99657995b4bac4834501d3b2b53"
+  },
+  "inputs": {
+    "cohort": {
+      "bytes": 142269185,
+      "columns_not_read": [
+        "metadata"
+      ],
+      "file": "clinvar_grch38_clean.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "8d8747eb741cecd960ae3118d2b0b844a1cf55662ab617a1fd2b5dfc4f6e2c2c"
+    },
+    "dbnsfp": {
+      "bytes": 36247405,
+      "file": "dbnsfp_clinvar_index.parquet",
+      "logical_source": "dataset:dbnsfp",
+      "sha256": "3cf75aa174bb519fd7401740df06688cb94bf11d339ece6d198a7819e32ab044"
+    },
+    "gnomad_af": {
+      "bytes": 39477981,
+      "file": "gnomad_v4_exomes.parquet",
+      "logical_source": "dataset:gnomad_af",
+      "sha256": "d4c604277c2848e0a15d78810343219a2eab0088e627386c36b2a1281d3c6310"
+    },
+    "protein_coordinates": {
+      "bytes": 18638367,
+      "file": "alphamissense_protein_index.parquet",
+      "logical_source": "dataset:protein_coordinates",
+      "sha256": "4368d9e29137dfd359f417ebfc38f40ecf47576677ad5f7f5ac93270fe36781a"
+    }
+  },
+  "is_snv": {
+    "rows_with_absent_ref_or_alt": 0
+  },
+  "mode": "shadow: measured on the real source files; nothing in production changed",
+  "population": {
+    "benign": 1279465,
+    "built_by": "DataPrepPipeline._load_and_label (DataPrepConfig defaults: review tier <= 3, conflicting removed)",
+    "hgvsp_fallback_coordinates": 0,
+    "missense": 201130,
+    "pathogenic": 210549,
+    "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+    "rows": 1490014,
+    "sha256": "d4085699adaf257ad032da6eb1284d5ea8d05d220defd7dc7144bfa2485d79f5"
+  },
+  "procedure": {
+    "scripts/measure_1d1b2_pilots.py::eve_collect": "46c6f36524cf943e9d6206e13445eb6de1ad279f2ec6a0c85b09d1497b58f532",
+    "scripts/measure_1d1b2_pilots.py::eve_join": "b7d59d494483108eb3fe6026ecf04842f2d61c86321b0483780b67698e266365",
+    "scripts/measure_1d1b2_pilots.py::eve_parse": "f0dbfd00319571fe0f4b81d7c663132a58265701f9509a0afdf9b29bf24e5a9b",
+    "scripts/measure_1d1b2_pilots.py::load_eve_table": "1b21b8bc79ba4e5e6040dfb48a13b9e49fa750ec733c823627d9d1831c405394",
+    "scripts/measure_1d1b2_pilots.py::load_population": "e86fc2fbdfb929b2e8a8b189a4840a60a0b0a23e87c01ec5da2c7afff4ce9b85",
+    "scripts/measure_1d1b2_pilots.py::population_step": "e76b86d8efb3fc8d4214e6168ebd5eb6b84fee0f37f8d3a767e52b78a07d2f0d",
+    "scripts/measure_1d1b2_pilots.py::run": "ffc4a9a96021964d004427be3ccdb74d801be6e0bcf1945dfeb81f1cdfba1b64",
+    "src/genomic_variant_classifier/information_sources/materialization.py::entry_map_from_index": "76f359a2838de06c44883ae271bb0f72018e3a42553525f316a5426305b59f15",
+    "src/genomic_variant_classifier/information_sources/materialization.py::legacy_af_values": "08b5fbd30d56433ec2c7a1854f465872ab3dce0e2d31a6a6332b9cfb26ad23b4",
+    "src/genomic_variant_classifier/information_sources/materialization.py::legacy_eve_values": "5b74d4840f9e2224d43ddcad74cc27961a9c403a3a9887da7ec482a19c745db7",
+    "src/genomic_variant_classifier/information_sources/materialization.py::materialize_eve": "5d2324a357e3be2fee7c1e4f6ba386f4f0b40d6d4ce6eabb0d6e99c5d4131858",
+    "src/genomic_variant_classifier/information_sources/materialization.py::materialize_gnomad_af": "2d5729ba0ff163f8df8fec9a0cc9cbbd270c31bbd888726936809a2dbb81bffd",
+    "src/genomic_variant_classifier/information_sources/materialization.py::parse_eve_file": "0d4db8c70086755cfdf699fa961c63295a4150cbcdd9c52e290186611c38729d",
+    "src/genomic_variant_classifier/information_sources/materialization.py::parse_verified": "316ddfd74c7ee1a90ad0c84f8ce61fa8b646847f0881230a2819a34f3ce2d67f",
+    "src/genomic_variant_classifier/information_sources/materialization.py::read_verified_bytes": "3d0dc490ab37d73c0cca2a9030d582cb42d4738465b47ede756f2f8999d02d96"
+  },
+  "revel": {
+    "legacy_revel_pathogenic": 1357876,
+    "legacy_revel_pathogenic_by_label": {
+      "auroc_of_the_indicator_for_the_label": 0.53539,
+      "benign": {
+        "count": 1153202,
+        "fraction": 0.901316,
+        "rows": 1279465
+      },
+      "pathogenic": {
+        "count": 204674,
+        "fraction": 0.972097,
+        "rows": 210549
+      }
+    },
+    "legacy_revel_pathogenic_set_by_absence": 1169388,
+    "measured_through": "DbNSFPConnector.annotate_dataframe with the REVEL fill replaced by NaN (a measurement; REVEL is not a pilot producer)",
+    "observed": 320626,
+    "observed_revel_pathogenic": 188488,
+    "unobserved": 1169388,
+    "unobserved_by_label": {
+      "auroc_of_the_indicator_for_the_label": 0.182842,
+      "benign": {
+        "count": 1118828,
+        "fraction": 0.87445,
+        "rows": 1279465
+      },
+      "pathogenic": {
+        "count": 50560,
+        "fraction": 0.240134,
+        "rows": 210549
+      }
+    },
+    "unobserved_missense": 2698,
+    "unobserved_non_missense": 1166690
+  },
+  "schema": "gvc.pilot-measurements.1d1b2/1"
+}
