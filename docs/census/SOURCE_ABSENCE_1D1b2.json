@@ -1,0 +1,2228 @@
+{
+  "builder_sha256": "54d79e0936c460ec1da164501617af6fc6e2fd9c1120b9a357d79adc84901b2b",
+  "census_ledger_sha256": "88ddc0d5d91cfa217f78c7e5dc22a7c7a127350fe76b68f3ff292ab037933165",
+  "connector_layer": {
+    "files_created_in_the_hermetic_folder": [
+      "data",
+      "data/raw",
+      "data/raw/cache",
+      "data/raw/cache/esm2_cache.sqlite",
+      "splits"
+    ],
+    "fixture_rows": 3,
+    "network_attempts": 0,
+    "raw_inputs_never_written_by_the_chain": [
+      "af_1kg_afr",
+      "af_1kg_amr",
+      "af_1kg_eas",
+      "af_1kg_eur",
+      "af_1kg_sas",
+      "allele_freq",
+      "finngen_af_fin",
+      "finngen_af_nfsee",
+      "finngen_enrichment",
+      "finngen_r13_af_fin",
+      "finngen_r13_af_nfsee",
+      "finngen_r13_enrichment",
+      "gnn_score",
+      "has_uniprot_annotation",
+      "hetero_gnn_score",
+      "n_known_pathogenic_protein_variants",
+      "n_pathogenic_in_gene"
+    ],
+    "raw_inputs_written_by_the_chain": {
+      "alphamissense_score": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "cadd_phred": [
+        15.0,
+        15.0,
+        15.0
+      ],
+      "clingen_validity_score": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "codon_position": [
+        20.0,
+        0.0,
+        0.0
+      ],
+      "cosmic_recurrence": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "cosmic_sig_tier": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "dbsnp_af": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "dist_to_splice_site": [
+        50.0,
+        50.0,
+        50.0
+      ],
+      "esm2_delta_norm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "esm2_llr": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "eve_score": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "exon_number": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gene_constraint_oe": [
+        null,
+        null,
+        null
+      ],
+      "genomiclm_delta_norm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "genomiclm_llr": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gerp_score": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gtex_is_eqtl": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gtex_max_abs_effect": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gtex_max_tpm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gtex_min_eqtl_pval": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gtex_n_tissues_expressed": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gtex_tissue_specificity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "is_canonical_splice": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "kegg_disease_pathway_flag": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "kegg_pathway_count": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "loeuf": [
+        null,
+        null,
+        null
+      ],
+      "lovd_variant_class": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maxentscan_delta": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maxentscan_score": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mis_z": [
+        null,
+        null,
+        null
+      ],
+      "omim_is_autosomal_dominant": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "omim_n_diseases": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "omim_n_diseases_molecular": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "phylop_score": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pli_score": [
+        null,
+        null,
+        null
+      ],
+      "polyphen2_score": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "reactome_pathway_count": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "revel_score": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "rnaseq_de_neglog10p": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rnaseq_detection_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rnaseq_log2_cv": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rnaseq_log2fc": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rnaseq_mean_log_tpm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "sift_score": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "splice_ai_score": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "syn_z": [
+        null,
+        null,
+        null
+      ]
+    }
+  },
+  "lineage_check": [
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "af_log10",
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "af_is_absent",
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "af_is_ultra_rare",
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "af_is_rare",
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "af_is_common",
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "declared_dependencies": 2,
+      "explained_by_dependencies": true,
+      "feature": "is_indel",
+      "raw_inputs_read": [
+        "alt",
+        "ref"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "cadd_high",
+      "raw_inputs_read": [
+        "cadd_phred"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "sift_deleterious",
+      "raw_inputs_read": [
+        "sift_score"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "polyphen_probably_damaging",
+      "raw_inputs_read": [
+        "polyphen2_score"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "revel_pathogenic",
+      "raw_inputs_read": [
+        "revel_score"
+      ]
+    },
+    {
+      "declared_dependencies": 4,
+      "explained_by_dependencies": true,
+      "feature": "n_tools_pathogenic",
+      "raw_inputs_read": [
+        "cadd_phred",
+        "polyphen2_score",
+        "revel_score",
+        "sift_score"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "gene_is_constrained",
+      "raw_inputs_read": [
+        "loeuf"
+      ]
+    },
+    {
+      "declared_dependencies": 1,
+      "explained_by_dependencies": true,
+      "feature": "gene_has_known_disease",
+      "raw_inputs_read": [
+        "n_pathogenic_in_gene"
+      ]
+    },
+    {
+      "declared_dependencies": 95,
+      "explained_by_dependencies": true,
+      "feature": "gnn_score",
+      "raw_inputs_read": [
+        "gnn_score"
+      ]
+    },
+    {
+      "declared_dependencies": 96,
+      "explained_by_dependencies": true,
+      "feature": "hetero_gnn_score",
+      "raw_inputs_read": [
+        "hetero_gnn_score"
+      ]
+    },
+    {
+      "declared_dependencies": 2,
+      "explained_by_dependencies": true,
+      "feature": "finngen_enrichment",
+      "raw_inputs_read": [
+        "finngen_enrichment"
+      ]
+    },
+    {
+      "declared_dependencies": 2,
+      "explained_by_dependencies": true,
+      "feature": "finngen_r13_enrichment",
+      "raw_inputs_read": [
+        "finngen_r13_enrichment"
+      ]
+    }
+  ],
+  "mode": "shadow: executes the repository's feature builder and annotation chain; changes nothing",
+  "notes": [
+    "fabrication_is_silent: on an all-absent frame engineer_features raised no warning and logged nothing at WARNING or above, and no record named a fabricated feature (measured; any would have refused the census); its only records are listed in builder_signals_under_absence",
+    "fill_precedes_scaling: the scaler is fitted on engineer_features output (census surface scaler_fit), so every fill above is a training value before standardisation",
+    "same_builder_at_inference: api/pipeline.py renders the contract with the same engineer_features; the two NaN-preserving features are then imputed with TRAINING-fold medians by the fitted missing-value policy"
+  ],
+  "raw_inputs": {
+    "count": 67,
+    "measured_by": "execution (a recording frame), equal to the builder's source text",
+    "names": [
+      "af_1kg_afr",
+      "af_1kg_amr",
+      "af_1kg_eas",
+      "af_1kg_eur",
+      "af_1kg_sas",
+      "allele_freq",
+      "alphamissense_score",
+      "alt",
+      "cadd_phred",
+      "chrom",
+      "clingen_validity_score",
+      "codon_position",
+      "consequence",
+      "cosmic_recurrence",
+      "cosmic_sig_tier",
+      "dbsnp_af",
+      "dist_to_splice_site",
+      "esm2_delta_norm",
+      "esm2_llr",
+      "eve_score",
+      "exon_number",
+      "finngen_af_fin",
+      "finngen_af_nfsee",
+      "finngen_enrichment",
+      "finngen_r13_af_fin",
+      "finngen_r13_af_nfsee",
+      "finngen_r13_enrichment",
+      "gene_constraint_oe",
+      "genomiclm_delta_norm",
+      "genomiclm_llr",
+      "gerp_score",
+      "gnn_score",
+      "gtex_is_eqtl",
+      "gtex_max_abs_effect",
+      "gtex_max_tpm",
+      "gtex_min_eqtl_pval",
+      "gtex_n_tissues_expressed",
+      "gtex_tissue_specificity",
+      "has_uniprot_annotation",
+      "hetero_gnn_score",
+      "is_canonical_splice",
+      "kegg_disease_pathway_flag",
+      "kegg_pathway_count",
+      "loeuf",
+      "lovd_variant_class",
+      "maxentscan_delta",
+      "maxentscan_score",
+      "mis_z",
+      "n_known_pathogenic_protein_variants",
+      "n_pathogenic_in_gene",
+      "omim_is_autosomal_dominant",
+      "omim_n_diseases",
+      "omim_n_diseases_molecular",
+      "phylop_score",
+      "pli_score",
+      "polyphen2_score",
+      "reactome_pathway_count",
+      "ref",
+      "revel_score",
+      "rnaseq_de_neglog10p",
+      "rnaseq_detection_rate",
+      "rnaseq_log2_cv",
+      "rnaseq_log2fc",
+      "rnaseq_mean_log_tpm",
+      "sift_score",
+      "splice_ai_score",
+      "syn_z"
+    ]
+  },
+  "rows": [
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "af_raw",
+      "fill_equals_an_observed_value": null,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": -8.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        -8.0,
+        -8.0,
+        -8.0
+      ],
+      "feature": "af_log10",
+      "fill_equals_an_observed_value": null,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": -8.0,
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "af_is_absent",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": true,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "af_is_ultra_rare",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": true,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "af_is_rare",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "af_is_common",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "allele_freq"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        3.0
+      ],
+      "feature": "ref_len",
+      "fill_equals_an_observed_value": null,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "ref"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "alt_len",
+      "fill_equals_an_observed_value": null,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "alt"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        2.0
+      ],
+      "feature": "len_diff",
+      "fill_equals_an_observed_value": null,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "alt",
+        "ref"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        0.0
+      ],
+      "feature": "is_snv",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": true,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "alt",
+        "ref"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "is_insertion",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "alt",
+        "ref"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "feature": "is_deletion",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "alt",
+        "ref"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "feature": "is_indel",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "alt",
+        "ref"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        5.0,
+        9.0,
+        6.0
+      ],
+      "feature": "consequence_severity",
+      "fill_equals_an_observed_value": null,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "consequence"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "feature": "is_loss_of_function",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "consequence"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "feature": "is_missense",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "consequence"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "is_synonymous",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "consequence"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "is_splice",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "consequence"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "in_coding",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "consequence"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 15.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        15.0,
+        15.0,
+        15.0
+      ],
+      "feature": "cadd_phred",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 15.0,
+      "raw_inputs_read": [
+        "cadd_phred"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.5,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "feature": "sift_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.5,
+      "raw_inputs_read": [
+        "sift_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.5,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "feature": "polyphen2_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.5,
+      "raw_inputs_read": [
+        "polyphen2_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.5,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "feature": "revel_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.5,
+      "raw_inputs_read": [
+        "revel_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "phylop_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "phylop_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "gerp_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "gerp_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.5,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "feature": "alphamissense_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.5,
+      "raw_inputs_read": [
+        "alphamissense_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "splice_ai_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "splice_ai_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.5,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "feature": "eve_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.5,
+      "raw_inputs_read": [
+        "eve_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "cadd_high",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "cadd_phred"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "sift_deleterious",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "sift_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "polyphen_probably_damaging",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "polyphen2_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "revel_pathogenic",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": true,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "revel_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "n_tools_pathogenic",
+      "fill_equals_an_observed_value": null,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "cadd_phred",
+        "polyphen2_score",
+        "revel_score",
+        "sift_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": null,
+      "all_sources_absent_through_the_annotation_chain": [
+        null,
+        null,
+        null
+      ],
+      "feature": "gene_constraint_oe",
+      "fill_equals_an_observed_value": null,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": true,
+      "nan_value": null,
+      "raw_inputs_read": [
+        "gene_constraint_oe"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": null,
+      "all_sources_absent_through_the_annotation_chain": [
+        null,
+        null,
+        null
+      ],
+      "feature": "gene_is_constrained",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": true,
+      "nan_value": null,
+      "raw_inputs_read": [
+        "loeuf"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "n_pathogenic_in_gene",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "n_pathogenic_in_gene"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "gene_has_known_disease",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "n_pathogenic_in_gene"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "has_uniprot_annotation",
+      "fill_equals_an_observed_value": true,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "has_uniprot_annotation"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "n_known_pathogenic_protein_variants",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "n_known_pathogenic_protein_variants"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "gtex_max_tpm",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "gtex_max_tpm"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "gtex_n_tissues_expressed",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "gtex_n_tissues_expressed"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "gtex_tissue_specificity",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "gtex_tissue_specificity"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "gtex_is_eqtl",
+      "fill_equals_an_observed_value": true,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "gtex_is_eqtl"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "gtex_min_eqtl_pval",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "gtex_min_eqtl_pval"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "gtex_max_abs_effect",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "gtex_max_abs_effect"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        20.0,
+        0.0,
+        0.0
+      ],
+      "feature": "codon_position",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "codon_position"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "dbsnp_af",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "dbsnp_af"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "omim_n_diseases",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "omim_n_diseases"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "omim_n_diseases_molecular",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "omim_n_diseases_molecular"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "omim_is_autosomal_dominant",
+      "fill_equals_an_observed_value": true,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "omim_is_autosomal_dominant"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "clingen_validity_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "clingen_validity_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "lovd_variant_class",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "lovd_variant_class"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "is_autosome",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "chrom"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "is_sex_chrom",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "chrom"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "is_mitochondrial",
+      "fill_equals_an_observed_value": null,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "chrom"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.5,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "feature": "gnn_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.5,
+      "raw_inputs_read": [
+        "gnn_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.5,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "feature": "hetero_gnn_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.5,
+      "raw_inputs_read": [
+        "hetero_gnn_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "maxentscan_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "maxentscan_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "maxentscan_delta",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "maxentscan_delta"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 50.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        50.0,
+        50.0,
+        50.0
+      ],
+      "feature": "dist_to_splice_site",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 50.0,
+      "raw_inputs_read": [
+        "dist_to_splice_site"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "exon_number",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "exon_number"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "is_canonical_splice",
+      "fill_equals_an_observed_value": true,
+      "indicator": true,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "is_canonical_splice"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "af_1kg_afr",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "af_1kg_afr"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "af_1kg_eur",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "af_1kg_eur"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "af_1kg_eas",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "af_1kg_eas"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "af_1kg_sas",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "af_1kg_sas"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "af_1kg_amr",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "af_1kg_amr"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "finngen_af_fin",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "finngen_af_fin"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "finngen_af_nfsee",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "finngen_af_nfsee"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "finngen_enrichment",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "finngen_enrichment"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "finngen_r13_af_fin",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "finngen_r13_af_fin"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "finngen_r13_af_nfsee",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "finngen_r13_af_nfsee"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "finngen_r13_enrichment",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "finngen_r13_enrichment"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "esm2_delta_norm",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "esm2_delta_norm"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "esm2_llr",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "esm2_llr"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "genomiclm_delta_norm",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "genomiclm_delta_norm"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "genomiclm_llr",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "genomiclm_llr"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "cosmic_recurrence",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "cosmic_recurrence"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "cosmic_sig_tier",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "cosmic_sig_tier"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "kegg_pathway_count",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "kegg_pathway_count"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "kegg_disease_pathway_flag",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "kegg_disease_pathway_flag"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "pli_score",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "pli_score"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 1.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "feature": "loeuf",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 1.0,
+      "raw_inputs_read": [
+        "loeuf"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "syn_z",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "syn_z"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "mis_z",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "mis_z"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "reactome_pathway_count",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "reactome_pathway_count"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "rnaseq_mean_log_tpm",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "rnaseq_mean_log_tpm"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "rnaseq_detection_rate",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "rnaseq_detection_rate"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "rnaseq_log2_cv",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "rnaseq_log2_cv"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "rnaseq_log2fc",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "rnaseq_log2fc"
+      ]
+    },
+    {
+      "absent_equals_nan": true,
+      "absent_value": 0.0,
+      "all_sources_absent_through_the_annotation_chain": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feature": "rnaseq_de_neglog10p",
+      "fill_equals_an_observed_value": true,
+      "indicator": false,
+      "indicator_set_by_absence": false,
+      "missingness_survives": false,
+      "nan_value": 0.0,
+      "raw_inputs_read": [
+        "rnaseq_de_neglog10p"
+      ]
+    }
+  ],
+  "schema": "gvc.source-absence-census.1d1b2/1",
+  "summary": {
+    "absent_differs_from_nan": [],
+    "builder_signals_under_absence": [
+      {
+        "features_named": [
+          "gene_constraint_oe",
+          "gene_is_constrained"
+        ],
+        "level": "INFO",
+        "logger": "genomic_variant_classifier.models.variant_ensemble"
+      }
+    ],
+    "fabricated_under_absence": 89,
+    "fabrication_is_silent": true,
+    "features": 91,
+    "fill_equals_an_observed_value": [
+      "cadd_phred",
+      "sift_score",
+      "polyphen2_score",
+      "revel_score",
+      "phylop_score",
+      "gerp_score",
+      "alphamissense_score",
+      "splice_ai_score",
+      "eve_score",
+      "n_pathogenic_in_gene",
+      "has_uniprot_annotation",
+      "n_known_pathogenic_protein_variants",
+      "gtex_max_tpm",
+      "gtex_n_tissues_expressed",
+      "gtex_tissue_specificity",
+      "gtex_is_eqtl",
+      "gtex_min_eqtl_pval",
+      "gtex_max_abs_effect",
+      "codon_position",
+      "dbsnp_af",
+      "omim_n_diseases",
+      "omim_n_diseases_molecular",
+      "omim_is_autosomal_dominant",
+      "clingen_validity_score",
+      "lovd_variant_class",
+      "gnn_score",
+      "hetero_gnn_score",
+      "maxentscan_score",
+      "maxentscan_delta",
+      "dist_to_splice_site",
+      "exon_number",
+      "is_canonical_splice",
+      "af_1kg_afr",
+      "af_1kg_eur",
+      "af_1kg_eas",
+      "af_1kg_sas",
+      "af_1kg_amr",
+      "finngen_af_fin",
+      "finngen_af_nfsee",
+      "finngen_enrichment",
+      "finngen_r13_af_fin",
+      "finngen_r13_af_nfsee",
+      "finngen_r13_enrichment",
+      "esm2_delta_norm",
+      "esm2_llr",
+      "genomiclm_delta_norm",
+      "genomiclm_llr",
+      "cosmic_recurrence",
+      "cosmic_sig_tier",
+      "kegg_pathway_count",
+      "kegg_disease_pathway_flag",
+      "pli_score",
+      "loeuf",
+      "syn_z",
+      "mis_z",
+      "reactome_pathway_count",
+      "rnaseq_mean_log_tpm",
+      "rnaseq_detection_rate",
+      "rnaseq_log2_cv",
+      "rnaseq_log2fc",
+      "rnaseq_de_neglog10p"
+    ],
+    "fill_precedes_scaling": true,
+    "indicators": 26,
+    "indicators_set_by_absence": [
+      "af_is_absent",
+      "af_is_ultra_rare",
+      "is_snv",
+      "revel_pathogenic"
+    ],
+    "missingness_survives": [
+      "gene_constraint_oe",
+      "gene_is_constrained"
+    ],
+    "same_builder_at_inference": true
+  }
+}

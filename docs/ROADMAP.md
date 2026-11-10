@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-08 (v3; section 9 current to 2026-11-08, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
+**Version: 2026-11-10 (v3; section 9 current to 2026-11-10, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -58,7 +58,36 @@ Production-grade multi-modal genomic disease-association program. Core: an ACMG/
 | A | Advanced modeling | Julia training, VAE, Bayesian UQ, GraphGPS | roadmap 4 | NOT STARTED |
 | X | Productionization | REST API, Docker, clinical eval/report | Phase 2 (API/Docker) | NOT STARTED |
 
-*We are in Phase D (data expansion). Foundation is done.*
+*We are in Phase D (data expansion). The engineering foundation is done; see the maturity states below before reading
+"done" as anything more.*
+
+## 2A. Two maturity states, reported separately (owner ruling 7f4b69d0, section 15)
+
+"Foundation: DONE" is an ENGINEERING statement. The project's scientific maturity is a different question with a different
+answer, and the classifier must not be described as scientifically validated because its engineering foundation is complete.
+
+| Question | Engineering maturity | State (2026-11-10) |
+|---|---|---|
+| Does the code execute correctly; are failures loud? | yes | established: guarded suite, fail-loud contracts |
+| Are dependencies reproducible? | yes | established: locked training and drift environments, verified on Windows and Linux |
+| Are artefacts content-bound; are rosters and prediction identities exact? | yes | established (package 1) |
+| Does delivery protect the working repository? | yes | established: guarded installers, receipts, post-merge checks |
+
+| Question | Scientific maturity | State (2026-11-10) |
+|---|---|---|
+| Is the target scientifically defined? | no | binary ClinVar label; clinical, gene-disease and molecular-effect targets not yet separated |
+| Is the information regime enforced? | no | shadow only: 47 names statically reachable unadmitted under the strict regime (docs/census/ADMISSION_SHADOW_1D1b2.json); enforcement is 1D-1c |
+| Is absence kept apart from evidence? | no | 89 of 91 features fabricate a value when their source is absent (docs/census/SOURCE_ABSENCE_1D1b2.json); on the Run 15 cohort a missing gnomAD frequency alone separates the labels with AUROC 0.695 (docs/census/PILOTS_1D1b2.json) |
+| Is the evaluation population valid? | partly | gene-disjoint splits exist; canonical gene identity is 1D-1d |
+| Are upstream supervision and label-criterion overlap characterised? | partly | recorded per feature in the census; criterion-independent evaluation is 1D-2 |
+| Does performance generalise to held-out genes under the admitted regime? | not measured | the leakage-free baseline ladder B0-B4 (1D-2) is the next scientific milestone |
+| Are molecular or clinical claims independently supported? | no | none is made |
+
+A source has three separate statuses, never one: an IMPLEMENTED connector (the code exists), a SCIENTIFICALLY ADMISSIBLE source
+(its census disposition under a regime) and an OPERATIONALLY POPULATED source (a materialisation shows its values reach the rows).
+Measured on the Run 15 cohort (1,490,014 rows): EVE is implemented, conditional_only, and was not populated in Run 15 (unconfigured;
+with the release on disk it would observe 91,164 rows); gnomAD allele frequency is implemented, admit_strict, and populated for
+992,044 rows -- none on chromosome X (GNOMAD-CHRX-LOCUS-PARSE-1).
 
 # 3. Current state snapshot (2026-08-23)
 
@@ -94,7 +123,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,077 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,136 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -964,7 +993,9 @@ exists to end.
   Linux container);
   STRING-THRESHOLD-RECONSTRUCTION-1 (rounded channels with a floored combined score fit 99.99514% of pairs, 333 miss by one
   thousandth; the measured-channel graph has 3 reconstruction artifacts outside the published one, so G1 = reconstruction
-  INTERSECTED with the published graph, 84,987 edges, 177 rounding-sensitive; 1D-1b.3); KG-COHORT-DEPENDENT-PROJECTION-1
+  INTERSECTED with the published graph, 84,987 edges; CORRECTED 2026-11-10 (owner ruling 7f4b69d0, section 7): "177
+  rounding-sensitive" counted published-graph edges, of which 113 are G1 edges and 64 are excluded from G1 -- the threshold-robust
+  G1 graph has 84,874 edges; 1D-1b.3); KG-COHORT-DEPENDENT-PROJECTION-1
   (kg_edges.co_membership_edges caps set size AFTER filtering to the cohort, so adding a gene can delete edges; 1D-1b.3);
   KG-RELATION-SOURCE-MERGE-1 (load_kg_edge_specs merges Reactome and KEGG into one shares_pathway relation, so a withheld and an
   excluded source cannot be told apart per edge; 1D-1b.3); STRING-GENE-MAPPING-1 (StringDBGraph.build maps by preferred_name,
@@ -972,6 +1003,41 @@ exists to end.
   force_refresh; measured on v12 human: 19,699 proteins, 19,699 distinct names, no collision, unmapped protein or self-loop --
   the realised risk is the namespace, preferred_name against HGNC identifiers; 1D-1b.3 and 1D-1d). Next: stage 1D-1b.2, source
   and observation materialisation. Suite 9,056 -> 9,077 (+21 / -0).
+  VALIDATED ON WINDOWS AND MERGED 2026-11-10: one -Validate run (receipt GVC_admission_1d1b1_validation_20261109T233537Z, sha256
+  ab93a82e; candidate c7c8422c, tree 04ba47bf; every stage exit 0, admission included). Pull request #73 was merged with a merge
+  commit -- 18fa338e, parents f9736a8e and c7c8422c -- and the post-merge block compared the targeted tests by node identity
+  (2,108 passed, 5 skipped, as in the validation; drift 22; both candidate environments still their Windows locks); the branch was
+  then deleted.
+- **2026-11-10 -- PACKAGE 1D, STAGE 1D-1b.2 (set "aq"): lineage integrity, source materialisation and the source-absence census.**
+  Owner ruling 7f4b69d0. Shadow mode: no production module imports the new code (a test proves it); no model, feature, scaler,
+  graph, split or inference behaviour changes. (1) ADMISSION-CYCLIC-LINEAGE-1 fixed by two independent mechanisms
+  (information_sources/lineage.py): the census gate and the admission report refuse any cycle, naming every cyclic component
+  (iterative Tarjan; self-loops included), and every leaf must name a registered dataset; admission is then the LEAST fixed point,
+  evaluated bottom-up, so a cycle cannot admit itself even past the check -- equal to the 1D-1b.1 result on the acyclic census
+  (tested). (2) Exposure is graded (DECLARED, STATICALLY_REACHABLE, MATERIALIZED, FITTED_INPUT, INFERENCE_INPUT): the report
+  establishes the first two only, renames available_to_fitted_model to statically_reachable and violations to
+  structural_exposure_risks (docs/census/ADMISSION_SHADOW_1D1b2.json, replacing ADMISSION_SHADOW_1D1b1.json). (3) The observation
+  contract separates the LOGICAL source from the bytes read (observation.SourceIdentity; the owner's digest table) and adds
+  INPUT_UNOBSERVED for derived values; columns.py holds a column per feature (float64 values, uint8 states, uint16 reasons)
+  reconciled against an ordered population, and the propagation rule of every derived feature, reconciled with the census.
+  (4) materialization.py binds the parser to the hashed bytes (one open, one pass; an early stop or unread remainder refuses),
+  writes receipts from what it measured (parser identity = the materialiser's semantic-closure digest), and pilots EVE and gnomAD
+  allele frequency, each reproducing its legacy connector's join exactly. (5) The source-absence census
+  (absence_census.py, docs/census/SOURCE_ABSENCE_1D1b2.json) executes engineer_features on absent, NaN and varied frames and the
+  annotation chain hermetically: 67 raw inputs (execution equals the source text); 89 of 91 features fabricate a value under
+  absence, silently; "never joined" and "joined, not in it" are indistinguishable for all; absence alone sets af_is_absent,
+  af_is_ultra_rare, is_snv and revel_pathogenic to 1; every derived feature reads only through its declared dependencies.
+  (6) The pilots on the REAL source joins (docs/census/PILOTS_1D1b2.json; scripts/measure_1d1b2_pilots.py; EVE's 3,211 files,
+  10.65 GB, parsed on the owner's machine, every file equal to the connector's own parse), on the Run 15 cohort (1,490,014 rows,
+  Run 15's count): gnomAD frequency observed for 992,044 rows, the legacy join reproduced on every row; 497,970 rows (33.4%) have
+  none and become "ultra-rare" -- 67.0% of pathogenic against 27.9% of benign rows (AUROC of the missingness alone 0.695); 40,419
+  observed zeros are indistinguishable from them. EVE observes 91,164 rows (no observed score is exactly 0.5); 280 rows would be
+  duplicated by the legacy join; the legacy join is reproduced on the other 1,489,734. REVEL is unscored for 1,169,388 rows, every
+  one flagged pathogenic (90.1% of benign rows). Registered: ABSENCE-AS-EVIDENCE-1, GNOMAD-CHRX-LOCUS-PARSE-1 (every chromosome-X
+  gnomAD record dropped by the locus parse: 63,929 cohort rows without a frequency; autosomes 990,350 observed, Run 15's logged
+  count exactly), EVE-DUPLICATE-KEY-MULTIPLIES-ROWS-1. The pilot population is the Run 15 cohort built from
+  clinvar_grch38_clean.parquet (1,490,014), not the canonical-review cohort of section 1 (1,490,324). Fixes: 1D-1c.
+  Suite 9,077 -> 9,136 (+66 / -7 by node identity).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

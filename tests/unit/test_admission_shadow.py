@@ -1,26 +1,22 @@
-"""Stage 1D-1b.1 (set "ap"): typed observations and the shadow admission report derived from the merged census.
-Owner ruling f2ec92cd (2026-11-09), section XIII. Author: Monzia Moodie."""
+"""Stages 1D-1b.1 (set "ap") and 1D-1b.2 (set "aq"): the shadow admission report derived from the merged census.
+Owner rulings f2ec92cd (section XIII) and 7f4b69d0 (sections 2.2 and 3). Author: Monzia Moodie."""
 from __future__ import annotations
 
 import ast
 import copy
-import fractions
 import json
 import subprocess
 import sys
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from genomic_variant_classifier.information_sources import admission as A
 from genomic_variant_classifier.information_sources import census as C
 from genomic_variant_classifier.information_sources import consumers as K
-from genomic_variant_classifier.information_sources import observation as O
 
 REPO = Path(__file__).resolve().parents[2]
 SHA = "a" * 64
-S = O.ObservationState
 
 
 @pytest.fixture(scope="module")
@@ -57,14 +53,37 @@ def test_every_census_name_appears_once_in_census_order(derived, ledger):
     assert {r["disposition"] for r in derived["rows"]} <= {d.value for d in A.REVIEWED}
 
 
-def test_admitted_observed_and_available_are_reported_separately(derived):
+def test_admitted_observed_and_exposed_are_reported_separately(derived):
     for r in derived["rows"]:
         assert set(r["admission"]) == set(A.REGIMES)
-        assert r["observation"] == A.OBSERVATION_NOT_RECORDED          # no producer records it yet: unknown, not observed
-        assert all(A.SURFACE_CLASS[s] == "predictive" for s in r["available_to_fitted_model"])
+        exposure = r["exposure"]
+        assert list(exposure) == [e.value for e in A.InputExposure]
+        assert exposure["declared"] is True
+        assert all(A.SURFACE_CLASS[s] == "predictive" for s in exposure["statically_reachable"])
+        for level in ("materialized", "fitted_input", "inference_input"):      # need execution evidence: not claimed
+            assert exposure[level] == A.NOT_ESTABLISHED
         assert all(A.SURFACE_CLASS[s] != "predictive" for s in r["computed_or_stored_only"])
+        expected = (f"shadow_materializer:{A.SHADOW_MATERIALIZERS[r['name']]}" if r["name"] in A.SHADOW_MATERIALIZERS
+                    else A.OBSERVATION_NOT_RECORDED)
+        assert r["observation"] == expected
     assert row(derived, "af_raw")["admission"] == {"strict": "admitted", "conditional": "admitted"}
-    assert "tabular_fit" in row(derived, "af_raw")["available_to_fitted_model"]
+    assert "tabular_fit" in row(derived, "af_raw")["exposure"]["statically_reachable"]
+    assert "available_to_fitted_model" not in json.dumps(derived)          # renamed: static exposure is not fitted input
+
+
+def test_the_shadow_materialisers_named_exist_and_are_not_production():
+    tree = ast.parse((REPO / "src/genomic_variant_classifier/information_sources/materialization.py").read_text())
+    defined = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)}
+    for feature, symbol in A.SHADOW_MATERIALIZERS.items():
+        path, qual = symbol.split("::")
+        assert path == "src/genomic_variant_classifier/information_sources/materialization.py" and qual in defined, feature
+
+
+def test_the_report_carries_the_lineage_facts(derived):
+    lin = derived["lineage"]
+    assert (lin["identities"], lin["dependency_edges"], lin["leaves"]) == (102, 212, 85)
+    assert lin["cyclic_components"] == [] and lin["ungrounded_leaves"] == []
+    assert lin["registered_datasets"] == len(C.strict_load(REPO / C.LEDGER_PATH)["datasets"])
 
 
 def test_strict_admission_equals_the_census_gate(derived, ledger):
@@ -72,13 +91,35 @@ def test_strict_admission_equals_the_census_gate(derived, ledger):
     admitted = [r["name"] for r in derived["rows"] if r["admission"]["strict"] == "admitted"]
     assert admitted == list(report.strictly_admitted)
     assert derived["counts"]["strict"]["transitive_only"] == 0
+    assert (derived["counts"]["strict"]["admitted"], derived["counts"]["conditional"]["admitted"]) == (55, 65)
+
+
+def _greatest_fixed_point(dispositions, depends_on, admitted):
+    """The 1D-1b.1 algorithm, kept here to show the least fixed point equals it on the acyclic census."""
+    ok = {n for n, d in dispositions.items() if d in admitted}
+    changed = True
+    while changed:
+        changed = False
+        for name in sorted(ok):
+            if any(dep not in ok for dep in depends_on.get(name, ())):
+                ok.discard(name)
+                changed = True
+    return {n: tuple(sorted(d for d in depends_on.get(n, ()) if d not in ok)) for n in dispositions}
+
+
+def test_the_least_fixed_point_equals_the_greatest_on_the_acyclic_census(ledger):
+    records = [*ledger["entries"], *ledger["information_sources"]]
+    disp = {r["name"]: A.D(r["disposition"]) for r in records}
+    deps = {r["name"]: tuple(r.get("depends_on", ())) for r in records}
+    for regime, admitted in A.REGIMES.items():
+        assert A.effective_admission(disp, deps, admitted) == _greatest_fixed_point(disp, deps, admitted), regime
 
 
 def test_the_gnn_scores_are_not_admissible_under_any_regime_through_their_dependencies(derived):
     for name in ("gnn_score", "hetero_gnn_score"):
         r = row(derived, name)
         assert r["disposition"] == "conditional_only" and r["admission"]["conditional"] == "not_admitted"
-        v = next(v for v in derived["violations"] if v["regime"] == "conditional" and v["name"] == name)
+        v = next(v for v in derived["structural_exposure_risks"] if v["regime"] == "conditional" and v["name"] == name)
         assert v["reason"].startswith("depends on entries not admitted")
         assert "n_pathogenic_in_gene" in v["reason"] and "string_relation:combined_score_threshold" in v["reason"]
     assert derived["counts"]["conditional"]["transitive_only"] == 2
@@ -87,29 +128,47 @@ def test_the_gnn_scores_are_not_admissible_under_any_regime_through_their_depend
 def test_every_unadmitted_name_that_reaches_a_model_is_a_violation_with_its_identity(derived):
     for regime in A.REGIMES:
         expected = sorted(r["name"] for r in derived["rows"]
-                          if r["admission"][regime] == "not_admitted" and r["available_to_fitted_model"])
-        got = sorted(v["name"] for v in derived["violations"] if v["regime"] == regime)
-        assert got == expected and len(got) == derived["counts"][regime]["violations"]
-    v = next(v for v in derived["violations"] if v["name"] == "kg_relation:clingen" and v["regime"] == "strict")
+                          if r["admission"][regime] == "not_admitted" and r["exposure"]["statically_reachable"])
+        got = sorted(v["name"] for v in derived["structural_exposure_risks"] if v["regime"] == regime)
+        assert got == expected and len(got) == derived["counts"][regime]["structural_exposure_risks"]
+    assert (derived["counts"]["strict"]["structural_exposure_risks"],
+            derived["counts"]["conditional"]["structural_exposure_risks"]) == (47, 37)
+    assert "not a demonstration that a particular fit consumed it" in derived["structural_exposure_risk_meaning"]
+    v = next(v for v in derived["structural_exposure_risks"] if v["name"] == "kg_relation:clingen" and v["regime"] == "strict")
     assert v["kind"] == "graph_relation" and v["predictive_surfaces"] == ["hetero_gnn_relations"]
 
 
 def test_registered_defects_are_attached_to_the_names_they_affect(derived):
-    assert row(derived, "eve_score")["registered_defects"] == ["EVE-COVERAGE-IDENTITY-1", "MISSINGNESS-SEMANTICS-1"]
+    assert row(derived, "eve_score")["registered_defects"] == ["EVE-COVERAGE-IDENTITY-1",
+                                                               "EVE-DUPLICATE-KEY-MULTIPLIES-ROWS-1",
+                                                               "MISSINGNESS-SEMANTICS-1"]
+    assert row(derived, "revel_pathogenic")["registered_defects"] == ["ABSENCE-AS-EVIDENCE-1"]
+    assert "GNOMAD-CHRX-LOCUS-PARSE-1" in row(derived, "af_is_ultra_rare")["registered_defects"]
     assert row(derived, "codon_position")["registered_defects"] == ["CODON-POSITION-SEMANTICS-1"]
 
 
 # ------------------------------------------------------------------------------------------------------ the derivation
-def test_effective_admission_is_the_greatest_fixed_point():
+def test_effective_admission_propagates_and_refuses_every_cycle():
     Dd = A.D
-    disp = {"a": Dd.ADMIT_STRICT, "b": Dd.ADMIT_STRICT, "c": Dd.ADMIT_STRICT, "x": Dd.EXCLUDE_STRICT,
-            "p": Dd.ADMIT_STRICT, "q": Dd.ADMIT_STRICT}
-    deps = {"a": ("b",), "b": ("c",), "c": ("x",), "p": ("q",), "q": ("p",)}       # a chain to x; a mutual cycle
+    disp = {"a": Dd.ADMIT_STRICT, "b": Dd.ADMIT_STRICT, "c": Dd.ADMIT_STRICT, "x": Dd.EXCLUDE_STRICT}
+    deps = {"a": ("b",), "b": ("c",), "c": ("x",)}                                 # a chain to an excluded source
     out = A.effective_admission(disp, deps, A.REGIMES["strict"])
-    assert out["c"] == ("x",) and out["b"] == ("c",) and out["a"] == ("b",)           # propagates along the chain
-    assert out["p"] == () and out["q"] == ()                                          # an admitted cycle stays admitted
+    assert out["c"] == ("x",) and out["b"] == ("c",) and out["a"] == ("b",)
+    # ADMISSION-CYCLIC-LINEAGE-1: the 1D-1b.1 greatest fixed point admitted p <-> q and a self-loop; now refused.
+    cyc = {"p": Dd.ADMIT_STRICT, "q": Dd.ADMIT_STRICT, "s": Dd.ADMIT_STRICT}
+    with pytest.raises(ValueError, match="cyclic information lineage.*p <-> q; s"):
+        A.effective_admission(cyc, {"p": ("q",), "q": ("p",), "s": ("s",)}, A.REGIMES["strict"])
+    assert _greatest_fixed_point(cyc, {"p": ("q",), "q": ("p",)}, A.REGIMES["strict"]) == {"p": (), "q": (), "s": ()}
     with pytest.raises(ValueError, match="unknown entries"):
         A.effective_admission(disp, {"a": ("nowhere",)}, A.REGIMES["strict"])
+
+
+def test_a_ledger_with_an_ungrounded_leaf_produces_no_report(ledger):
+    bad = copy.deepcopy(ledger)
+    src = next(s for s in bad["information_sources"] if s["name"] == "kg_relation:go")
+    src["source_ids"] = [s for s in src["source_ids"] if not s.startswith("dataset:")]
+    with pytest.raises(ValueError, match=r"lineage leaves name no registered dataset: \['kg_relation:go'\]"):
+        A.shadow_report(bad, ledger_sha256=SHA, contract_digest=SHA)
 
 
 def test_surface_classes_cover_exactly_the_measured_consumers():
@@ -156,7 +215,7 @@ def test_the_command_line_checks_byte_for_byte_and_never_overwrites(tmp_path, ca
     assert A.main(["--repo", str(REPO), "--check", str(good)]) == 0
     assert "SHADOW" in capsys.readouterr().out
     tampered = json.loads(good.read_text())
-    tampered["counts"]["strict"]["violations"] = 0
+    tampered["counts"]["strict"]["structural_exposure_risks"] = 0
     good.write_text(json.dumps(tampered, indent=2, sort_keys=True) + "\n")
     assert A.main(["--repo", str(REPO), "--check", str(good)]) == 1
     with pytest.raises(SystemExit, match="overwrite"):
@@ -176,10 +235,14 @@ def _imports(path: Path) -> set[str]:
     return found
 
 
+NEW_MODULES = ("admission", "observation", "lineage", "columns", "materialization", "absence_census")
+#: Measurement scripts that may import the shadow modules: they fit no model and write no production artefact.
+DIAGNOSTIC_IMPORTERS = {"scripts/measure_1d1b2_pilots.py"}
+
+
 def test_shadow_mode_no_production_code_imports_the_new_modules():
     package = REPO / "src/genomic_variant_classifier/information_sources"
-    new = {"genomic_variant_classifier.information_sources.admission",
-           "genomic_variant_classifier.information_sources.observation"}
+    new = {f"genomic_variant_classifier.information_sources.{m}" for m in NEW_MODULES}
     users = []
     for root in ("src", "scripts"):
         for path in sorted((REPO / root).rglob("*.py")):
@@ -187,13 +250,16 @@ def test_shadow_mode_no_production_code_imports_the_new_modules():
                 continue
             if _imports(path) & new:
                 users.append(path.relative_to(REPO).as_posix())
-    assert users == []
+    assert set(users) == DIAGNOSTIC_IMPORTERS
 
 
-def test_the_new_modules_are_not_consumers_of_the_feature_contract():
+def test_only_the_absence_census_consumes_the_feature_contract_and_it_is_classified_diagnostic(ledger):
     sites = K.discover_sites(REPO)
-    for name in ("admission.py", "observation.py"):
-        assert f"src/genomic_variant_classifier/information_sources/{name}" not in sites   # the census stays unchanged
+    base = "src/genomic_variant_classifier/information_sources/"
+    for name in ("admission", "observation", "lineage", "columns", "materialization"):
+        assert f"{base}{name}.py" not in sites
+    for site in (f"{base}absence_census.py", "scripts/measure_1d1b2_pilots.py"):
+        assert ledger["consumer_sites"][site]["classes"] == ["diagnostic"], site
 
 
 def test_the_contract_modules_import_without_the_model_training_stack():
@@ -205,59 +271,11 @@ def test_the_contract_modules_import_without_the_model_training_stack():
         "                                  'networkx', 'torch_geometric', 'scipy'}:\n"
         "            raise ImportError('blocked: ' + name)\n"
         "sys.meta_path.insert(0, Block())\n"
-        "from genomic_variant_classifier.information_sources import observation as O, admission as A\n"
-        "o = O.observed(0.5, 'a' * 64)\n"
+        "from genomic_variant_classifier.information_sources import observation as O, admission as A, lineage as L\n"
+        "o = O.observed('f', 'r', 0.5, O.SourceIdentity('dataset:eve', 'a' * 64))\n"
         "assert o.value == 0.5 and A.effective_admission({'a': A.D.ADMIT_STRICT}, {}, A.REGIMES['strict']) == {'a': ()}\n"
         "print('ok')\n")
     env = {"PYTHONPATH": str(REPO / "src"), "PYTHONDONTWRITEBYTECODE": "1", "PATH": ""}
     done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, cwd=str(REPO))
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == "ok"
-
-
-# -------------------------------------------------------------------------------------------------- typed observations
-def test_an_observed_value_is_a_finite_real_number_never_a_boolean():
-    for flag in (True, False, np.bool_(True)):
-        with pytest.raises(ValueError, match="not a boolean"):
-            O.observed(flag, SHA)
-    for bad in (float("nan"), float("inf"), np.float64("-inf")):
-        with pytest.raises(ValueError, match="finite"):
-            O.observed(bad, SHA)
-    with pytest.raises(ValueError, match="real number"):
-        O.observed("0.5", SHA)
-    with pytest.raises(ValueError, match="real number"):
-        O.observed(complex(1, 0), SHA)
-
-
-def test_numeric_types_are_normalised_so_equal_measurements_are_equal():
-    a, b, c = O.observed(np.float32(0.25), SHA), O.observed(fractions.Fraction(1, 4), SHA), O.observed(0.25, SHA)
-    assert a == b == c and type(a.value) is float
-    assert O.observed(np.int64(0), SHA).value == 0.0 and O.observed(0, SHA).is_observed   # a genuine zero is observed
-
-
-def test_an_absent_observation_carries_no_sentinel():
-    for state in S:
-        if state is S.OBSERVED:
-            continue
-        for sentinel in (0.0, 0.5, -1, 0):
-            with pytest.raises(ValueError, match="no value"):
-                O.NumericObservation(state, sentinel, None if state is S.SOURCE_ABSENT else SHA)
-    with pytest.raises(ValueError, match="other than OBSERVED"):
-        O.absent(S.OBSERVED, SHA)
-
-
-def test_the_state_decides_whether_a_source_must_be_named():
-    assert set(O.SOURCE_RULE) == set(S)
-    for state in (S.OBSERVED, S.NOT_IN_SOURCE, S.UNSUPPORTED_VARIANT):
-        with pytest.raises(ValueError, match="must name its source"):
-            O.NumericObservation(state, 1.0 if state is S.OBSERVED else None, None)
-    with pytest.raises(ValueError, match="no source"):
-        O.absent(S.SOURCE_ABSENT, SHA)
-    assert O.absent(S.SOURCE_ABSENT).source_id is None
-    for state in (S.BAD_MAPPING, S.COMPUTATION_FAILED):
-        assert O.absent(state).source_id is None and O.absent(state, SHA).source_id == SHA
-    for bad in ("src", "A" * 64, "a" * 63):
-        with pytest.raises(ValueError, match="SHA-256"):
-            O.absent(S.NOT_IN_SOURCE, bad)
-    with pytest.raises(ValueError, match="ObservationState"):
-        O.NumericObservation("observed", 1.0, SHA)

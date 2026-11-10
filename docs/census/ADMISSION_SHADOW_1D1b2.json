@@ -1,7 +1,7 @@
 {
   "census": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "ledger_sha256": "a48e94f6ac7d9b675f55b7ed1eb4c0e148cb000857c7dca095620b3a4ba4bfff",
+    "ledger_sha256": "88ddc0d5d91cfa217f78c7e5dc22a7c7a127350fe76b68f3ff292ab037933165",
     "path": "docs/census/FEATURE_CENSUS_1D1a.json",
     "schema": "gvc.feature-census.1d1a/2",
     "semantic_digest": "97f64bcb096eebea5bb532c00ba8b394a8946b67145ab11e980927e738b628a0"
@@ -10,31 +10,51 @@
     "conditional": {
       "admitted": 65,
       "not_admitted": 37,
-      "transitive_only": 2,
-      "violations": 37,
-      "violations_by_disposition": {
+      "risks_by_disposition": {
         "conditional_only": 2,
         "exclude_strict": 17,
         "retire_predictive": 4,
         "withhold_pending_evidence": 14
-      }
+      },
+      "structural_exposure_risks": 37,
+      "transitive_only": 2
     },
     "strict": {
       "admitted": 55,
       "not_admitted": 47,
-      "transitive_only": 0,
-      "violations": 47,
-      "violations_by_disposition": {
+      "risks_by_disposition": {
         "conditional_only": 12,
         "exclude_strict": 17,
         "retire_predictive": 4,
         "withhold_pending_evidence": 14
-      }
+      },
+      "structural_exposure_risks": 47,
+      "transitive_only": 0
     }
+  },
+  "exposure_levels": {
+    "declared": "the census ledger (features: the contract; sources: the measured graph inventory)",
+    "fitted_input": "a fitted model artefact's recorded input columns (the model execution authority)",
+    "inference_input": "an inference record of the rendered input columns",
+    "materialized": "a materialisation receipt for a named population (none in production; the 1D-1b.2 pilot receipts are shadow measurements, docs/census/PILOTS_1D1b2.json)",
+    "statically_reachable": "the census's measured consumer surfaces classified predictive"
+  },
+  "lineage": {
+    "cyclic_components": [],
+    "dependency_edges": 212,
+    "dependency_order_sha256": "eb53e5b4b73bbd9cdfda067d26a270a56c930c17ced43b9625d7230f6084a7c3",
+    "identities": 102,
+    "leaves": 85,
+    "registered_datasets": 26,
+    "ungrounded_leaves": []
   },
   "mode": "shadow: computed from the verified census; no model, matrix, split or prediction is read or changed",
   "observation_recording": {
-    "meaning": "no producer records whether a value was measured or filled; every feature's observation is therefore unknown, not observed (stage 1D-1b.2 makes producers emit information_sources.observation.NumericObservation)",
+    "meaning": "no production producer records whether a value was measured or filled; every feature's observation is therefore unknown, not observed. Two shadow materialisers (EVE, gnomAD allele frequency) record it per row; they are not wired into production (stage 1D-1c).",
+    "shadow_materializers": {
+      "af_raw": "src/genomic_variant_classifier/information_sources/materialization.py::materialize_gnomad_af",
+      "eve_score": "src/genomic_variant_classifier/information_sources/materialization.py::materialize_eve"
+    },
     "state": "not_recorded_by_producer"
   },
   "regimes": {
@@ -52,24 +72,31 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_raw",
-      "observation": "not_recorded_by_producer",
+      "observation": "shadow_materializer:src/genomic_variant_classifier/information_sources/materialization.py::materialize_gnomad_af",
       "registered_defects": [
+        "GNOMAD-CHRX-LOCUS-PARSE-1",
         "MISSINGNESS-SEMANTICS-1"
       ]
     },
@@ -78,48 +105,64 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_log10",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "GNOMAD-CHRX-LOCUS-PARSE-1"
+      ]
     },
     {
       "admission": {
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_is_absent",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
+        "ABSENCE-AS-EVIDENCE-1",
+        "GNOMAD-CHRX-LOCUS-PARSE-1",
         "MISSINGNESS-SEMANTICS-1"
       ]
     },
@@ -128,92 +171,123 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_is_ultra_rare",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "ABSENCE-AS-EVIDENCE-1",
+        "GNOMAD-CHRX-LOCUS-PARSE-1"
+      ]
     },
     {
       "admission": {
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_is_rare",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "GNOMAD-CHRX-LOCUS-PARSE-1"
+      ]
     },
     {
       "admission": {
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_is_common",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "GNOMAD-CHRX-LOCUS-PARSE-1"
+      ]
     },
     {
       "admission": {
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "ref_len",
       "observation": "not_recorded_by_producer",
@@ -224,20 +298,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "alt_len",
       "observation": "not_recorded_by_producer",
@@ -248,20 +328,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "len_diff",
       "observation": "not_recorded_by_producer",
@@ -272,44 +358,58 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_snv",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "ABSENCE-AS-EVIDENCE-1"
+      ]
     },
     {
       "admission": {
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_insertion",
       "observation": "not_recorded_by_producer",
@@ -320,20 +420,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_deletion",
       "observation": "not_recorded_by_producer",
@@ -344,20 +450,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_indel",
       "observation": "not_recorded_by_producer",
@@ -368,20 +480,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "consequence_severity",
       "observation": "not_recorded_by_producer",
@@ -392,20 +510,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_loss_of_function",
       "observation": "not_recorded_by_producer",
@@ -416,20 +540,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_missense",
       "observation": "not_recorded_by_producer",
@@ -440,20 +570,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_synonymous",
       "observation": "not_recorded_by_producer",
@@ -464,20 +600,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_splice",
       "observation": "not_recorded_by_producer",
@@ -488,20 +630,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "in_coding",
       "observation": "not_recorded_by_producer",
@@ -512,20 +660,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "cadd_phred",
       "observation": "not_recorded_by_producer",
@@ -538,20 +692,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "sift_score",
       "observation": "not_recorded_by_producer",
@@ -564,20 +724,26 @@
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "polyphen2_score",
       "observation": "not_recorded_by_producer",
@@ -590,20 +756,26 @@
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "revel_score",
       "observation": "not_recorded_by_producer",
@@ -616,20 +788,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "phylop_score",
       "observation": "not_recorded_by_producer",
@@ -642,20 +820,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gerp_score",
       "observation": "not_recorded_by_producer",
@@ -668,20 +852,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "alphamissense_score",
       "observation": "not_recorded_by_producer",
@@ -694,20 +884,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "splice_ai_score",
       "observation": "not_recorded_by_producer",
@@ -720,25 +916,32 @@
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "eve_score",
-      "observation": "not_recorded_by_producer",
+      "observation": "shadow_materializer:src/genomic_variant_classifier/information_sources/materialization.py::materialize_eve",
       "registered_defects": [
         "EVE-COVERAGE-IDENTITY-1",
+        "EVE-DUPLICATE-KEY-MULTIPLIES-ROWS-1",
         "MISSINGNESS-SEMANTICS-1"
       ]
     },
@@ -747,20 +950,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "cadd_high",
       "observation": "not_recorded_by_producer",
@@ -771,20 +980,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "sift_deleterious",
       "observation": "not_recorded_by_producer",
@@ -795,20 +1010,26 @@
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "polyphen_probably_damaging",
       "observation": "not_recorded_by_producer",
@@ -819,68 +1040,90 @@
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "revel_pathogenic",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "ABSENCE-AS-EVIDENCE-1"
+      ]
     },
     {
       "admission": {
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "n_tools_pathogenic",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "ABSENCE-AS-EVIDENCE-1"
+      ]
     },
     {
       "admission": {
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gene_constraint_oe",
       "observation": "not_recorded_by_producer",
@@ -891,20 +1134,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gene_is_constrained",
       "observation": "not_recorded_by_producer",
@@ -915,20 +1164,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "retire_predictive",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "n_pathogenic_in_gene",
       "observation": "not_recorded_by_producer",
@@ -939,20 +1194,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "retire_predictive",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gene_has_known_disease",
       "observation": "not_recorded_by_producer",
@@ -963,20 +1224,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "has_uniprot_annotation",
       "observation": "not_recorded_by_producer",
@@ -987,20 +1254,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "n_known_pathogenic_protein_variants",
       "observation": "not_recorded_by_producer",
@@ -1011,20 +1284,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gtex_max_tpm",
       "observation": "not_recorded_by_producer",
@@ -1035,20 +1314,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gtex_n_tissues_expressed",
       "observation": "not_recorded_by_producer",
@@ -1059,20 +1344,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gtex_tissue_specificity",
       "observation": "not_recorded_by_producer",
@@ -1083,20 +1374,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gtex_is_eqtl",
       "observation": "not_recorded_by_producer",
@@ -1109,20 +1406,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gtex_min_eqtl_pval",
       "observation": "not_recorded_by_producer",
@@ -1135,20 +1438,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gtex_max_abs_effect",
       "observation": "not_recorded_by_producer",
@@ -1161,20 +1470,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "codon_position",
       "observation": "not_recorded_by_producer",
@@ -1187,20 +1502,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "dbsnp_af",
       "observation": "not_recorded_by_producer",
@@ -1213,20 +1534,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "omim_n_diseases",
       "observation": "not_recorded_by_producer",
@@ -1237,20 +1564,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "omim_n_diseases_molecular",
       "observation": "not_recorded_by_producer",
@@ -1261,20 +1594,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "omim_is_autosomal_dominant",
       "observation": "not_recorded_by_producer",
@@ -1285,20 +1624,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "clingen_validity_score",
       "observation": "not_recorded_by_producer",
@@ -1309,20 +1654,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "retire_predictive",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "lovd_variant_class",
       "observation": "not_recorded_by_producer",
@@ -1333,20 +1684,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_autosome",
       "observation": "not_recorded_by_producer",
@@ -1357,20 +1714,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_sex_chrom",
       "observation": "not_recorded_by_producer",
@@ -1381,20 +1744,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_mitochondrial",
       "observation": "not_recorded_by_producer",
@@ -1405,18 +1774,24 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "gnn_score",
       "observation": "not_recorded_by_producer",
@@ -1432,19 +1807,25 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "hetero_gnn_score",
       "observation": "not_recorded_by_producer",
@@ -1461,20 +1842,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "maxentscan_score",
       "observation": "not_recorded_by_producer",
@@ -1487,20 +1874,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "maxentscan_delta",
       "observation": "not_recorded_by_producer",
@@ -1513,20 +1906,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "dist_to_splice_site",
       "observation": "not_recorded_by_producer",
@@ -1539,20 +1938,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "exon_number",
       "observation": "not_recorded_by_producer",
@@ -1565,20 +1970,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "is_canonical_splice",
       "observation": "not_recorded_by_producer",
@@ -1591,20 +2002,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_1kg_afr",
       "observation": "not_recorded_by_producer",
@@ -1615,20 +2032,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_1kg_eur",
       "observation": "not_recorded_by_producer",
@@ -1639,20 +2062,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_1kg_eas",
       "observation": "not_recorded_by_producer",
@@ -1663,20 +2092,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_1kg_sas",
       "observation": "not_recorded_by_producer",
@@ -1687,20 +2122,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "af_1kg_amr",
       "observation": "not_recorded_by_producer",
@@ -1711,20 +2152,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "finngen_af_fin",
       "observation": "not_recorded_by_producer",
@@ -1735,20 +2182,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "finngen_af_nfsee",
       "observation": "not_recorded_by_producer",
@@ -1759,20 +2212,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "finngen_enrichment",
       "observation": "not_recorded_by_producer",
@@ -1785,20 +2244,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "finngen_r13_af_fin",
       "observation": "not_recorded_by_producer",
@@ -1809,20 +2274,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "finngen_r13_af_nfsee",
       "observation": "not_recorded_by_producer",
@@ -1833,20 +2304,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "finngen_r13_enrichment",
       "observation": "not_recorded_by_producer",
@@ -1859,20 +2336,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "esm2_delta_norm",
       "observation": "not_recorded_by_producer",
@@ -1885,20 +2368,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "esm2_llr",
       "observation": "not_recorded_by_producer",
@@ -1911,20 +2400,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "genomiclm_delta_norm",
       "observation": "not_recorded_by_producer",
@@ -1937,20 +2432,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "genomiclm_llr",
       "observation": "not_recorded_by_producer",
@@ -1963,20 +2464,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "cosmic_recurrence",
       "observation": "not_recorded_by_producer",
@@ -1987,20 +2494,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "retire_predictive",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "cosmic_sig_tier",
       "observation": "not_recorded_by_producer",
@@ -2011,20 +2524,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "kegg_pathway_count",
       "observation": "not_recorded_by_producer",
@@ -2035,20 +2554,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "kegg_disease_pathway_flag",
       "observation": "not_recorded_by_producer",
@@ -2059,20 +2584,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "pli_score",
       "observation": "not_recorded_by_producer",
@@ -2085,20 +2616,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "loeuf",
       "observation": "not_recorded_by_producer",
@@ -2111,20 +2648,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "syn_z",
       "observation": "not_recorded_by_producer",
@@ -2137,20 +2680,26 @@
         "conditional": "admitted",
         "strict": "admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "admit_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "mis_z",
       "observation": "not_recorded_by_producer",
@@ -2163,20 +2712,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "reactome_pathway_count",
       "observation": "not_recorded_by_producer",
@@ -2187,20 +2742,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "rnaseq_mean_log_tpm",
       "observation": "not_recorded_by_producer",
@@ -2211,20 +2772,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "rnaseq_detection_rate",
       "observation": "not_recorded_by_producer",
@@ -2235,20 +2802,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "rnaseq_log2_cv",
       "observation": "not_recorded_by_producer",
@@ -2259,20 +2832,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "rnaseq_log2fc",
       "observation": "not_recorded_by_producer",
@@ -2283,20 +2862,26 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "continual_training",
-        "evaluation",
-        "gnn_node_attributes",
-        "hetero_gnn_node_attributes",
-        "inference",
-        "scaler_fit",
-        "tabular_fit"
-      ],
       "computed_or_stored_only": [
         "feature_engineering",
         "split_persistence"
       ],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "continual_training",
+          "evaluation",
+          "gnn_node_attributes",
+          "hetero_gnn_node_attributes",
+          "inference",
+          "scaler_fit",
+          "tabular_fit"
+        ]
+      },
       "kind": "feature",
       "name": "rnaseq_de_neglog10p",
       "observation": "not_recorded_by_producer",
@@ -2307,11 +2892,17 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "hetero_gnn_relations"
-      ],
       "computed_or_stored_only": [],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "hetero_gnn_relations"
+        ]
+      },
       "kind": "graph_relation",
       "name": "kg_relation:clingen",
       "observation": "not_recorded_by_producer",
@@ -2324,11 +2915,17 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "hetero_gnn_relations"
-      ],
       "computed_or_stored_only": [],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "hetero_gnn_relations"
+        ]
+      },
       "kind": "graph_relation",
       "name": "kg_relation:go",
       "observation": "not_recorded_by_producer",
@@ -2339,11 +2936,17 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "hetero_gnn_relations"
-      ],
       "computed_or_stored_only": [],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "hetero_gnn_relations"
+        ]
+      },
       "kind": "graph_relation",
       "name": "kg_relation:kegg",
       "observation": "not_recorded_by_producer",
@@ -2356,11 +2959,17 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "hetero_gnn_relations"
-      ],
       "computed_or_stored_only": [],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "hetero_gnn_relations"
+        ]
+      },
       "kind": "graph_relation",
       "name": "kg_relation:omim",
       "observation": "not_recorded_by_producer",
@@ -2373,11 +2982,17 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "hetero_gnn_relations"
-      ],
       "computed_or_stored_only": [],
       "disposition": "withhold_pending_evidence",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "hetero_gnn_relations"
+        ]
+      },
       "kind": "graph_relation",
       "name": "kg_relation:reactome",
       "observation": "not_recorded_by_producer",
@@ -2390,11 +3005,17 @@
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "gnn_edge_attributes"
-      ],
       "computed_or_stored_only": [],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "gnn_edge_attributes"
+        ]
+      },
       "kind": "edge_attribute",
       "name": "string_edge_attribute:coexpression",
       "observation": "not_recorded_by_producer",
@@ -2405,11 +3026,17 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "gnn_edge_attributes"
-      ],
       "computed_or_stored_only": [],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "gnn_edge_attributes"
+        ]
+      },
       "kind": "edge_attribute",
       "name": "string_edge_attribute:database",
       "observation": "not_recorded_by_producer",
@@ -2422,11 +3049,17 @@
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "gnn_edge_attributes"
-      ],
       "computed_or_stored_only": [],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "gnn_edge_attributes"
+        ]
+      },
       "kind": "edge_attribute",
       "name": "string_edge_attribute:experimental",
       "observation": "not_recorded_by_producer",
@@ -2437,12 +3070,18 @@
         "conditional": "not_admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "gnn_edges",
-        "hetero_gnn_relations"
-      ],
       "computed_or_stored_only": [],
       "disposition": "exclude_strict",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "gnn_edges",
+          "hetero_gnn_relations"
+        ]
+      },
       "kind": "graph_relation",
       "name": "string_relation:combined_score_threshold",
       "observation": "not_recorded_by_producer",
@@ -2455,11 +3094,17 @@
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "gnn_supervision"
-      ],
       "computed_or_stored_only": [],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "gnn_supervision"
+        ]
+      },
       "kind": "supervision_label",
       "name": "supervision:gnn_label",
       "observation": "not_recorded_by_producer",
@@ -2470,38 +3115,27 @@
         "conditional": "admitted",
         "strict": "not_admitted"
       },
-      "available_to_fitted_model": [
-        "hetero_gnn_supervision"
-      ],
       "computed_or_stored_only": [],
       "disposition": "conditional_only",
+      "exposure": {
+        "declared": true,
+        "fitted_input": "not_established",
+        "inference_input": "not_established",
+        "materialized": "not_established",
+        "statically_reachable": [
+          "hetero_gnn_supervision"
+        ]
+      },
       "kind": "supervision_label",
       "name": "supervision:hetero_gnn_label",
       "observation": "not_recorded_by_producer",
       "registered_defects": []
     }
   ],
-  "schema": "gvc.admission-shadow.1d1b1/1",
+  "schema": "gvc.admission-shadow.1d1b2/1",
   "scientific_truth": "Scientific truth of all source claims: NOT ESTABLISHED BY STRUCTURAL VALIDATION ALONE",
-  "surface_classes": {
-    "calibration": "predictive",
-    "continual_training": "predictive",
-    "evaluation": "predictive",
-    "export": "stored",
-    "feature_engineering": "computed",
-    "gnn_edge_attributes": "predictive",
-    "gnn_edges": "predictive",
-    "gnn_node_attributes": "predictive",
-    "gnn_supervision": "predictive",
-    "hetero_gnn_node_attributes": "predictive",
-    "hetero_gnn_relations": "predictive",
-    "hetero_gnn_supervision": "predictive",
-    "inference": "predictive",
-    "scaler_fit": "predictive",
-    "split_persistence": "stored",
-    "tabular_fit": "predictive"
-  },
-  "violations": [
+  "structural_exposure_risk_meaning": "a name that is not admitted under the regime and is STATICALLY REACHABLE by a predictive surface of the existing code; not a demonstration that a particular fit consumed it (that needs FITTED_INPUT evidence)",
+  "structural_exposure_risks": [
     {
       "disposition": "conditional_only",
       "kind": "feature",
@@ -3734,5 +4368,23 @@
       "reason": "disposition conditional_only is not admitted under the strict regime",
       "regime": "strict"
     }
-  ]
+  ],
+  "surface_classes": {
+    "calibration": "predictive",
+    "continual_training": "predictive",
+    "evaluation": "predictive",
+    "export": "stored",
+    "feature_engineering": "computed",
+    "gnn_edge_attributes": "predictive",
+    "gnn_edges": "predictive",
+    "gnn_node_attributes": "predictive",
+    "gnn_supervision": "predictive",
+    "hetero_gnn_node_attributes": "predictive",
+    "hetero_gnn_relations": "predictive",
+    "hetero_gnn_supervision": "predictive",
+    "inference": "predictive",
+    "scaler_fit": "predictive",
+    "split_persistence": "stored",
+    "tabular_fit": "predictive"
+  }
 }

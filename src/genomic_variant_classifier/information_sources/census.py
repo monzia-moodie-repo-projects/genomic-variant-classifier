@@ -18,6 +18,8 @@ R4  Admission is MONOTONE over dependencies: an admit_strict entry may depend on
     entry whose dependencies are measured (the GNN scores' node attributes) must declare every measured dependency.
 R5  Non-tabular information sources (graph relations, edge attributes, supervision labels) are census entries with the
     same disposition vocabulary, so a relation cannot re-introduce what the tabular census excluded.
+R7  (Stage 1D-1b.2, ADMISSION-CYCLIC-LINEAGE-1.) The dependency graph is acyclic -- every cyclic component is named --
+    and every leaf names a dataset in the ledger's own registry (lineage.py).
 
 The gate verifies structure, coverage, measured consumption, anchors and digests. It does NOT establish the scientific
 truth of the reviewer's assertions, and its report says so in those words.
@@ -616,6 +618,17 @@ def verify_census(repo: Path, ledger: Mapping[str, Any], *, engineered: Sequence
             weaker = sorted(d for d in deps if dispositions[d] is not Disposition.ADMIT_STRICT)
             if weaker:
                 raise ValueError(f"{record['name']}: admitted while depending on non-admitted {weaker}")
+    # Lineage integrity (stage 1D-1b.2, ADMISSION-CYCLIC-LINEAGE-1): no cycle, and every leaf grounded in a registered
+    # dataset, so no admission can rest on a self-supporting dependency or on an unregistered source string.
+    from genomic_variant_classifier.information_sources import lineage as _lineage
+
+    lineage_deps = {r["name"]: tuple(r["depends_on"]) for r in entries}
+    lineage_deps.update({r["name"]: () for r in sources})
+    _lineage.require_acyclic(lineage_deps)
+    ungrounded = _lineage.ungrounded_leaves({r["name"]: r["source_ids"] for r in [*entries, *sources]}, lineage_deps,
+                                            datasets)
+    if ungrounded:
+        raise ValueError(f"lineage leaves name no registered dataset: {ungrounded}")
     for name, rule in measured.items():
         if name not in contract.names or not isinstance(rule, list) or not rule:
             raise ValueError(f"measured dependency rule for {name!r} is malformed")
