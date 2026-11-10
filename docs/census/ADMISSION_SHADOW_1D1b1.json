@@ -1,0 +1,3738 @@
+{
+  "census": {
+    "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
+    "ledger_sha256": "a48e94f6ac7d9b675f55b7ed1eb4c0e148cb000857c7dca095620b3a4ba4bfff",
+    "path": "docs/census/FEATURE_CENSUS_1D1a.json",
+    "schema": "gvc.feature-census.1d1a/2",
+    "semantic_digest": "97f64bcb096eebea5bb532c00ba8b394a8946b67145ab11e980927e738b628a0"
+  },
+  "counts": {
+    "conditional": {
+      "admitted": 65,
+      "not_admitted": 37,
+      "transitive_only": 2,
+      "violations": 37,
+      "violations_by_disposition": {
+        "conditional_only": 2,
+        "exclude_strict": 17,
+        "retire_predictive": 4,
+        "withhold_pending_evidence": 14
+      }
+    },
+    "strict": {
+      "admitted": 55,
+      "not_admitted": 47,
+      "transitive_only": 0,
+      "violations": 47,
+      "violations_by_disposition": {
+        "conditional_only": 12,
+        "exclude_strict": 17,
+        "retire_predictive": 4,
+        "withhold_pending_evidence": 14
+      }
+    }
+  },
+  "mode": "shadow: computed from the verified census; no model, matrix, split or prediction is read or changed",
+  "observation_recording": {
+    "meaning": "no producer records whether a value was measured or filled; every feature's observation is therefore unknown, not observed (stage 1D-1b.2 makes producers emit information_sources.observation.NumericObservation)",
+    "state": "not_recorded_by_producer"
+  },
+  "regimes": {
+    "conditional": [
+      "admit_strict",
+      "conditional_only"
+    ],
+    "strict": [
+      "admit_strict"
+    ]
+  },
+  "rows": [
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_raw",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_log10",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_is_absent",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_is_ultra_rare",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_is_rare",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_is_common",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "ref_len",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "alt_len",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "len_diff",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_snv",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_insertion",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_deletion",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_indel",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "consequence_severity",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_loss_of_function",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_missense",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_synonymous",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_splice",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "in_coding",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "cadd_phred",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "sift_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "polyphen2_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "revel_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "phylop_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "gerp_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "alphamissense_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "splice_ai_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "eve_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "EVE-COVERAGE-IDENTITY-1",
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "cadd_high",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "sift_deleterious",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "polyphen_probably_damaging",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "revel_pathogenic",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "n_tools_pathogenic",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "gene_constraint_oe",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "gene_is_constrained",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "n_pathogenic_in_gene",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "gene_has_known_disease",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "has_uniprot_annotation",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "n_known_pathogenic_protein_variants",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "gtex_max_tpm",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "gtex_n_tissues_expressed",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "gtex_tissue_specificity",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "gtex_is_eqtl",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "GTEX-EQTL-PRODUCTION-DEFAULT-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "gtex_min_eqtl_pval",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "GTEX-EQTL-PRODUCTION-DEFAULT-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "gtex_max_abs_effect",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "GTEX-EQTL-PRODUCTION-DEFAULT-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "codon_position",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "CODON-POSITION-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "dbsnp_af",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "omim_n_diseases",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "omim_n_diseases_molecular",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "omim_is_autosomal_dominant",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "clingen_validity_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "lovd_variant_class",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_autosome",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_sex_chrom",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "is_mitochondrial",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "gnn_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "GNN-NODE-LABEL-COUNT-1",
+        "GNN-SCALE-SKEW-1",
+        "MISSINGNESS-SEMANTICS-1",
+        "STRING-CHANNEL-ORIGIN-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "hetero_gnn_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "GNN-NODE-LABEL-COUNT-1",
+        "GNN-SCALE-SKEW-1",
+        "KG-DISEASE-RELATION-1",
+        "MISSINGNESS-SEMANTICS-1",
+        "STRING-CHANNEL-ORIGIN-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "maxentscan_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "RNA-SPLICE-GATE-ORDER-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "maxentscan_delta",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "RNA-SPLICE-GATE-ORDER-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "dist_to_splice_site",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "RNA-SPLICE-GATE-ORDER-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "exon_number",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "RNA-SPLICE-GATE-ORDER-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "is_canonical_splice",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "RNA-SPLICE-GATE-ORDER-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_1kg_afr",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_1kg_eur",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_1kg_eas",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_1kg_sas",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "af_1kg_amr",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "finngen_af_fin",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "finngen_af_nfsee",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "finngen_enrichment",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "finngen_r13_af_fin",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "finngen_r13_af_nfsee",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "finngen_r13_enrichment",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "esm2_delta_norm",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "esm2_llr",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "genomiclm_delta_norm",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "genomiclm_llr",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "cosmic_recurrence",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "cosmic_sig_tier",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "kegg_pathway_count",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "kegg_disease_pathway_flag",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "pli_score",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "loeuf",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "syn_z",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "admit_strict",
+      "kind": "feature",
+      "name": "mis_z",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "MISSINGNESS-SEMANTICS-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "reactome_pathway_count",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "rnaseq_mean_log_tpm",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "rnaseq_detection_rate",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "rnaseq_log2_cv",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "rnaseq_log2fc",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "computed_or_stored_only": [
+        "feature_engineering",
+        "split_persistence"
+      ],
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "rnaseq_de_neglog10p",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "hetero_gnn_relations"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "kg_relation:clingen",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "KG-DISEASE-RELATION-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "hetero_gnn_relations"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "withhold_pending_evidence",
+      "kind": "graph_relation",
+      "name": "kg_relation:go",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "hetero_gnn_relations"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "kg_relation:kegg",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "KG-DISEASE-RELATION-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "hetero_gnn_relations"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "kg_relation:omim",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "KG-DISEASE-RELATION-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "hetero_gnn_relations"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "withhold_pending_evidence",
+      "kind": "graph_relation",
+      "name": "kg_relation:reactome",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "KG-DISEASE-RELATION-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "gnn_edge_attributes"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "conditional_only",
+      "kind": "edge_attribute",
+      "name": "string_edge_attribute:coexpression",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "gnn_edge_attributes"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "exclude_strict",
+      "kind": "edge_attribute",
+      "name": "string_edge_attribute:database",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "STRING-CHANNEL-ORIGIN-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "gnn_edge_attributes"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "conditional_only",
+      "kind": "edge_attribute",
+      "name": "string_edge_attribute:experimental",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "not_admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "gnn_edges",
+        "hetero_gnn_relations"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "string_relation:combined_score_threshold",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": [
+        "STRING-CHANNEL-ORIGIN-1"
+      ]
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "gnn_supervision"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "conditional_only",
+      "kind": "supervision_label",
+      "name": "supervision:gnn_label",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    },
+    {
+      "admission": {
+        "conditional": "admitted",
+        "strict": "not_admitted"
+      },
+      "available_to_fitted_model": [
+        "hetero_gnn_supervision"
+      ],
+      "computed_or_stored_only": [],
+      "disposition": "conditional_only",
+      "kind": "supervision_label",
+      "name": "supervision:hetero_gnn_label",
+      "observation": "not_recorded_by_producer",
+      "registered_defects": []
+    }
+  ],
+  "schema": "gvc.admission-shadow.1d1b1/1",
+  "scientific_truth": "Scientific truth of all source claims: NOT ESTABLISHED BY STRUCTURAL VALIDATION ALONE",
+  "surface_classes": {
+    "calibration": "predictive",
+    "continual_training": "predictive",
+    "evaluation": "predictive",
+    "export": "stored",
+    "feature_engineering": "computed",
+    "gnn_edge_attributes": "predictive",
+    "gnn_edges": "predictive",
+    "gnn_node_attributes": "predictive",
+    "gnn_supervision": "predictive",
+    "hetero_gnn_node_attributes": "predictive",
+    "hetero_gnn_relations": "predictive",
+    "hetero_gnn_supervision": "predictive",
+    "inference": "predictive",
+    "scaler_fit": "predictive",
+    "split_persistence": "stored",
+    "tabular_fit": "predictive"
+  },
+  "violations": [
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "polyphen2_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "revel_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "eve_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "polyphen_probably_damaging",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "revel_pathogenic",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "n_tools_pathogenic",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "n_pathogenic_in_gene",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition retire_predictive is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "n_pathogenic_in_gene",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition retire_predictive is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "gene_has_known_disease",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition retire_predictive is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "gene_has_known_disease",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition retire_predictive is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "has_uniprot_annotation",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "has_uniprot_annotation",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "n_known_pathogenic_protein_variants",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "n_known_pathogenic_protein_variants",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "gtex_is_eqtl",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "gtex_is_eqtl",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "gtex_min_eqtl_pval",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "gtex_min_eqtl_pval",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "gtex_max_abs_effect",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "gtex_max_abs_effect",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "codon_position",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "codon_position",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "omim_n_diseases",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "omim_n_diseases",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "omim_n_diseases_molecular",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "omim_n_diseases_molecular",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "omim_is_autosomal_dominant",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "omim_is_autosomal_dominant",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "clingen_validity_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "clingen_validity_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "lovd_variant_class",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition retire_predictive is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "lovd_variant_class",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition retire_predictive is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "gnn_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "gnn_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "depends on entries not admitted under the conditional regime: clingen_validity_score, codon_position, cosmic_recurrence, cosmic_sig_tier, dist_to_splice_site, exon_number, gene_has_known_disease, gtex_is_eqtl, gtex_max_abs_effect, gtex_min_eqtl_pval, has_uniprot_annotation, hetero_gnn_score, is_canonical_splice, kegg_disease_pathway_flag, kegg_pathway_count, lovd_variant_class, maxentscan_delta, maxentscan_score, n_known_pathogenic_protein_variants, n_pathogenic_in_gene, omim_is_autosomal_dominant, omim_n_diseases, omim_n_diseases_molecular, reactome_pathway_count, rnaseq_de_neglog10p, rnaseq_detection_rate, rnaseq_log2_cv, rnaseq_log2fc, rnaseq_mean_log_tpm, string_edge_attribute:database, string_relation:combined_score_threshold",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "hetero_gnn_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "feature",
+      "name": "hetero_gnn_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "depends on entries not admitted under the conditional regime: clingen_validity_score, codon_position, cosmic_recurrence, cosmic_sig_tier, dist_to_splice_site, exon_number, gene_has_known_disease, gtex_is_eqtl, gtex_max_abs_effect, gtex_min_eqtl_pval, has_uniprot_annotation, is_canonical_splice, kegg_disease_pathway_flag, kegg_pathway_count, kg_relation:clingen, kg_relation:go, kg_relation:kegg, kg_relation:omim, kg_relation:reactome, lovd_variant_class, maxentscan_delta, maxentscan_score, n_known_pathogenic_protein_variants, n_pathogenic_in_gene, omim_is_autosomal_dominant, omim_n_diseases, omim_n_diseases_molecular, reactome_pathway_count, rnaseq_de_neglog10p, rnaseq_detection_rate, rnaseq_log2_cv, rnaseq_log2fc, rnaseq_mean_log_tpm, string_relation:combined_score_threshold",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "maxentscan_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "maxentscan_score",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "maxentscan_delta",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "maxentscan_delta",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "dist_to_splice_site",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "dist_to_splice_site",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "exon_number",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "exon_number",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "is_canonical_splice",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "is_canonical_splice",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "cosmic_recurrence",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "cosmic_recurrence",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "cosmic_sig_tier",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition retire_predictive is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "retire_predictive",
+      "kind": "feature",
+      "name": "cosmic_sig_tier",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition retire_predictive is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "kegg_pathway_count",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "kegg_pathway_count",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "kegg_disease_pathway_flag",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "kegg_disease_pathway_flag",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "reactome_pathway_count",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "reactome_pathway_count",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "rnaseq_mean_log_tpm",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "rnaseq_mean_log_tpm",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "rnaseq_detection_rate",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "rnaseq_detection_rate",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "rnaseq_log2_cv",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "feature",
+      "name": "rnaseq_log2_cv",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "rnaseq_log2fc",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "rnaseq_log2fc",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "rnaseq_de_neglog10p",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "feature",
+      "name": "rnaseq_de_neglog10p",
+      "predictive_surfaces": [
+        "continual_training",
+        "evaluation",
+        "gnn_node_attributes",
+        "hetero_gnn_node_attributes",
+        "inference",
+        "scaler_fit",
+        "tabular_fit"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "kg_relation:clingen",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "kg_relation:clingen",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "graph_relation",
+      "name": "kg_relation:go",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "graph_relation",
+      "name": "kg_relation:go",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "kg_relation:kegg",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "kg_relation:kegg",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "kg_relation:omim",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "kg_relation:omim",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "graph_relation",
+      "name": "kg_relation:reactome",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "withhold_pending_evidence",
+      "kind": "graph_relation",
+      "name": "kg_relation:reactome",
+      "predictive_surfaces": [
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition withhold_pending_evidence is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "edge_attribute",
+      "name": "string_edge_attribute:coexpression",
+      "predictive_surfaces": [
+        "gnn_edge_attributes"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "edge_attribute",
+      "name": "string_edge_attribute:database",
+      "predictive_surfaces": [
+        "gnn_edge_attributes"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "edge_attribute",
+      "name": "string_edge_attribute:database",
+      "predictive_surfaces": [
+        "gnn_edge_attributes"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "edge_attribute",
+      "name": "string_edge_attribute:experimental",
+      "predictive_surfaces": [
+        "gnn_edge_attributes"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "string_relation:combined_score_threshold",
+      "predictive_surfaces": [
+        "gnn_edges",
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "exclude_strict",
+      "kind": "graph_relation",
+      "name": "string_relation:combined_score_threshold",
+      "predictive_surfaces": [
+        "gnn_edges",
+        "hetero_gnn_relations"
+      ],
+      "reason": "disposition exclude_strict is not admitted under the conditional regime",
+      "regime": "conditional"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "supervision_label",
+      "name": "supervision:gnn_label",
+      "predictive_surfaces": [
+        "gnn_supervision"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    },
+    {
+      "disposition": "conditional_only",
+      "kind": "supervision_label",
+      "name": "supervision:hetero_gnn_label",
+      "predictive_surfaces": [
+        "hetero_gnn_supervision"
+      ],
+      "reason": "disposition conditional_only is not admitted under the strict regime",
+      "regime": "strict"
+    }
+  ]
+}

@@ -1,3 +1,26 @@
+## 2026-11-09 (package 1D, stage 1D-1b.1, set "ap") -- typed observations and shadow admission
+
+Owner ruling of 2026-11-09 (decision file f2ec92cd...): read-only, typed, shadow mode. No model, feature, scaler, graph, split
+or inference code changes, and no production module imports the new code.
+
+- information_sources/observation.py: ObservationState (observed, source_absent, not_in_source, unsupported_variant,
+  bad_mapping, computation_failed) and NumericObservation. Refused at construction: a boolean as a number (NumPy's too), a
+  non-finite or non-real value, any value on an absent state, a missing source identity where the state asserts something
+  about a source, a source identity on source_absent, an identity that is not a SHA-256. Standard library only.
+- information_sources/admission.py: from the census, after verify_census re-measures the repository, a report that keeps
+  admitted (strict and conditional regimes), observed (not_recorded_by_producer: no producer records it yet) and available to
+  the fitted model (measured predictive surfaces) apart, and lists every name that reaches a predictive surface unadmitted with
+  its reason. Refinements over the ruling's sketch: one disposition vocabulary (the census's, not a second enum); admission
+  transitive under every regime (greatest fixed point), which exposes gnn_score and hetero_gnn_score as inadmissible under the
+  conditional regime through their measured dependencies.
+- docs/census/ADMISSION_SHADOW_1D1b1.json: the report; `python -m genomic_variant_classifier.information_sources.admission
+  --repo . --check docs/census/ADMISSION_SHADOW_1D1b1.json` re-derives it byte for byte. Result: 102 names; strict 55 admitted,
+  47 violations; conditional 65 admitted, 37 violations (2 transitive only).
+- Registered with measurements (ROADMAP): STRING-PAIR-ACCOUNTING-1, STRING-THRESHOLD-RECONSTRUCTION-1,
+  KG-COHORT-DEPENDENT-PROJECTION-1, KG-RELATION-SOURCE-MERGE-1, STRING-GENE-MAPPING-1.
+- Tests: +21 / -0 (tests/unit/test_admission_shadow.py). Suite 9,056 -> 9,077. README: the badge. ROADMAP: the table, the 1D-1a
+  merge record and the entry. docs/census/README.md: the stage 1D-1b.1 section.
+
 ## 2026-11-09 (package 1D, stage 1D-1a, set "ao") -- the information-source census
 
 Owner rulings of 2026-11-09 (decision files 25691d66... and c34eb717...): a nonbehavioural census of every declared feature
