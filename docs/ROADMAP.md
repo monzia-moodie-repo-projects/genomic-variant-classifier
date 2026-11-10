@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,056 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,077 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -940,6 +940,38 @@ exists to end.
   hetero-GNN), STRING-CHANNEL-ORIGIN-1 (edges selected on a score that includes curated pathways and text mining),
   CODON-POSITION-SEMANTICS-1, RNA-SPLICE-GATE-ORDER-1, GTEX-EQTL-PRODUCTION-DEFAULT-1. Next: stage 1D-1b, the admission authority
   and the observation contract. Suite 9,016 -> 9,056 (+40 / -0).
+  VALIDATED ON WINDOWS AND MERGED 2026-11-09: one -Validate run (receipt GVC_feature_census_1d1a_validation_20261109T043508Z,
+  sha256 f1b0f449; candidate e0fae59e, tree ff48e9a9; all 26 stages exit 0, the census stage included). Pull request #72 was merged
+  with a merge commit -- f9736a8e, parents 7cb70ec2 and e0fae59e -- and the post-merge block compared the targeted tests by node
+  identity (2,087 passed, 5 skipped, as in the validation; drift 22; both candidate environments still their Windows locks); the
+  branch was then deleted.
+- **2026-11-09 -- PACKAGE 1D, STAGE 1D-1b.1 (set "ap"): typed observations and SHADOW admission.** Owner ruling f2ec92cd.
+  Nonbehavioural: no production module imports the new code (a test proves it). information_sources/observation.py is the
+  observation contract stage 1D-1b.2 will make producers emit: six states; an observed value is a finite real number (booleans,
+  NumPy's included, refused; NumPy numbers normalised to float); an absent state carries no sentinel; the state decides whether a
+  source must be named by SHA-256 (observed, not in source, unsupported: required; source absent: forbidden). It imports only the
+  standard library. information_sources/admission.py derives, from the census AFTER its gate re-measures the repository, a report
+  that keeps three things apart -- admitted (per regime: strict, conditional), observed (not_recorded_by_producer for every name:
+  no producer records it yet), available to the fitted model (the measured predictive surfaces) -- and records every name that
+  reaches a predictive surface unadmitted, with its reason. Admission is TRANSITIVE (greatest fixed point over the measured
+  dependencies), which the census enforced for admit_strict only: under the conditional regime gnn_score and hetero_gnn_score are
+  conditional_only yet not admissible, because their node attributes include the retired and excluded features and their edges
+  the excluded STRING selection. docs/census/ADMISSION_SHADOW_1D1b1.json is the report; --check re-derives it byte for byte.
+  Result, measured: of 102 names, strict 55 admitted / 47 reach a model unadmitted; conditional 65 / 37 (2 only through a
+  dependency). Registered for the stages that own them (ruling f2ec92cd; measured on the owner's STRING v12 human files, sha256
+  28a2ea3b and 144de4b0): STRING-PAIR-ACCOUNTING-1 (an order-independent digest accepts a pair duplicated in both directions;
+  exact pair accounting, 1D-1b.3; the owner's sharded audit accepts the real file: 178 s, 111 MiB memory, 854 MiB scratch, measured on a 2-core
+  Linux container);
+  STRING-THRESHOLD-RECONSTRUCTION-1 (rounded channels with a floored combined score fit 99.99514% of pairs, 333 miss by one
+  thousandth; the measured-channel graph has 3 reconstruction artifacts outside the published one, so G1 = reconstruction
+  INTERSECTED with the published graph, 84,987 edges, 177 rounding-sensitive; 1D-1b.3); KG-COHORT-DEPENDENT-PROJECTION-1
+  (kg_edges.co_membership_edges caps set size AFTER filtering to the cohort, so adding a gene can delete edges; 1D-1b.3);
+  KG-RELATION-SOURCE-MERGE-1 (load_kg_edge_specs merges Reactome and KEGG into one shares_pathway relation, so a withheld and an
+  excluded source cannot be told apart per edge; 1D-1b.3); STRING-GENE-MAPPING-1 (StringDBGraph.build maps by preferred_name,
+  keeps an unmapped protein under its protein identifier, keeps the last row nx.Graph sees, and its name cache ignores
+  force_refresh; measured on v12 human: 19,699 proteins, 19,699 distinct names, no collision, unmapped protein or self-loop --
+  the realised risk is the namespace, preferred_name against HGNC identifiers; 1D-1b.3 and 1D-1d). Next: stage 1D-1b.2, source
+  and observation materialisation. Suite 9,056 -> 9,077 (+21 / -0).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

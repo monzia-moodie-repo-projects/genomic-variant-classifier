@@ -8345,4 +8345,14 @@
 #   selection, anchors are unique; EVE join-membership coverage, default-deny relation admission, semantic against
 #   materialization identity; the correction script withdraws, measures, re-checks byte for byte and refuses a varying EVE
 #   column or a log without the unconfigured-connector line). (tests_drift/: unchanged, 22.)
-9056
+# 2026-11-09  PACKAGE 1D, STAGE 1D-1b.1 (set "ap"; owner ruling f2ec92cd) -- typed observations and shadow admission.
+#   +21 / -0 by node identity (collected against main, f9736a8e). New file: +21 tests/unit/test_admission_shadow.py (the committed
+#   shadow report is exactly the fresh derivation and is bound to the census ledger, contract and semantic digests; every census
+#   name once, in census order; admitted, observed and available reported apart; strict admission equals the census gate; the GNN
+#   scores inadmissible under the conditional regime only through their dependencies; every unadmitted name reaching a model is a
+#   violation with its identity; defects attached; no report from a ledger the census gate refuses; the greatest fixed point over a chain and a cycle; the surface classes cover
+#   exactly the measured consumers; an unreviewed or duplicated name and an unclassified consumer refuse; the command line checks
+#   byte for byte and never overwrites; no production module imports the new modules, which are not contract consumers; they
+#   import without the model-training stack; observations: no boolean, non-finite or non-real value, NumPy numbers normalised, no
+#   sentinel on an absent state, the state decides whether a source is named). (tests_drift/: unchanged, 22.)
+9077

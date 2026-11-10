@@ -63,3 +63,23 @@ defaults only); the three RNA-seq summary features are withheld until their samp
 EVE-COVERAGE-IDENTITY-1, MISSINGNESS-SEMANTICS-1 (the owner's), GNN-SCALE-SKEW-1, GNN-NODE-LABEL-COUNT-1,
 KG-DISEASE-RELATION-1, STRING-CHANNEL-ORIGIN-1, CODON-POSITION-SEMANTICS-1, RNA-SPLICE-GATE-ORDER-1,
 GTEX-EQTL-PRODUCTION-DEFAULT-1. GNN-FEATURE-ORDER-1 and PHYLOP-RECONCILE-1 remain as already recorded.
+
+## Stage 1D-1b.1 (set "ap"): typed observations and shadow admission
+
+Owner ruling f2ec92cd (2026-11-09). Shadow mode: nothing is enforced and no production module imports this code.
+
+| File | What it is |
+|---|---|
+| `ADMISSION_SHADOW_1D1b1.json` | For each of the 91 features and 11 information sources: its disposition; admitted or not under the `strict` and `conditional` regimes; its observation status (`not_recorded_by_producer` for every name -- no producer records one yet); the predictive surfaces that make it available to a fitted model; its registered defects. Then every name that reaches a predictive surface unadmitted, with the reason. Bound to the census ledger's SHA-256, contract digest and semantic digest. |
+| `../../src/genomic_variant_classifier/information_sources/observation.py` | The observation contract for stage 1D-1b.2: six states, no sentinel on an absent state, no boolean as a number, the source named by SHA-256 when the state asserts something about it. |
+| `../../src/genomic_variant_classifier/information_sources/admission.py` | Derives the report from the census after the census gate re-measures the repository. |
+
+Verify: `python -m genomic_variant_classifier.information_sources.admission --repo . --check docs/census/ADMISSION_SHADOW_1D1b1.json`
+
+Admission is transitive: a name is admitted under a regime only if its disposition is admitted there AND every measured
+dependency is. Under the conditional regime `gnn_score` and `hetero_gnn_score` (both `conditional_only`) are therefore not
+admitted: their node attributes include retired and excluded features, and their edges the excluded STRING selection.
+
+Result (measured): strict -- 55 admitted, 47 names reach a predictive surface unadmitted; conditional -- 65 admitted, 37
+(2 only through a dependency). Every one of the 91 features currently reaches a fitted model. Stage 1D-1c turns these into
+refusals.
