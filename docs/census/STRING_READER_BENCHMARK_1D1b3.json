@@ -12,7 +12,7 @@
     "system": "Linux"
   },
   "reader": "src/genomic_variant_classifier/information_sources/graph_identity.py::read_string_pairs",
-  "reader_sha256": "96446b384c25d53140ef783003fb63d12e3061315bb1c37907a7e8dc02a0fd51",
+  "reader_sha256": "9a5b0ceb3a42c863c792b62671d7b985b96ee1f34b91a5eadfca69d23ba6ded7",
   "runs": [
     {
       "chunk_records": 262144,
@@ -20,11 +20,11 @@
       "max_partition_records": 859536,
       "pairs": 6857702,
       "partitions": 16,
-      "peak_rss_mib": 696.9,
+      "peak_rss_mib": 696.1,
       "proteins": 19622,
       "records": 13715404,
       "scratch_bytes": 342885100,
-      "seconds": 55.8,
+      "seconds": 61.5,
       "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
     },
     {
@@ -33,11 +33,11 @@
       "max_partition_records": 215588,
       "pairs": 6857702,
       "partitions": 64,
-      "peak_rss_mib": 663.8,
+      "peak_rss_mib": 661.5,
       "proteins": 19622,
       "records": 13715404,
       "scratch_bytes": 342885100,
-      "seconds": 58.4,
+      "seconds": 64.1,
       "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
     },
     {
@@ -46,11 +46,11 @@
       "max_partition_records": 54206,
       "pairs": 6857702,
       "partitions": 256,
-      "peak_rss_mib": 652.3,
+      "peak_rss_mib": 652.7,
       "proteins": 19622,
       "records": 13715404,
       "scratch_bytes": 342885100,
-      "seconds": 57.4,
+      "seconds": 63.0,
       "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
     },
     {
@@ -59,11 +59,11 @@
       "max_partition_records": 215748,
       "pairs": 6857702,
       "partitions": 64,
-      "peak_rss_mib": 628.7,
+      "peak_rss_mib": 621.3,
       "proteins": 19622,
       "records": 13715404,
       "scratch_bytes": 342885100,
-      "seconds": 56.0,
+      "seconds": 61.0,
       "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
     },
     {
@@ -72,11 +72,11 @@
       "max_partition_records": 215674,
       "pairs": 6857702,
       "partitions": 64,
-      "peak_rss_mib": 820.1,
+      "peak_rss_mib": 818.9,
       "proteins": 19622,
       "records": 13715404,
       "scratch_bytes": 342885100,
-      "seconds": 54.3,
+      "seconds": 61.6,
       "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
     }
   ],

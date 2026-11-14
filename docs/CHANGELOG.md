@@ -1,3 +1,34 @@
+## 2026-11-14 (package 1D, stage 1D-1b.4, set "as") -- population identity, fit authorization, claims; four defects repaired
+
+Owner ruling 68ca322f and the reference packages cee6713d, 7ba10b3b and 7b277d7c (audited and synthesized 2026-11-13,
+AUDIT_1D1b4_REFERENCES_2026-11-13.md). Shadow mode: no model, feature, scaler, graph, split or inference behaviour changes; no
+production module imports the new code.
+
+- information_sources/population.py (new): PopulationRow, VariantIdentity, Partition, resolve_gene_field (gene SETS; prose
+  flagged), split_components (variant identity and every listed HGNC locus), SplitProtocol and audit_split (three-way, the
+  required partitions), FitAuthority STRICT and CONDITIONAL_COMPONENT with FitAuthorization (digest computed from its fields),
+  tempered_component_weights, component_checkpoint_split.
+- information_sources/claims.py (new): ClaimKind, Tier, complete per-kind evidence scopes, Experiment, Evidence, TrustedPin,
+  Rule, ClaimsAuthority (eligibility and scientific finding separate; the policy digest in every assessment), within_unit_auc,
+  paired_unit_bootstrap.
+- information_sources/labels.py: TrainingLabels replaces LabelRecord, FoldScopedLabelStore and LabelAuthority (repairs
+  LABEL-TYPE-IDENTITY-1 and LABEL-DENIED-READ-AUDIT-1). graph_identity.py: StringInfo, map_string_proteins(info, hgnc), GeneGraph
+  holds its mapping, accept_graph re-derives from the pinned files, verify_graph_consistency, readonly_array / frozen_value /
+  plain_value and read-only content throughout (repairs GRAPH-MAPPING-RECEIPT-AUTHORITY-1 and GRAPH-MUTABLE-MATERIALIZATION-1).
+  The four witnesses and registrations are removed.
+- Registered with witnesses: GNN-EARLY-STOP-ROW-SPLIT-1 (owner 1D-3), GENE-FIELD-PROSE-1 (owner 1D-1d).
+  VARIANT-MULTIGENE-ISOLATION-1, GENE-SYMBOL-SPLIT-IDENTITY-1, STRING-GENE-MAPPING-1, LABEL-ACCESS-DISCOVERY-SCOPE-1 and
+  STRING-PAIR-ACCOUNTING-1 restated with the new measurements; dataset hgnc cites the population record.
+- scripts/measure_1d1b4_population.py (new, --check re-measures) and docs/census/POPULATION_ISOLATION_1D1b4.json;
+  scripts/measure_1d1b3_graph_identity.py accepts every graph by re-derivation and leaves the fit measurement to the new record;
+  GRAPH_IDENTITY_1D1b3.json and STRING_READER_BENCHMARK_1D1b3.json re-measured (every measured value identical). Census ledger
+  rebuilt (semantic digest unchanged, 97f64bcb); SOURCE_ABSENCE_1D1b2.json and ADMISSION_SHADOW_1D1b2.json re-derived (the
+  ledger digest and the defect attachments; admission counts unchanged).
+- ROADMAP: the 1D-1b.3 merge record, the maturity table, the entry. docs/census/README.md: the stage 1D-1b.4 section.
+- Tests: +86 / -14 by node identity (test_population.py 37, test_claims.py 16, test_graph_trust_boundary.py 7,
+  test_population_record.py 6; test_label_authority.py +16 / -8; test_registered_defect_witnesses.py +2 / -4; one rename each
+  in test_graph_identity.py and test_graph_identity_record.py). Suite 9,210 -> 9,282; README badge.
+
 ## 2026-11-10 (package 1D, stage 1D-1b.3, set "ar" revision B) -- line endings; owner ruling 68ca322f registered
 
 - Windows V1 of the first candidate stopped: 6 tests failed on CRLF fixtures written by Path.write_text. graph_identity: every

@@ -1,20 +1,20 @@
 {
   "author": "Monzia Moodie",
   "bound_code": {
-    "scripts/measure_1d1b3_graph_identity.py::run": "84950ba40389d1bd6b5e7fb0626478a01e54cc4adc1be405eae1e007555b2682",
+    "scripts/measure_1d1b3_graph_identity.py::run": "1a73f91b3375c233db65b3bca159e39918d300d6eb6a8ceb07d618b74035d15b",
     "src/genomic_variant_classifier/information_sources/graph_identity.py::GraphPolicy": "2ef3c304fd4952010e16adc4c46f25b3f91f55d305280ef0940c754e8e95db3a",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::accept_graph": "253e33f0ab97f058f7d2f1a33eb3622077b41fa81e2665b758532f60b29e25df",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::classify_threshold": "5e48ea208385c467c35080ba08837586587a7ecb5ffa3d644226640be3fd2762",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::accept_graph": "ea014e52caadae27ae5be729cf4e717a602f8c625319fd06eccceaa3b68b78dd",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::classify_threshold": "43c60df93845c662ff88c36d048933550dab81cf3fe1da6c225809bf999268d8",
     "src/genomic_variant_classifier/information_sources/graph_identity.py::induced_subgraph_consistency": "c80b802cd702aaf79a8b93447652556e0edbe457b2be759b3bfa1bb29d438717",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::map_string_proteins": "49a85f77ba8a2331e4c6d374b0b63f11a062dc36a8d0088c76cfd933acc8ff07",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::materialize_string_graph": "4b750bcee65c2635d00941df450ba4921295feb3d762e16f3de17ee7549e7447",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::model_consistency": "e240b5617c857b38c6eafc862d4f14f94b2492db43185248abc260394d1f3195",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::project_pathways": "888e9a2af414b8a955b3b69cb8dd9f6a34880c9e41ceaa927d1b98b9ef8a97cd",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_gene_sets": "e2b8f6387bc24db446f6f985ec28a85406a94e8de5be1d6e7b0ea851af81eaa6",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_hgnc": "7b5b6291cb0fd2acaa83a90961dc317c674d15a43003739cf02cedb08bbd8950",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_string_info": "df1fcb896ddbfa9a52adac5e486daf84430622abca026b2b505e85f6d94449b6",
-    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_string_pairs": "96446b384c25d53140ef783003fb63d12e3061315bb1c37907a7e8dc02a0fd51",
-    "src/genomic_variant_classifier/information_sources/labels.py::LabelAuthority": "6b2ae1074283158c946fe36632b1738fc6195a458474b673d0c1249481b3ab63"
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::map_string_proteins": "d972bf3968b7116ae82cb8310e5e4dbbce89102a5191e04843c2c12dfe0489a3",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::materialize_string_graph": "0729e17da36c04d74371fbdd1c41444284805e287c351dd41e38b3a015298938",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::model_consistency": "0ce0ed1458291353a0f1062f9953cc5f6aa5e343c4de6b3cb2bf50a30beffa32",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::project_pathways": "f4c4c2993b9cfae6d509a9524ca6f2383a89f7c152f3dcf94486e749e5fab59c",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_gene_sets": "90c47645dba11c28e41cca882d2a1ef7efcb5f8bb84bc093bf68155adbb9a88e",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_hgnc": "57fa37dab99566d7f29d57850ba08847776a39d7fa2e29cf7e388eb16cf54918",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_string_info": "905dcbb5e78e1e7545da4e3948a6aa6763feca7fc090ed792db5a8d0694dd0c8",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_string_pairs": "9a5b0ceb3a42c863c792b62671d7b985b96ee1f34b91a5eadfca69d23ba6ded7",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::verify_graph_consistency": "3a34c16c9179ae75a37e123a155f7dbe7c257d85536d2034e2cb3bfc9e1c052f"
   },
   "cohort": {
     "canonical_gene_sets": {
@@ -158,6 +158,7 @@
   },
   "graphs": {
     "G1": {
+      "accepted_by": "re-derivation from the pinned files (graph_identity.accept_graph)",
       "census": {
         "information_sources": {
           "string_edge_attribute:coexpression": "conditional_only",
@@ -221,6 +222,7 @@
       }
     },
     "G1_threshold_robust": {
+      "accepted_by": "re-derivation from the pinned files (graph_identity.accept_graph)",
       "census": {
         "information_sources": {
           "string_edge_attribute:coexpression": "conditional_only",
@@ -284,6 +286,7 @@
       }
     },
     "G2": {
+      "accepted_by": "re-derivation from the pinned files (graph_identity.accept_graph)",
       "census": {
         "information_sources": {
           "string_edge_attribute:coexpression": "conditional_only",
@@ -394,30 +397,6 @@
       "logical_source": "dataset:string",
       "sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
     }
-  },
-  "label_authority": {
-    "authorized_genes": 12360,
-    "authorized_rows": 1038768,
-    "gene_identity": "HGNC id where the symbol resolves (approved or unique previous), else 'unresolved:<symbol>'",
-    "heldout_genes": 5308,
-    "heldout_rows": 451040,
-    "refused_genes": [
-      "HGNC:1152",
-      "HGNC:14438",
-      "HGNC:16894",
-      "HGNC:17117",
-      "HGNC:18085",
-      "HGNC:20329",
-      "HGNC:20887",
-      "HGNC:25157",
-      "HGNC:25984",
-      "HGNC:26196",
-      "HGNC:28158",
-      "HGNC:29937",
-      "HGNC:4166",
-      "HGNC:6041"
-    ],
-    "refused_training_rows": 206
   },
   "legacy_cache": {
     "filenames": 1,
@@ -576,38 +555,38 @@
   "schema": "gvc.graph-identity-record.1d1b3/1",
   "steps": [
     {
-      "peak_rss_mib": 3132.0,
-      "seconds": 47.6,
+      "peak_rss_mib": 3164.6,
+      "seconds": 60.2,
       "step": "legacy_string_graph"
     },
     {
-      "peak_rss_mib": 3132.0,
-      "seconds": 101.7,
+      "peak_rss_mib": 3164.6,
+      "seconds": 125.7,
       "step": "read_string_pairs"
     },
     {
-      "peak_rss_mib": 3132.0,
-      "seconds": 108.9,
+      "peak_rss_mib": 3164.6,
+      "seconds": 130.4,
       "step": "threshold"
     },
     {
-      "peak_rss_mib": 3132.0,
-      "seconds": 109.4,
+      "peak_rss_mib": 3164.6,
+      "seconds": 131.0,
       "step": "mapping"
     },
     {
-      "peak_rss_mib": 3132.0,
-      "seconds": 177.2,
+      "peak_rss_mib": 3164.6,
+      "seconds": 470.0,
       "step": "graphs"
     },
     {
-      "peak_rss_mib": 4335.1,
-      "seconds": 207.5,
-      "step": "cohort_and_labels"
+      "peak_rss_mib": 4332.6,
+      "seconds": 486.4,
+      "step": "cohort"
     },
     {
-      "peak_rss_mib": 4335.1,
-      "seconds": 226.2,
+      "peak_rss_mib": 4332.6,
+      "seconds": 502.7,
       "step": "reactome"
     }
   ],

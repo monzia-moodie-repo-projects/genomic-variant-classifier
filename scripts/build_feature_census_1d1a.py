@@ -108,8 +108,9 @@ DATASETS = {
     "kg_gene_sets": ("gene-set files for knowledge-graph relations: Reactome GMT, KEGG GMT, GO GMT, ClinGen CSV, "
                      "OMIM table", "mixed", [code(D + "kg_edges.py", 'KG_SOURCES = {')]),
     "hgnc": ("HGNC complete set: approved symbols, previous symbols and stable HGNC identifiers (canonical gene "
-             "identity for graph nodes, gene sets and the label authority, stage 1D-1b.3)", "public (CC0)",
-             ["record:docs/census/GRAPH_IDENTITY_1D1b3.json",
+             "identity for graph nodes and gene sets, stage 1D-1b.3, and for the gene sets and split components of a "
+             "population, stage 1D-1b.4)", "public (CC0)",
+             ["record:docs/census/GRAPH_IDENTITY_1D1b3.json", "record:docs/census/POPULATION_ISOLATION_1D1b4.json",
               code("src/genomic_variant_classifier/information_sources/graph_identity.py",
                    'HGNC_REQUIRED = ("hgnc_id", "symbol", "status", "prev_symbol", "alias_symbol")')]),
 }
@@ -710,7 +711,7 @@ DEFECTS = [
      "directions. Stage 1D-1b.3 reads the file in ONE verified pass and matches the two directions of every pair "
      "EXACTLY in disk-backed partitions, refusing every deviation (graph_identity.read_string_pairs). Measured on STRING "
      "v12 human (sha256 28a2ea3b): 13,715,404 records = 6,857,702 pairs x 2, every pair symmetric, 19,622 proteins; "
-     "content identical for 16, 64 and 256 partitions; 54.3-58.4 s, 629-820 MiB peak, 342,885,100 bytes of scratch on a "
+     "content identical for 16, 64 and 256 partitions; 61.0-64.1 s, 621-819 MiB peak (re-measured with the stage 1D-1b.4 read-only buffers), 342,885,100 bytes of scratch on a "
      "2-core container (docs/census/STRING_READER_BENCHMARK_1D1b3.json).",
      ["string_relation:combined_score_threshold", "string_edge_attribute:experimental", "string_edge_attribute:database",
       "string_edge_attribute:coexpression", "gnn_score", "hetero_gnn_score"],
@@ -736,8 +737,8 @@ DEFECTS = [
      "by a unique previous symbol, 1 ambiguously, 382 not at all, and 4 HGNC identifiers are claimed by two proteins "
      "AFTER canonicalisation (resolved by approved-symbol precedence, graph_identity.map_string_proteins); 250 Run 15 "
      "cohort symbols (8,324 rows) reach a STRING node only through their HGNC identifier. Stage 1D-1b.3 binds a graph to a policy "
-     "and to its computed materialisation (source, mapping, node universe, relation policy, edge content) and accepts "
-     "it only when the identity recomputed from content matches (graph_identity.accept_graph).",
+     "and to its computed materialisation (source, mapping, node universe, relation policy, edge content); stage 1D-1b.4 "
+     "accepts it only when it is exactly the graph re-derived from the pinned files (graph_identity.accept_graph).",
      ["string_relation:combined_score_threshold", "string_edge_attribute:experimental", "string_edge_attribute:database",
       "string_edge_attribute:coexpression", "gnn_score", "hetero_gnn_score"],
      [code(GNN, 'p1 = self._protein_to_gene.get(row["protein1"], row["protein1"])'),
@@ -773,58 +774,35 @@ DEFECTS = [
     ("GENE-SYMBOL-SPLIT-IDENTITY-1", "The gene-disjoint split groups rows by gene SYMBOL, so two symbols of one gene can "
      "fall on both sides. Measured on the Run 15 cohort and splits: 26 HGNC identifiers appear under two symbols and 14 "
      "of them straddle training and held-out (e.g. HGNC:4166 as GAS8 in training and DRC4 in test; HGNC:1152 as BVES and "
-     "POPDC1); the label authority, keyed by canonical gene, refuses the 206 training rows of those 14 genes. Owner: "
-     "stage 1D-1d (canonical gene and split identities).",
+     "POPDC1); the 1D-1b.3 one-gene rule refuses the 206 training rows of those 14 genes, and the stage 1D-1b.4 "
+     "component authority excludes all 206 among the 128,435 training rows whose component holds a held-out row "
+     "(docs/census/POPULATION_ISOLATION_1D1b4.json). Owner: stage 1D-1d (canonical gene and split identities).",
      ["supervision:gnn_label", "supervision:hetero_gnn_label", "gnn_score", "hetero_gnn_score", "n_pathogenic_in_gene"],
      [code(RDP, "trainval_idx, test_idx = next(splitter.split(X, y, groups=groups))"),
-      "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
-    # ---- owner ruling 68ca322f (2026-11-10), registered by set "ar" revision B; the four reproduced ones carry
-    # executable witnesses (tests/unit/test_registered_defect_witnesses.py) that fail once the defect is repaired.
-    ("LABEL-TYPE-IDENTITY-1", "labels.LabelRecord accepts any value equal to 0 or 1 that is not a bool -- np.bool_, "
-     "1.0, np.float64, np.int64, Fraction(1), Decimal('1'), even complex(1, 0) -- and the store then returns that type "
-     "(np.float64); its gene identity is any non-empty string ('GAS8', ' HGNC:1', 'HGNC:01'). Owner: the label "
-     "authority's enforcement (1D-1b.4 onward): a strict internal type (type(label) is int) behind an explicit "
-     "adapter, and a canonical gene SET per row (VARIANT-MULTIGENE-ISOLATION-1).",
-     ["supervision:gnn_label", "supervision:hetero_gnn_label"],
-     [code("src/genomic_variant_classifier/information_sources/labels.py", "if isinstance(self.label, bool) or self.label not in (0, 1):"),
-      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_label_type_identity_1():")]),
-    ("LABEL-DENIED-READ-AUDIT-1", "FoldScopedLabelStore holds only authorized rows, so a read of a held-out row, of a "
-     "training row refused for sharing a canonical gene with held-out, or of an unknown row raises KeyError and is not "
-     "recorded: the access log shows only successful reads. Owner: 1D-1b.4 (authorized, denied and unknown_row "
-     "outcomes, all recorded; a capability-limited worker for production).",
-     ["supervision:gnn_label", "supervision:hetero_gnn_label"],
-     [code("src/genomic_variant_classifier/information_sources/labels.py", "        gene, label = self._data[row_id]"),
-      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_label_denied_read_audit_1():")]),
-    ("GRAPH-MAPPING-RECEIPT-AUTHORITY-1", "graph_identity.map_string_proteins takes the protein-info digest as a "
-     "caller-supplied argument, never bound to the info content it maps, so a mapping built from different (e.g. "
-     "swapped) identities claims the pinned source, materialises and is accepted; accept_graph also accepts any mapping "
-     "digest its manifest repeats. Owner: graph acceptance enforcement: the reader returns content and digest as one "
-     "object, and acceptance at a trust boundary re-derives the graph from the verified inputs.",
-     ["string_relation:combined_score_threshold", "gnn_score", "hetero_gnn_score"],
-     [code("src/genomic_variant_classifier/information_sources/graph_identity.py", "def map_string_proteins(info: Mapping[str, str], info_sha256: str, hgnc: HgncIndex)"),
-      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_graph_mapping_receipt_authority_1(tmp_path):")]),
-    ("GRAPH-MUTABLE-MATERIALIZATION-1", "Frozen dataclasses do not freeze the NumPy arrays and dictionaries they hold: "
-     "an in-place write to a StringPairTable leaves its stored content digest stale, and HgncIndex and GeneSetSource "
-     "can be edited after reading (GeneGraph attribute edits are caught by accept_graph, which recomputes). Owner: "
-     "graph materialisation enforcement: bytes-backed read-only buffers, read-only mappings, digests re-verified at "
-     "trust boundaries.",
-     ["string_relation:combined_score_threshold", "kg_relation:reactome", "gnn_score", "hetero_gnn_score"],
-     [code("src/genomic_variant_classifier/information_sources/graph_identity.py", "    content_sha256: str = field(init=False)"),
-      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_graph_mutable_materialization_1(tmp_path):")]),
+      "record:docs/census/GRAPH_IDENTITY_1D1b3.json", "record:docs/census/POPULATION_ISOLATION_1D1b4.json"]),
+    # ---- owner ruling 68ca322f (2026-11-10), registered by set "ar" revision B. Its four reproduced defects
+    # (LABEL-TYPE-IDENTITY-1, LABEL-DENIED-READ-AUDIT-1, GRAPH-MAPPING-RECEIPT-AUTHORITY-1, GRAPH-MUTABLE-MATERIALIZATION-1)
+    # were repaired by set "as" (stage 1D-1b.4) and removed here with their witnesses.
     ("VARIANT-MULTIGENE-ISOLATION-1", "One gene identity per row cannot represent a variant listed under several genes. "
      "Measured on the Run 15 cohort: 729 gene fields are multi-gene lists (1,838 rows, e.g. 'ABCC8;KCNJ11'); read as "
      "canonical gene SETS, 419 HGNC genes lie on both sides of the split, 113,568 training rows touch a held-out gene and "
      "82,999 held-out rows touch a training gene; union-find over genes linked by such lists gives 16,599 components "
      "(largest 11 genes, 19,985 rows: no giant component), of which 309 straddle the split -- 660 genes, 219,128 rows. "
-     "Owner: 1D-1d (gene-set rows, split groups built from components; which loci bind a group is the owner's decision).",
+     "On the three split manifests, with variant identity included (docs/census/POPULATION_ISOLATION_1D1b4.json): "
+     "16,964 components (16,599 gene groups and 365 rows with no resolved gene), 327 spanning partitions; shared genes "
+     "and components training-validation 145 and 115, training-test 291 and 229, validation-test 54 and 53; no "
+     "variant identifier and no (chrom, pos, ref, alt) repeats. Stage 1D-1b.4 represents a row by its gene SET "
+     "(population.PopulationRow) and authorizes a fit by component (population.authorize_fit); the production split is "
+     "unchanged. Owner: 1D-1d (split groups built from components; which loci bind a group is the owner's decision).",
      ["supervision:gnn_label", "supervision:hetero_gnn_label", "gnn_score", "hetero_gnn_score", "n_pathogenic_in_gene"],
-     [code("src/genomic_variant_classifier/information_sources/labels.py", "    gene_id: str"), code(RDP, "trainval_idx, test_idx = next(splitter.split(X, y, groups=groups))"),
-      "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
+     [code(RDP, "trainval_idx, test_idx = next(splitter.split(X, y, groups=groups))"),
+      "record:docs/census/GRAPH_IDENTITY_1D1b3.json", "record:docs/census/POPULATION_ISOLATION_1D1b4.json"]),
     ("LABEL-ACCESS-DISCOVERY-SCOPE-1", "labels.discover_label_sites finds only the graph builders' label column and "
      "label_col/label_column parameters (12 reviewed sites); it does not discover labels passed as y arrays, positional "
-     "arguments or other names, so it is a regression detector, never a complete label-access audit. Owner: 1D-1b.4 "
-     "(claims and evidence interfaces); runtime read receipts and fold-scoped capabilities where the legacy consumers "
-     "are replaced.",
+     "arguments or other names, so it is a regression detector, never a complete label-access audit. Stage 1D-1b.4 adds "
+     "the claims and evidence interfaces (claims.ClaimsAuthority) and per-fit read receipts (labels.TrainingLabels), "
+     "in shadow: no legacy consumer uses them. Owner: 1D-3, where the legacy consumers are replaced by fold-scoped "
+     "capabilities.",
      ["supervision:gnn_label", "supervision:hetero_gnn_label"],
      [code("src/genomic_variant_classifier/information_sources/labels.py", 'LABEL_PARAMETERS = frozenset({"label_col", "label_column"})'),
       "record:docs/census/LABEL_SITES_1D1b3.json"]),
@@ -835,6 +813,32 @@ DEFECTS = [
      ["string_relation:combined_score_threshold", "gnn_score", "hetero_gnn_score"],
      [code("src/genomic_variant_classifier/information_sources/graph_identity.py", "        winners = [p for p in ps if first[p][1] is MappingStatus.APPROVED_SYMBOL]"),
       "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
+    # ---- registered by set "as" (stage 1D-1b.4), measured 2026-11-10 and 2026-11-14, each with an executable witness
+    ("GNN-EARLY-STOP-ROW-SPLIT-1", "train_gnn_pipeline early-stops on train_test_split(np.arange(n), "
+     "test_size=test_split, random_state=42, stratify=y): a ROW-level split of the focal training rows with no groups "
+     "(the run driver passes test_split=0.15). The same call on Run 15's 1,038,974 training rows: 155,488 of the "
+     "155,847 early-stopping rows (99.77%) share a gene symbol with the inner training rows and 155,510 share a split "
+     "component, and 7,543 of their 7,860 symbols are inner-training symbols, so checkpoint selection rewards memorised "
+     "genes. Repair (owner 1D-3): population.component_checkpoint_split, component-disjoint and class-stratified (on the "
+     "910,273 component-authorized rows: inner validation 13.319% positive against 13.320% overall) "
+     "(docs/census/POPULATION_ISOLATION_1D1b4.json).",
+     ["gnn_score", "supervision:gnn_label"],
+     [code(GNN, "    train_pos, val_pos = train_test_split("), code(DRV, "test_split=0.15,"),
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_gnn_early_stop_row_split_1():"),
+      "record:docs/census/POPULATION_ISOLATION_1D1b4.json"]),
+    ("GENE-FIELD-PROSE-1", "32 Run 15 rows (29 training, 1 validation, 2 test; 10 distinct fields) carry ClinVar's "
+     "description of a large variant in gene_symbol instead of gene symbols (e.g. 'covers 26 genes, none of which "
+     "curated to show dosage sensitivity'). The split groups by the raw field (gene_symbol, missing values filled with "
+     "'unknown'), so each description is one 'gene' group and the genes it covers bind nothing; the stage 1D-1b.4 "
+     "resolver (population.resolve_gene_field) flags them as prose and leaves the rows gene-incomplete, never "
+     "authorized. Their consequence values (13 intronic, 9 missense, 4 3' UTR, 2 synonymous, 1 non-coding transcript, "
+     "1 splice donor, 2 none) are to be checked against the ClinVar records. Owner: 1D-1d (recover the covered genes "
+     "from the ClinVar record, or exclude the rows by a declared rule).",
+     ["supervision:gnn_label", "supervision:hetero_gnn_label", "gnn_score", "hetero_gnn_score", "n_pathogenic_in_gene"],
+     [code(RDP, 'group_column: str = "gene_symbol"'),
+      code(RDP, 'groups = df[self.config.group_column].fillna("unknown").reset_index(drop=True)\n\n'),
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_gene_field_prose_1():"),
+      "record:docs/census/POPULATION_ISOLATION_1D1b4.json"]),
 ]
 
 

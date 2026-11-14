@@ -8,6 +8,10 @@ derived from the census (admission.py); stage 1D-1b.2 (set "aq") adds lineage in
 derived-feature propagation (columns.py), source materialisation with the EVE and allele-frequency pilots (materialization.py)
 and the source-absence census (absence_census.py); stage 1D-1b.3 (set "ar") adds source-bound graph identity
 (graph_identity.py: exact STRING pairs, threshold status, canonical HGNC mapping, computed graph materialisations, pathway
-relations by global set size) and authorized labels (labels.py). Nothing in production imports any of them yet.
+relations by global set size) and authorized labels (labels.py); stage 1D-1b.4 (set "as") adds population identity and fit
+authorization (population.py: gene-set rows, variant-and-gene split components, the three-way split audit, the STRICT and
+CONDITIONAL_COMPONENT authorities, tempered component weights, the component-disjoint checkpoint split), the claims authority
+(claims.py), training labels that record every read (labels.TrainingLabels) and graph acceptance by re-derivation from the
+pinned files with immutable materialisations (graph_identity.py). Nothing in production imports any of them yet.
 """
 from __future__ import annotations

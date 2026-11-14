@@ -7,7 +7,7 @@ inference code changes. Author: Monzia Moodie.
 
 | File | What it is |
 |---|---|
-| `FEATURE_CENSUS_1D1a.json` | The ledger: 91 feature entries in contract order, 11 non-tabular information sources, 25 datasets, the measured surface and graph inventories, every classified consumer site, producer digests, and the registered defects. |
+| `FEATURE_CENSUS_1D1a.json` | The ledger: 91 feature entries in contract order, 11 non-tabular information sources, 27 datasets (25 at stage 1D-1a; `uniprot_index` added at stage 1D-1b.2, `hgnc` at stage 1D-1b.3), the measured surface and graph inventories, every classified consumer site, producer digests, and the registered defects (24 at stage 1D-1b.4). |
 | `measure_1d1_correction.json` | Withdraws the 1D-1 audit's `default_indicator_train` and `eve_gene_coverage_train` (EVE-COVERAGE-IDENTITY-1: standardised matrices were compared with raw defaults) and records what replaces them: Run 15's EVE connector ran unconfigured (log line 83), and the 36 columns constant in every Run 15 split (scale-invariant). |
 | `../../scripts/measure_1d1_correction.py` | Writes the correction from Run 15's files and the audit's file; `--check` re-derives it byte for byte. |
 | `../../scripts/build_feature_census_1d1a.py` | The reviewed content, by hand; the measured content, computed. `--check` re-builds and byte-compares. |
@@ -62,7 +62,7 @@ defaults only); the three RNA-seq summary features are withheld until their samp
 
 EVE-COVERAGE-IDENTITY-1, MISSINGNESS-SEMANTICS-1 (the owner's), GNN-SCALE-SKEW-1, GNN-NODE-LABEL-COUNT-1,
 KG-DISEASE-RELATION-1, STRING-CHANNEL-ORIGIN-1, CODON-POSITION-SEMANTICS-1, RNA-SPLICE-GATE-ORDER-1,
-GTEX-EQTL-PRODUCTION-DEFAULT-1. GNN-FEATURE-ORDER-1 and PHYLOP-RECONCILE-1 remain as already recorded.
+GTEX-EQTL-PRODUCTION-DEFAULT-1. GNN-FEATURE-ORDER-1 and PHYLOP-RECONCILE-1 remain as already recorded. Later stages register and repair defects in their own sections below; the ledger is the list (24 at stage 1D-1b.4).
 
 ## Stage 1D-1b.1 (set "ap"): typed observations and shadow admission
 
@@ -109,13 +109,31 @@ enforced and no production module imports this code.
 
 | File | What it is |
 |---|---|
-| `GRAPH_IDENTITY_1D1b3.json` | Measured on the owner's files (STRING v12 human links and info, HGNC complete set, ReactomePathways.gmt, the Run 15 cohort and splits): exact pair accounting, the quantization-model consistency, the four-way threshold cross-tabulation, the canonical HGNC mapping and its collisions, the G1, threshold-robust G1 and G2 gene graphs with their computed materialisations and census admission, the legacy StringDBGraph and its cache key, the cohort's canonical gene identity, the label authority's scope, and Reactome under the legacy and the global-size projections. Binds the digests of the code that produced it (`scripts/measure_1d1b3_graph_identity.py`). |
+| `GRAPH_IDENTITY_1D1b3.json` | Measured on the owner's files (STRING v12 human links and info, HGNC complete set, ReactomePathways.gmt, the Run 15 cohort and splits): exact pair accounting, the quantization-model consistency, the four-way threshold cross-tabulation, the canonical HGNC mapping and its collisions, the G1, threshold-robust G1 and G2 gene graphs with their computed materialisations and census admission, the legacy StringDBGraph and its cache key, the cohort's canonical gene identity, and Reactome under the legacy and the global-size projections. Since stage 1D-1b.4 every graph is accepted by re-derivation from the pinned files, and the fit authorization is measured in `POPULATION_ISOLATION_1D1b4.json`. Binds the digests of the code that produced it (`scripts/measure_1d1b3_graph_identity.py`). |
 | `STRING_READER_BENCHMARK_1D1b3.json` | The exact-pair reader's runtime, peak memory and scratch for five partition and chunk layouts, each in its own process; the pair table's content is identical in all (`scripts/benchmark_1d1b3_string_reader.py`). |
 | `LABEL_SITES_1D1b3.json` | Every module that names the graph builders' label column or takes a `label_col` parameter, reviewed: role and reason. A test re-discovers the sites and refuses an unreviewed or stale one. |
 | `../../src/genomic_variant_classifier/information_sources/graph_identity.py` | The exact-pair STRING reader; threshold classification (exact rational arithmetic at the boundary); HGNC canonical mapping; GraphPolicy, GraphMaterialization and accept_graph; the legacy cache key; per-source pathway relations with global set sizes and the induced-subgraph check. |
-| `../../src/genomic_variant_classifier/information_sources/labels.py` | The label authority (scope derived from canonical genes), the fold-scoped store, masked labels, the label non-interference test and label-site discovery. |
+| `../../src/genomic_variant_classifier/information_sources/labels.py` | The label non-interference test and label-site discovery; since stage 1D-1b.4 `TrainingLabels` replaces the 1D-1b.3 label authority and store. |
 
 Registered defects that were reproduced carry executable witnesses (`tests/unit/test_registered_defect_witnesses.py`): each
 passes while its defect exists and fails once it is repaired, so the repair must remove the witness and the registration
 together. Re-deriving the two records needs the source files, which a clone does not hold; `tests/unit/test_graph_identity_record.py`
 refuses a record whose bound code has changed and checks that the registered defects state the measured numbers.
+
+## Stage 1D-1b.4 (set "as"): population identity, fit authorization, claims, and the repaired label and graph contracts
+
+Owner ruling 68ca322f and the owner's reference packages cee6713d, 7ba10b3b and 7b277d7c, audited and synthesized on
+2026-11-13 (`AUDIT_1D1b4_REFERENCES_2026-11-13.md`). Shadow mode: nothing is enforced and no production module imports this code.
+
+| File | What it is |
+|---|---|
+| `POPULATION_ISOLATION_1D1b4.json` | Measured on the owner's Run 15 split manifests (meta and y for training, validation and test) and the HGNC complete set: gene fields resolved to canonical gene SETS (and the 32 rows of ClinVar prose), variant identity, the three-way split audit, the STRICT and CONDITIONAL_COMPONENT fit authorities against the gene-direct rule and the 1D-1b.3 one-gene rule, the label mix, tempered component weights, the component-disjoint stratified checkpoint split against the legacy GNN early-stopping call, and one TrainingLabels receipt. Binds the digests of the code that produced it; `--check` re-measures it (`scripts/measure_1d1b4_population.py`). |
+| `../../src/genomic_variant_classifier/information_sources/population.py` | PopulationRow (strict types; variant identity qualified by an enum), resolve_gene_field, split_components (variant and every listed HGNC locus), audit_split (the partitions a declared SplitProtocol requires), authorize_fit (STRICT; CONDITIONAL_COMPONENT, exploratory), tempered_component_weights, component_checkpoint_split. |
+| `../../src/genomic_variant_classifier/information_sources/claims.py` | The claims authority: claim kinds and tiers, complete per-kind evidence scopes, trusted pins by content digest, rules that receive their scope, eligibility and scientific finding as separate axes; within-unit AUROC (area under the receiver operating characteristic curve) with two estimands and a paired unit bootstrap. |
+| `../../src/genomic_variant_classifier/information_sources/labels.py` | `TrainingLabels`: built from a FitAuthorization, holds authorized native-integer labels only, records every read (authorized, denied, unknown) and every masked bulk read, cannot be copied. |
+| `../../src/genomic_variant_classifier/information_sources/graph_identity.py` | `StringInfo` (content and digest as one object); `accept_graph` re-derives the graph from the pinned files; `verify_graph_consistency` is the self-check; bytes-backed read-only arrays and read-only mappings throughout. |
+
+Repaired, with their witnesses and registrations removed: LABEL-TYPE-IDENTITY-1, LABEL-DENIED-READ-AUDIT-1,
+GRAPH-MAPPING-RECEIPT-AUTHORITY-1, GRAPH-MUTABLE-MATERIALIZATION-1. Registered, with witnesses: GNN-EARLY-STOP-ROW-SPLIT-1 and
+GENE-FIELD-PROSE-1. `tests/unit/test_population_record.py` refuses a record whose bound code has changed and checks that the
+registered defects state the measured numbers.

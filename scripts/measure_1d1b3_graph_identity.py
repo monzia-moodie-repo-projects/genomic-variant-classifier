@@ -5,7 +5,9 @@ VerifiedReader pass, its SHA-256 recorded): STRING v12 exact-pair accounting, th
 four-way threshold cross-tabulation, the canonical HGNC mapping and its collisions, the G1 / threshold-robust G1 / G2 gene
 graphs and their computed identities, what the legacy StringDBGraph builds from the same files, the legacy cache key,
 Reactome relations under the legacy and the global-size projections (induced-subgraph consistency), and, on the Run 15
-cohort and splits, the canonical gene identity of the cohort and the label authority's scope.
+cohort and splits, the canonical gene identity of the cohort. Each graph is accepted at the trust boundary: re-derived
+from the pinned files (graph_identity.accept_graph). Since stage 1D-1b.4 the fit authorization and the label scope are
+measured by scripts/measure_1d1b4_population.py (docs/census/POPULATION_ISOLATION_1D1b4.json).
 
 Run (the files are the owner's; a clone does not hold them):
     python scripts/measure_1d1b3_graph_identity.py --links L --info I --hgnc H --reactome R --cohort C \
@@ -37,7 +39,6 @@ sys.path.insert(0, str(REPO / "src"))
 from genomic_variant_classifier.data import kg_edges as K  # noqa: E402
 from genomic_variant_classifier.information_sources import census as C  # noqa: E402
 from genomic_variant_classifier.information_sources import graph_identity as G  # noqa: E402
-from genomic_variant_classifier.information_sources import labels as L  # noqa: E402
 from genomic_variant_classifier.information_sources.materialization import read_verified_bytes  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -54,11 +55,11 @@ BOUND_SYMBOLS = (
     "src/genomic_variant_classifier/information_sources/graph_identity.py::map_string_proteins",
     "src/genomic_variant_classifier/information_sources/graph_identity.py::GraphPolicy",
     "src/genomic_variant_classifier/information_sources/graph_identity.py::materialize_string_graph",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::verify_graph_consistency",
     "src/genomic_variant_classifier/information_sources/graph_identity.py::accept_graph",
     "src/genomic_variant_classifier/information_sources/graph_identity.py::read_gene_sets",
     "src/genomic_variant_classifier/information_sources/graph_identity.py::project_pathways",
     "src/genomic_variant_classifier/information_sources/graph_identity.py::induced_subgraph_consistency",
-    "src/genomic_variant_classifier/information_sources/labels.py::LabelAuthority",
     f"{SCRIPT}::run",
 )
 
@@ -185,16 +186,17 @@ def run(args: argparse.Namespace) -> int:
     # ---- canonical mapping
     hgnc = G.read_hgnc(args.hgnc)
     rec["inputs"]["hgnc"] = file_entry(args.hgnc, hgnc.source_sha256, "dataset:hgnc")
-    info, info_sha = G.read_string_info(args.info)
+    string_info = G.read_string_info(args.info)
+    info, info_sha = string_info.names, string_info.source_sha256
     rec["inputs"]["string_info"] = file_entry(args.info, info_sha, "dataset:string")
-    mapping, mrep = G.map_string_proteins(info, info_sha, hgnc)
+    mapping, mrep = G.map_string_proteins(string_info, hgnc)
     mrep["mapping_sha256"] = mapping.mapping_sha256
     mrep["info_proteins_without_links"] = len(set(info) - proteins_in_links)
     mrep["link_proteins_without_info"] = len(proteins_in_links - set(info))
     rec["mapping"] = mrep
     step(log, "mapping", t0)
 
-    # ---- the three graphs, accepted by recomputation
+    # ---- the three graphs: consistent with their own manifests, and accepted by re-derivation from the pinned files
     def policy(**kw) -> G.GraphPolicy:
         base = dict(source="dataset:string", release="12.0", source_sha256=t.source_sha256, info_sha256=info_sha,
                     mapping_source="dataset:hgnc", mapping_source_sha256=hgnc.source_sha256, regime=G.Regime.G1,
@@ -211,11 +213,15 @@ def run(args: argparse.Namespace) -> int:
     string_nodes_hgnc: set[str] = set()
     for name, pol in policies.items():
         g = G.materialize_string_graph(t, mapping, pol)
-        accepted = G.accept_graph(pol, g)
-        rep = dict(g.report)
+        consistent = G.verify_graph_consistency(pol, g)
+        accepted = G.accept_graph(pol, g, links=args.links, info=args.info, hgnc=args.hgnc, scratch_dir=args.scratch)
+        if accepted != consistent:
+            raise AssertionError(f"{name}: the re-derived graph's identity differs from the graph's own")
+        rep = G.plain_value(g.report)
         rep.pop("threshold_crosstab", None)
         rec["graphs"][name] = {"policy": pol.as_dict(), "policy_sha256": pol.policy_sha256,
                                "materialization": accepted.as_dict(), "report": rep,
+                               "accepted_by": "re-derivation from the pinned files (graph_identity.accept_graph)",
                                "census": G.census_admission(pol, ledger)}
         string_nodes_hgnc = set(g.nodes)
         del g
@@ -226,7 +232,7 @@ def run(args: argparse.Namespace) -> int:
     del t, cls
     gc.collect()
 
-    # ---- cohort, splits and the label authority
+    # ---- cohort and splits
     import pandas as pd
 
     pilots = _pilots_module()
@@ -276,20 +282,8 @@ def run(args: argparse.Namespace) -> int:
                      "symbols_reaching_string_only_by_name": sum(
                          1 for s in all_syms if s in preferred and canon.get(s) not in string_nodes_hgnc)}
     rec["cohort"]["canonical_gene_sets"] = multigene_split_identity(sym, heldout_syms, hgnc)
-    if frame["variant_id"].duplicated().any():
-        raise ValueError("cohort variant ids are not unique; the label authority needs one record per row")
-    part = np.where(sym.isin(heldout_syms).to_numpy(), "heldout", "train")
-    gene_ids = [canon.get(s) or f"unresolved:{s}" for s in sym]
-    authority = L.LabelAuthority(L.LabelRecord(str(v), g, int(y), p) for v, g, y, p in
-                                 zip(frame["variant_id"], gene_ids, frame["label"], part))
-    a = authority.authorize()
-    rec["label_authority"] = {"authorized_rows": a.authorized_rows, "authorized_genes": a.authorized_genes,
-                              "heldout_rows": a.heldout_rows, "heldout_genes": a.heldout_genes,
-                              "refused_training_rows": a.refused_training_rows, "refused_genes": list(a.refused_genes),
-                              "gene_identity": "HGNC id where the symbol resolves (approved or unique previous), "
-                                               "else 'unresolved:<symbol>'"}
-    step(log, "cohort_and_labels", t0)
-    del authority, frame
+    step(log, "cohort", t0)
+    del frame
     gc.collect()
 
     # ---- Reactome: legacy projection versus the global-size projection

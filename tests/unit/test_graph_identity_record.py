@@ -78,6 +78,7 @@ def test_graph_identities_are_computed_and_reconcile(record):
         assert r["edges"] == r["selected_pairs"] - r["selected_pairs_with_unmapped_endpoint"] - \
             r["selected_pairs_becoming_self_loops"], name
         assert g["census"]["strict_admissible"] is False
+        assert g["accepted_by"] == "re-derivation from the pinned files (graph_identity.accept_graph)"
         digests.add(m["edge_content_sha256"])
     assert len(digests) == 3
     assert record["graphs"]["G1_threshold_robust"]["report"]["edges"] <= record["graphs"]["G1"]["report"]["edges"]
@@ -90,10 +91,14 @@ def test_the_legacy_graph_and_its_cache(record):
     assert record["legacy_cache"]["filenames"] == 1 and record["legacy_cache"]["policies"] == 3
 
 
-def test_cohort_identity_and_the_label_authority(record):
-    c, a = record["cohort"], record["label_authority"]
-    assert a["authorized_rows"] + a["refused_training_rows"] + a["heldout_rows"] == c["rows"]
-    assert len(a["refused_genes"]) == c["hgnc_ids_whose_symbols_straddle_train_and_heldout"]
+def test_cohort_identity_and_the_one_gene_rule_it_measured(record):
+    """Since stage 1D-1b.4 the fit authorization is measured in POPULATION_ISOLATION_1D1b4.json; the 1D-1b.3 one-gene rule
+    measured there refuses exactly the training rows of the genes whose symbols straddle the split here."""
+    c = record["cohort"]
+    assert "label_authority" not in record
+    old = json.loads((REPO / "docs/census/POPULATION_ISOLATION_1D1b4.json").read_bytes())["comparison"]["one_gene_rule_1d1b3"]
+    assert len(old["refused_hgnc_genes"]) == c["hgnc_ids_whose_symbols_straddle_train_and_heldout"]
+    assert sorted(old["refused_hgnc_genes"]) == sorted(hid for hid, _ in c["straddling_examples"])
     assert sum(c["symbol_resolution"].values()) == c["symbols"] and c["val_test_symbol_overlap"] == 0
 
 
@@ -135,11 +140,10 @@ def test_the_census_states_the_measured_numbers(record):
     for d in ("KG-COHORT-DEPENDENT-PROJECTION-1", "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1"):
         assert _fmt(legacy["train_edges_removed_by_adding_heldout_genes"]) in defects[d]
     assert _fmt(legacy["edges_train_universe"]) in defects["KG-COHORT-DEPENDENT-PROJECTION-1"]
-    c, a = record["cohort"], record["label_authority"]
+    c = record["cohort"]
     s = defects["GENE-SYMBOL-SPLIT-IDENTITY-1"]
     assert f"{c['hgnc_ids_under_two_or_more_symbols']} HGNC identifiers" in s
     assert f"{c['hgnc_ids_whose_symbols_straddle_train_and_heldout']} of them" in s
-    assert f"refuses the {a['refused_training_rows']} training rows" in s
     m = defects["STRING-GENE-MAPPING-1"]
     assert f"{_fmt(record['legacy_string_graph']['edges'])}-edge graph" in m
     assert f"{c['symbols_reaching_string_only_by_hgnc_id']} Run 15" in m
