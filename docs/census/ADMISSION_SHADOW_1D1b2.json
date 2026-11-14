@@ -1,7 +1,7 @@
 {
   "census": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "ledger_sha256": "88ddc0d5d91cfa217f78c7e5dc22a7c7a127350fe76b68f3ff292ab037933165",
+    "ledger_sha256": "40aed059d9b4f51607964a283d6462d0df36f06ea42831b2c51b8ad53ce59810",
     "path": "docs/census/FEATURE_CENSUS_1D1a.json",
     "schema": "gvc.feature-census.1d1a/2",
     "semantic_digest": "97f64bcb096eebea5bb532c00ba8b394a8946b67145ab11e980927e738b628a0"
@@ -45,7 +45,7 @@
     "dependency_order_sha256": "eb53e5b4b73bbd9cdfda067d26a270a56c930c17ced43b9625d7230f6084a7c3",
     "identities": 102,
     "leaves": 85,
-    "registered_datasets": 26,
+    "registered_datasets": 27,
     "ungrounded_leaves": []
   },
   "mode": "shadow: computed from the verified census; no model, matrix, split or prediction is read or changed",
@@ -1187,7 +1187,10 @@
       "kind": "feature",
       "name": "n_pathogenic_in_gene",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "GENE-SYMBOL-SPLIT-IDENTITY-1",
+        "VARIANT-MULTIGENE-ISOLATION-1"
+      ]
     },
     {
       "admission": {
@@ -1796,10 +1799,18 @@
       "name": "gnn_score",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
+        "GENE-SYMBOL-SPLIT-IDENTITY-1",
         "GNN-NODE-LABEL-COUNT-1",
         "GNN-SCALE-SKEW-1",
+        "GRAPH-MAPPING-RECEIPT-AUTHORITY-1",
+        "GRAPH-MUTABLE-MATERIALIZATION-1",
         "MISSINGNESS-SEMANTICS-1",
-        "STRING-CHANNEL-ORIGIN-1"
+        "STRING-CHANNEL-ORIGIN-1",
+        "STRING-GENE-MAPPING-1",
+        "STRING-PAIR-ACCOUNTING-1",
+        "STRING-PROTEIN-GENE-REDUCTION-1",
+        "STRING-THRESHOLD-RECONSTRUCTION-1",
+        "VARIANT-MULTIGENE-ISOLATION-1"
       ]
     },
     {
@@ -1830,11 +1841,22 @@
       "name": "hetero_gnn_score",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
+        "GENE-SYMBOL-SPLIT-IDENTITY-1",
         "GNN-NODE-LABEL-COUNT-1",
         "GNN-SCALE-SKEW-1",
+        "GRAPH-MAPPING-RECEIPT-AUTHORITY-1",
+        "GRAPH-MUTABLE-MATERIALIZATION-1",
+        "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
+        "KG-COHORT-DEPENDENT-PROJECTION-1",
         "KG-DISEASE-RELATION-1",
+        "KG-RELATION-SOURCE-MERGE-1",
         "MISSINGNESS-SEMANTICS-1",
-        "STRING-CHANNEL-ORIGIN-1"
+        "STRING-CHANNEL-ORIGIN-1",
+        "STRING-GENE-MAPPING-1",
+        "STRING-PAIR-ACCOUNTING-1",
+        "STRING-PROTEIN-GENE-REDUCTION-1",
+        "STRING-THRESHOLD-RECONSTRUCTION-1",
+        "VARIANT-MULTIGENE-ISOLATION-1"
       ]
     },
     {
@@ -2907,7 +2929,10 @@
       "name": "kg_relation:clingen",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "KG-DISEASE-RELATION-1"
+        "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
+        "KG-COHORT-DEPENDENT-PROJECTION-1",
+        "KG-DISEASE-RELATION-1",
+        "KG-RELATION-SOURCE-MERGE-1"
       ]
     },
     {
@@ -2929,7 +2954,10 @@
       "kind": "graph_relation",
       "name": "kg_relation:go",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
+        "KG-COHORT-DEPENDENT-PROJECTION-1"
+      ]
     },
     {
       "admission": {
@@ -2951,7 +2979,10 @@
       "name": "kg_relation:kegg",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "KG-DISEASE-RELATION-1"
+        "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
+        "KG-COHORT-DEPENDENT-PROJECTION-1",
+        "KG-DISEASE-RELATION-1",
+        "KG-RELATION-SOURCE-MERGE-1"
       ]
     },
     {
@@ -2974,7 +3005,10 @@
       "name": "kg_relation:omim",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "KG-DISEASE-RELATION-1"
+        "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
+        "KG-COHORT-DEPENDENT-PROJECTION-1",
+        "KG-DISEASE-RELATION-1",
+        "KG-RELATION-SOURCE-MERGE-1"
       ]
     },
     {
@@ -2997,7 +3031,11 @@
       "name": "kg_relation:reactome",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "KG-DISEASE-RELATION-1"
+        "GRAPH-MUTABLE-MATERIALIZATION-1",
+        "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
+        "KG-COHORT-DEPENDENT-PROJECTION-1",
+        "KG-DISEASE-RELATION-1",
+        "KG-RELATION-SOURCE-MERGE-1"
       ]
     },
     {
@@ -3019,7 +3057,10 @@
       "kind": "edge_attribute",
       "name": "string_edge_attribute:coexpression",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "STRING-GENE-MAPPING-1",
+        "STRING-PAIR-ACCOUNTING-1"
+      ]
     },
     {
       "admission": {
@@ -3041,7 +3082,9 @@
       "name": "string_edge_attribute:database",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "STRING-CHANNEL-ORIGIN-1"
+        "STRING-CHANNEL-ORIGIN-1",
+        "STRING-GENE-MAPPING-1",
+        "STRING-PAIR-ACCOUNTING-1"
       ]
     },
     {
@@ -3063,7 +3106,10 @@
       "kind": "edge_attribute",
       "name": "string_edge_attribute:experimental",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "STRING-GENE-MAPPING-1",
+        "STRING-PAIR-ACCOUNTING-1"
+      ]
     },
     {
       "admission": {
@@ -3086,7 +3132,14 @@
       "name": "string_relation:combined_score_threshold",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "STRING-CHANNEL-ORIGIN-1"
+        "GRAPH-MAPPING-RECEIPT-AUTHORITY-1",
+        "GRAPH-MUTABLE-MATERIALIZATION-1",
+        "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
+        "STRING-CHANNEL-ORIGIN-1",
+        "STRING-GENE-MAPPING-1",
+        "STRING-PAIR-ACCOUNTING-1",
+        "STRING-PROTEIN-GENE-REDUCTION-1",
+        "STRING-THRESHOLD-RECONSTRUCTION-1"
       ]
     },
     {
@@ -3108,7 +3161,13 @@
       "kind": "supervision_label",
       "name": "supervision:gnn_label",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "GENE-SYMBOL-SPLIT-IDENTITY-1",
+        "LABEL-ACCESS-DISCOVERY-SCOPE-1",
+        "LABEL-DENIED-READ-AUDIT-1",
+        "LABEL-TYPE-IDENTITY-1",
+        "VARIANT-MULTIGENE-ISOLATION-1"
+      ]
     },
     {
       "admission": {
@@ -3129,7 +3188,13 @@
       "kind": "supervision_label",
       "name": "supervision:hetero_gnn_label",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "GENE-SYMBOL-SPLIT-IDENTITY-1",
+        "LABEL-ACCESS-DISCOVERY-SCOPE-1",
+        "LABEL-DENIED-READ-AUDIT-1",
+        "LABEL-TYPE-IDENTITY-1",
+        "VARIANT-MULTIGENE-ISOLATION-1"
+      ]
     }
   ],
   "schema": "gvc.admission-shadow.1d1b2/1",

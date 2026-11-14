@@ -101,3 +101,21 @@ Verify: `python -m genomic_variant_classifier.information_sources.absence_census
 
 Regeneration order (each is bound to the one before): SOURCE_ABSENCE (its record must exist for the ledger) -> the ledger
 (`scripts/build_feature_census_1d1a.py`) -> SOURCE_ABSENCE again (it records the ledger's SHA-256) -> ADMISSION_SHADOW.
+
+## Stage 1D-1b.3 (set "ar"): source-bound graph identity and authorized labels
+
+Owner rulings f2ec92cd (Unit 1D-1b.3) and 7f4b69d0 (sections 7-10); 7a2a6ade (section 13). Shadow mode: nothing is
+enforced and no production module imports this code.
+
+| File | What it is |
+|---|---|
+| `GRAPH_IDENTITY_1D1b3.json` | Measured on the owner's files (STRING v12 human links and info, HGNC complete set, ReactomePathways.gmt, the Run 15 cohort and splits): exact pair accounting, the quantization-model consistency, the four-way threshold cross-tabulation, the canonical HGNC mapping and its collisions, the G1, threshold-robust G1 and G2 gene graphs with their computed materialisations and census admission, the legacy StringDBGraph and its cache key, the cohort's canonical gene identity, the label authority's scope, and Reactome under the legacy and the global-size projections. Binds the digests of the code that produced it (`scripts/measure_1d1b3_graph_identity.py`). |
+| `STRING_READER_BENCHMARK_1D1b3.json` | The exact-pair reader's runtime, peak memory and scratch for five partition and chunk layouts, each in its own process; the pair table's content is identical in all (`scripts/benchmark_1d1b3_string_reader.py`). |
+| `LABEL_SITES_1D1b3.json` | Every module that names the graph builders' label column or takes a `label_col` parameter, reviewed: role and reason. A test re-discovers the sites and refuses an unreviewed or stale one. |
+| `../../src/genomic_variant_classifier/information_sources/graph_identity.py` | The exact-pair STRING reader; threshold classification (exact rational arithmetic at the boundary); HGNC canonical mapping; GraphPolicy, GraphMaterialization and accept_graph; the legacy cache key; per-source pathway relations with global set sizes and the induced-subgraph check. |
+| `../../src/genomic_variant_classifier/information_sources/labels.py` | The label authority (scope derived from canonical genes), the fold-scoped store, masked labels, the label non-interference test and label-site discovery. |
+
+Registered defects that were reproduced carry executable witnesses (`tests/unit/test_registered_defect_witnesses.py`): each
+passes while its defect exists and fails once it is repaired, so the repair must remove the witness and the registration
+together. Re-deriving the two records needs the source files, which a clone does not hold; `tests/unit/test_graph_identity_record.py`
+refuses a record whose bound code has changed and checks that the registered defects state the measured numbers.

@@ -78,7 +78,8 @@ answer, and the classifier must not be described as scientifically validated bec
 | Is the target scientifically defined? | no | binary ClinVar label; clinical, gene-disease and molecular-effect targets not yet separated |
 | Is the information regime enforced? | no | shadow only: 47 names statically reachable unadmitted under the strict regime (docs/census/ADMISSION_SHADOW_1D1b2.json); enforcement is 1D-1c |
 | Is absence kept apart from evidence? | no | 89 of 91 features fabricate a value when their source is absent (docs/census/SOURCE_ABSENCE_1D1b2.json); on the Run 15 cohort a missing gnomAD frequency alone separates the labels with AUROC 0.695 (docs/census/PILOTS_1D1b2.json) |
-| Is the evaluation population valid? | partly | gene-disjoint splits exist; canonical gene identity is 1D-1d |
+| Is the evaluation population valid? | partly | splits are gene-disjoint by SYMBOL; 14 canonical genes straddle training and held-out under two symbols (GENE-SYMBOL-SPLIT-IDENTITY-1, docs/census/GRAPH_IDENTITY_1D1b3.json); canonical gene identity is 1D-1d |
+| Is graph information source-bound? | no | shadow only: the exact-pair STRING reader, computed graph identities, global-size pathway relations and the label authority exist (1D-1b.3); the GNNs still build their graphs with the legacy code |
 | Are upstream supervision and label-criterion overlap characterised? | partly | recorded per feature in the census; criterion-independent evaluation is 1D-2 |
 | Does performance generalise to held-out genes under the admitted regime? | not measured | the leakage-free baseline ladder B0-B4 (1D-2) is the next scientific milestone |
 | Are molecular or clinical claims independently supported? | no | none is made |
@@ -123,7 +124,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,136 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,210 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -1038,6 +1039,60 @@ exists to end.
   count exactly), EVE-DUPLICATE-KEY-MULTIPLIES-ROWS-1. The pilot population is the Run 15 cohort built from
   clinvar_grch38_clean.parquet (1,490,014), not the canonical-review cohort of section 1 (1,490,324). Fixes: 1D-1c.
   Suite 9,077 -> 9,136 (+66 / -7 by node identity).
+  VALIDATED ON WINDOWS AND MERGED 2026-11-10: one -Validate run (receipt GVC_admission_1d1b2_validation_20261110T055710Z, sha256
+  18f5ba72; candidate 688f1caa, tree bc756c86; every stage exit 0, admission and absence included; 9,048 passed, 83 skipped, 5
+  xfailed -- the forecast). Pull request #74 was merged with a merge commit -- 5b7335f6, parents 18fa338e and 688f1caa -- and the
+  post-merge block compared the 2,379 targeted tests by node identity (2,374 passed and 5 skipped in the checkout; the
+  validation's clone skipped 2 more, the local-data tests, which need data/external; no other difference; drift 22; both
+  candidate environments still their Windows locks); the branch was then deleted.
+- **2026-11-10 -- PACKAGE 1D, STAGE 1D-1b.3 (set "ar"): source-bound graph identity and authorized labels.** Owner rulings
+  f2ec92cd (Unit 1D-1b.3), 7f4b69d0 (sections 7-10) and 7a2a6ade (section 13). Shadow mode: no production module imports the new
+  code (a test proves it); no model, feature, scaler, graph, split or inference behaviour changes; no GNN is retrained.
+  (1) information_sources/graph_identity.py reads STRING in ONE verified pass and matches the two directions of every pair
+  EXACTLY in disk-backed partitions, refusing a missing reciprocal, a contradictory direction, a duplicate, a self-pair or a
+  non-canonical score. On STRING v12 human (sha256 28a2ea3b): 13,715,404 records = 6,857,702 pairs x 2, 19,622 proteins, every
+  pair symmetric; content identical for every layout; 54.3-58.4 s, 629-820 MiB peak, 342,885,100 bytes of scratch on a 2-core
+  container (docs/census/STRING_READER_BENCHMARK_1D1b3.json). (2) The threshold is integer thousandths; G1 = restricted
+  reconstruction (the five non-curated channels) >= 0.700 AND published >= 700; every comparison within floating-point error of
+  the threshold is decided in exact rational arithmetic (52 pairs reconstruct to exactly 0.700); the four-way status with the
+  published flag: selected robust 84,874, selected sensitive 113, excluded sensitive 64 + 9, excluded robust 151,879 +
+  6,620,763 (the 1D-1b.1 figures, now from the exact reader); quantization model consistent for 6,857,369 pairs (333 miss by
+  one thousandth). (3) Canonical identity: STRING preferred names resolved against HGNC (approved, else a unique previous
+  symbol; aliases not used): 18,837 + 479, 1 ambiguous, 382 unresolved, and 4 HGNC identifiers claimed by two proteins after
+  canonicalisation (approved-symbol precedence, reported). (4) GraphPolicy (regime, channels, threshold, quantization, edge
+  reduction, canonicalisation, source-defined node universe, pinned sources) and GraphMaterialization (source, mapping, node
+  universe, relation policy, edge content, schema) computed from the built graph; accept_graph recomputes every digest and
+  refuses any mismatch. G1 83,613 gene edges, threshold-robust G1 83,501, G2 234,358, on 19,312 HGNC nodes; no STRING regime
+  is strictly admissible (the census excludes the combined-score selection). The legacy StringDBGraph built 236,930 edges on
+  16,201 preferred-name nodes and, given a different links file, returned the same cached graph: its cache key holds only the
+  threshold (3 policies, 1 filename). (5) Pathway relations keyed by (source, relation) and (source, stable pathway id),
+  weighted 1/(|S_s| - 1) by the GLOBAL canonical size: on ReactomePathways.gmt (sha256 cf17607f) and the Run 15 splits, the
+  legacy projection loses 180,843 of its 732,550 train-train edges when the held-out genes join the universe, the global-size
+  projection loses none (induced-subgraph consistency 0 / 0 / 0); the factorised hypergraph operator equals the projection
+  (6e-14); the hypergraph model is stage 1D-3. (6) information_sources/labels.py: the label authority derives the fit's scope
+  from canonical genes; the fold-scoped store records and refuses reads; the legacy hetero and homogeneous graph builders FAIL
+  label non-interference when handed raw labels and pass on the authority's masked labels; every graph-label site is reviewed
+  (docs/census/LABEL_SITES_1D1b3.json). On the Run 15 cohort the authority refuses the 206 training rows of the 14 genes whose
+  two symbols straddle the split. Registered in the census ledger: STRING-PAIR-ACCOUNTING-1,
+  STRING-THRESHOLD-RECONSTRUCTION-1, STRING-GENE-MAPPING-1, KG-COHORT-DEPENDENT-PROJECTION-1, KG-RELATION-SOURCE-MERGE-1,
+  GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1 (the run driver's hetero node universe is the union of the split genes) and
+  GENE-SYMBOL-SPLIT-IDENTITY-1 (owner: 1D-1d); dataset hgnc. Records: docs/census/GRAPH_IDENTITY_1D1b3.json. Admission
+  unchanged: strict 55 / 47, conditional 65 / 37. Suite 9,136 -> 9,210 (+74 / -0, revision B included).
+  REVISION B (2026-11-10). Windows V1 of the first candidate STOPPED (record GVC_admission_1d1b3_validate_run_20261110T112255Z,
+  checkout verified unchanged): 6 tests in test_graph_identity.py failed because their fixtures, written with Path.write_text,
+  had CRLF line endings on Windows (the Linux sandbox cannot see newline translation). The investigation found a latent SILENT
+  defect behind it: a CRLF GMT made the last member of every gene set "unresolved", and a CRLF HGNC file was accepted whenever
+  its required columns were not last. The measured sources hold 0 carriage returns, so no recorded number changes. Every reader
+  now refuses a carriage return by name, in its header and in every row; fixtures are written as bytes; an AST guard keeps write_text without newline= out of
+  the test modules that feed these readers; the sandbox now also runs the stage's tests under Windows newline emulation, which
+  reproduces exactly the 6 Windows failures on the first candidate. Owner ruling 68ca322f registered: LABEL-TYPE-IDENTITY-1,
+  LABEL-DENIED-READ-AUDIT-1, GRAPH-MAPPING-RECEIPT-AUTHORITY-1 (root cause: map_string_proteins takes the info digest as an
+  argument, so a mapping of DIFFERENT identities claims the pinned source and is accepted), GRAPH-MUTABLE-MATERIALIZATION-1 --
+  each with an executable witness (tests/unit/test_registered_defect_witnesses.py) that fails once it is repaired --
+  VARIANT-MULTIGENE-ISOLATION-1 (measured: 729 multi-gene gene fields; as canonical gene sets, 419 genes on both sides of the
+  Run 15 split and 309 linked gene groups straddling it, 219,128 rows; largest group 11 genes, so component-based splitting is
+  feasible; owner 1D-1d), LABEL-ACCESS-DISCOVERY-SCOPE-1 and STRING-PROTEIN-GENE-REDUCTION-1. None is repaired here: the
+  shadow scope is kept, as the ruling directs. Suite 9,197 -> 9,210 (+14 / -1 by node identity: one parametrized case renamed); against main +74 / -0.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

@@ -8379,4 +8379,31 @@
 #   test_observation_columns.py; the greatest fixed point now refuses cycles), +7 (graded exposure; the shadow materialisers;
 #   the lineage block; least = greatest on the census; cycle refusal; an ungrounded leaf; only the absence census consumes the
 #   contract, classified diagnostic). (tests_drift/: unchanged, 22.)
-9136
+# 2026-11-10  PACKAGE 1D, STAGE 1D-1b.3 (set "ar"; owner rulings f2ec92cd, 7f4b69d0, 7a2a6ade) -- source-bound graph identity
+#   and authorized labels. +61 / -0 by node identity (collected against main, 5b7335f6). New files: +37
+#   tests/unit/test_graph_identity.py (every pair once in canonical order from one verified pass; content independent of order,
+#   compression and partitions; thirteen malformed record kinds refused and scratch removed on failure; header, pin and scratch
+#   lifecycle; strict protein info; the combination equals the owner's reference and is nested; the four-way classification with
+#   the published flag; threshold-sensitive pairs on both sides; comparisons at the threshold decided exactly; exact and float
+#   agree away from boundaries; integer thousandths; quantization consistency; exact-case HGNC resolution; approved-symbol
+#   precedence and its report; no non-injective mapping; the regime rules and every policy field in the identity; the
+#   materialised identity computed and reductions counted; acceptance refuses every mismatch; G2 and the threshold-robust graph;
+#   the legacy cache key; no STRING regime strictly admitted; gene sets by stable id; global-size weights; universe growth never
+#   removes an edge while the legacy projection does; the factorised operator equals the projection); +15
+#   tests/unit/test_label_authority.py (scope derived from canonical genes; out-of-scope reads refused and no serialisation;
+#   records validated; masked labels; the flip; exact output digests; the hetero builder fails non-interference on raw labels and
+#   passes on masked ones; the homogeneous builder likewise; a vacuous test refused; every label site reviewed; discovery finds a
+#   new reader); +9 tests/unit/test_graph_identity_record.py (the record bound to its code; exact pair accounting; the crosstab
+#   complete and nested; graph identities reconcile; the legacy graph and its cache; cohort identity and the authority; pathway
+#   projections; the benchmark layout-independent and bound; the census states the measured numbers).
+#   tests/unit/test_admission_shadow.py: the shadow-mode lists extended, no test added or removed. (tests_drift/: unchanged, 22.)
+# 2026-11-10  SET "ar" REVISION B (Windows V1 of set "ar" stopped: 6 tests failed because fixtures written with Path.write_text
+#   had CRLF line endings on Windows; owner ruling 68ca322f). +14 / -1 by node identity against set "ar" (9,197 -> 9,210):
+#   tests/unit/test_graph_identity.py +9 (test_carriage_returns_are_refused_by_every_reader x 4 readers x 2 placements: every
+#   line CRLF, and only the last row CRLF, which a header check alone cannot see;
+#   test_fixtures_for_byte_strict_readers_are_written_as_bytes); +4 tests/unit/test_registered_defect_witnesses.py (one
+#   executable witness per reproduced ruling defect: LABEL-TYPE-IDENTITY-1, LABEL-DENIED-READ-AUDIT-1,
+#   GRAPH-MAPPING-RECEIPT-AUTHORITY-1, GRAPH-MUTABLE-MATERIALIZATION-1); +1 / -1 renamed: the case of a record ending in a
+#   carriage return now expects "carriage return", so its id [lines10-canonical integer] became [lines10-carriage return].
+#   Against main (5b7335f6): +74 / -0.
+9210

@@ -107,6 +107,11 @@ DATASETS = {
                      '"""Builds a NetworkX protein-interaction graph from STRING DB."""')]),
     "kg_gene_sets": ("gene-set files for knowledge-graph relations: Reactome GMT, KEGG GMT, GO GMT, ClinGen CSV, "
                      "OMIM table", "mixed", [code(D + "kg_edges.py", 'KG_SOURCES = {')]),
+    "hgnc": ("HGNC complete set: approved symbols, previous symbols and stable HGNC identifiers (canonical gene "
+             "identity for graph nodes, gene sets and the label authority, stage 1D-1b.3)", "public (CC0)",
+             ["record:docs/census/GRAPH_IDENTITY_1D1b3.json",
+              code("src/genomic_variant_classifier/information_sources/graph_identity.py",
+                   'HGNC_REQUIRED = ("hgnc_id", "symbol", "status", "prev_symbol", "alias_symbol")')]),
 }
 
 
@@ -589,6 +594,9 @@ SITES = {
     "scripts/diff_engineer_features.py": (["diagnostic"], "compares feature builders"),
     "scripts/measure_1d1b2_pilots.py": (["diagnostic"], "stage 1D-1b.2 pilot measurement: the current builder's flags on "
                                         "the legacy joined values, for comparison; no model is fitted"),
+    "scripts/measure_1d1b3_graph_identity.py": (["diagnostic"], "stage 1D-1b.3 measurement: builds the legacy "
+                                                "StringDBGraph from the same files to compare it with the source-bound "
+                                                "graphs and to show its cache key; no model is fitted"),
     "scripts/preflight_run16_inputs.py": (["diagnostic"], "pre-flight input check"),
     "scripts/prove_engineer_features_equivalence.py": (["diagnostic"], "historical equivalence proof"),
     "scripts/run_benchmark.py": (["surface:evaluation"], "benchmarks learners on the contract's columns"),
@@ -696,6 +704,137 @@ DEFECTS = [
     ("GTEX-EQTL-PRODUCTION-DEFAULT-1", "The production GTEx path (bulk parquet) writes the defaults for the three "
      "variant-level eQTL features; only the per-gene API path, which no launcher uses, computes them.",
      ["gtex_is_eqtl", "gtex_min_eqtl_pval", "gtex_max_abs_effect"], [code(RDP, "eQTL trio stays at defaults.")]),
+    ("STRING-PAIR-ACCOUNTING-1", "StringDBGraph.build adds one nx.Graph edge per DIRECTED record, so the reverse "
+     "record of a pair silently overwrites the forward one's attributes, and no check finds a missing reciprocal, a "
+     "contradictory direction or a duplicate; the 1D-1b.1 order-independent digest accepted a pair duplicated in both "
+     "directions. Stage 1D-1b.3 reads the file in ONE verified pass and matches the two directions of every pair "
+     "EXACTLY in disk-backed partitions, refusing every deviation (graph_identity.read_string_pairs). Measured on STRING "
+     "v12 human (sha256 28a2ea3b): 13,715,404 records = 6,857,702 pairs x 2, every pair symmetric, 19,622 proteins; "
+     "content identical for 16, 64 and 256 partitions; 54.3-58.4 s, 629-820 MiB peak, 342,885,100 bytes of scratch on a "
+     "2-core container (docs/census/STRING_READER_BENCHMARK_1D1b3.json).",
+     ["string_relation:combined_score_threshold", "string_edge_attribute:experimental", "string_edge_attribute:database",
+      "string_edge_attribute:coexpression", "gnn_score", "hetero_gnn_score"],
+     [code(GNN, "G.add_edge("), "record:docs/census/GRAPH_IDENTITY_1D1b3.json",
+      "record:docs/census/STRING_READER_BENCHMARK_1D1b3.json"]),
+    ("STRING-THRESHOLD-RECONSTRUCTION-1", "A channel-restricted STRING graph rebuilt from the exported integers is not "
+     "exactly defined by them: rounded channels with a floored combined score is the best-supported storage model (fits "
+     "6,857,369 of 6,857,702 pairs; 333 miss by one thousandth), the restricted reconstruction has 3 pairs outside the "
+     "published graph, and near the threshold the selection depends on rounding. Stage 1D-1b.3 defines G1 = "
+     "reconstruction >= 0.700 INTERSECTED with the published graph, compares in integer thousandths, decides every "
+     "comparison within floating-point error of the threshold in exact rational arithmetic (52 pairs reconstruct to "
+     "exactly 0.700), and records the four-way status (owner ruling 7f4b69d0, section 7): selected robust 84,874, "
+     "selected sensitive 113, excluded sensitive 64 (published passes) + 9 (fails), excluded robust 151,879 + "
+     "6,620,763; G1 84,987 pairs, G2 236,930 (graph_identity.classify_threshold).",
+     ["string_relation:combined_score_threshold", "gnn_score", "hetero_gnn_score"],
+     [code(GNN, 'links_df = links_df[links_df["combined_score"] >= self.threshold]'),
+      "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
+    ("STRING-GENE-MAPPING-1", "StringDBGraph maps a protein to its STRING preferred name, keeps an unmapped protein "
+     "under its protein identifier and merges proteins that share a name; its graph cache is keyed by the threshold "
+     "alone (string_graph_{threshold}.pkl), so it returned the cached 236,930-edge graph when given a different links "
+     "file, and its names and links caches carry no identity at all. Preferred names are not canonical identity "
+     "(ruling 7f4b69d0, section 9.1): against HGNC (sha256 69bb5722) 18,837 proteins resolve by approved symbol and 479 "
+     "by a unique previous symbol, 1 ambiguously, 382 not at all, and 4 HGNC identifiers are claimed by two proteins "
+     "AFTER canonicalisation (resolved by approved-symbol precedence, graph_identity.map_string_proteins); 250 Run 15 "
+     "cohort symbols (8,324 rows) reach a STRING node only through their HGNC identifier. Stage 1D-1b.3 binds a graph to a policy "
+     "and to its computed materialisation (source, mapping, node universe, relation policy, edge content) and accepts "
+     "it only when the identity recomputed from content matches (graph_identity.accept_graph).",
+     ["string_relation:combined_score_threshold", "string_edge_attribute:experimental", "string_edge_attribute:database",
+      "string_edge_attribute:coexpression", "gnn_score", "hetero_gnn_score"],
+     [code(GNN, 'p1 = self._protein_to_gene.get(row["protein1"], row["protein1"])'),
+      code(GNN, 'cache_path = self.cache_dir / f"string_graph_{self.threshold}.pkl"'),
+      "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
+    ("KG-COHORT-DEPENDENT-PROJECTION-1", "kg_edges.co_membership_edges removes out-of-cohort genes BEFORE applying "
+     "max_set_size, so a pathway's edges exist or vanish with the cohort's composition. Measured on ReactomePathways.gmt "
+     "(sha256 cf17607f) and the Run 15 splits: the training-gene universe gives 732,550 edges; adding the validation "
+     "and test genes, as the run driver does, DELETES 180,843 train-train edges and adds none. Stage 1D-1b.3 caps and "
+     "weights by the GLOBAL canonical set size, w = 1/(|S_s| - 1), so growing the universe never removes or reweights "
+     "an edge (graph_identity.project_pathways; induced-subgraph consistency measured on the same data: 0 removed, 0 "
+     "added, 0 reweighted).",
+     ["kg_relation:reactome", "kg_relation:kegg", "kg_relation:go", "kg_relation:clingen", "kg_relation:omim",
+      "hetero_gnn_score"],
+     [code(D + "kg_edges.py", "gs = list(dict.fromkeys(g for g in genes if (allow is None or g in allow)))"),
+      "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
+    ("KG-RELATION-SOURCE-MERGE-1", "load_kg_edge_specs merges every source mapped to one relation into one edge set "
+     "(Reactome and KEGG into shares_pathway; ClinGen and OMIM into shares_disease), so a withheld and an excluded "
+     "source cannot be told apart per edge. Stage 1D-1b.3 keys relations by (source, relation) and pathways by "
+     "(source, stable pathway id) (graph_identity.GeneSetSource).",
+     ["kg_relation:reactome", "kg_relation:kegg", "kg_relation:clingen", "kg_relation:omim", "hetero_gnn_score"],
+     [code("src/genomic_variant_classifier/models/hetero_gnn_scorer.py",
+           "by_rel.setdefault(relation, set()).update(edges)")]),
+    ("GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1", "The run driver builds the hetero-GNN node universe from the union of the "
+     "training, validation and test genes read from the persisted splits, and restricts every relation to it, so the "
+     "test split's composition shapes the training graph's nodes and, through KG-COHORT-DEPENDENT-PROJECTION-1, "
+     "deletes 180,843 Reactome train-train edges (no labels move, but split identity reaches training). Stage 1D-1b.3's "
+     "graphs use the source-defined universe (GraphPolicy.node_universe = global_source); a cohort is an induced view.",
+     ["hetero_gnn_score", "kg_relation:reactome", "kg_relation:kegg", "kg_relation:go", "kg_relation:clingen",
+      "kg_relation:omim", "string_relation:combined_score_threshold"],
+     [code(DRV, "cohort_genes = sorted(_train_genes | _val_genes | _test_genes)"),
+      "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
+    ("GENE-SYMBOL-SPLIT-IDENTITY-1", "The gene-disjoint split groups rows by gene SYMBOL, so two symbols of one gene can "
+     "fall on both sides. Measured on the Run 15 cohort and splits: 26 HGNC identifiers appear under two symbols and 14 "
+     "of them straddle training and held-out (e.g. HGNC:4166 as GAS8 in training and DRC4 in test; HGNC:1152 as BVES and "
+     "POPDC1); the label authority, keyed by canonical gene, refuses the 206 training rows of those 14 genes. Owner: "
+     "stage 1D-1d (canonical gene and split identities).",
+     ["supervision:gnn_label", "supervision:hetero_gnn_label", "gnn_score", "hetero_gnn_score", "n_pathogenic_in_gene"],
+     [code(RDP, "trainval_idx, test_idx = next(splitter.split(X, y, groups=groups))"),
+      "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
+    # ---- owner ruling 68ca322f (2026-11-10), registered by set "ar" revision B; the four reproduced ones carry
+    # executable witnesses (tests/unit/test_registered_defect_witnesses.py) that fail once the defect is repaired.
+    ("LABEL-TYPE-IDENTITY-1", "labels.LabelRecord accepts any value equal to 0 or 1 that is not a bool -- np.bool_, "
+     "1.0, np.float64, np.int64, Fraction(1), Decimal('1'), even complex(1, 0) -- and the store then returns that type "
+     "(np.float64); its gene identity is any non-empty string ('GAS8', ' HGNC:1', 'HGNC:01'). Owner: the label "
+     "authority's enforcement (1D-1b.4 onward): a strict internal type (type(label) is int) behind an explicit "
+     "adapter, and a canonical gene SET per row (VARIANT-MULTIGENE-ISOLATION-1).",
+     ["supervision:gnn_label", "supervision:hetero_gnn_label"],
+     [code("src/genomic_variant_classifier/information_sources/labels.py", "if isinstance(self.label, bool) or self.label not in (0, 1):"),
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_label_type_identity_1():")]),
+    ("LABEL-DENIED-READ-AUDIT-1", "FoldScopedLabelStore holds only authorized rows, so a read of a held-out row, of a "
+     "training row refused for sharing a canonical gene with held-out, or of an unknown row raises KeyError and is not "
+     "recorded: the access log shows only successful reads. Owner: 1D-1b.4 (authorized, denied and unknown_row "
+     "outcomes, all recorded; a capability-limited worker for production).",
+     ["supervision:gnn_label", "supervision:hetero_gnn_label"],
+     [code("src/genomic_variant_classifier/information_sources/labels.py", "        gene, label = self._data[row_id]"),
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_label_denied_read_audit_1():")]),
+    ("GRAPH-MAPPING-RECEIPT-AUTHORITY-1", "graph_identity.map_string_proteins takes the protein-info digest as a "
+     "caller-supplied argument, never bound to the info content it maps, so a mapping built from different (e.g. "
+     "swapped) identities claims the pinned source, materialises and is accepted; accept_graph also accepts any mapping "
+     "digest its manifest repeats. Owner: graph acceptance enforcement: the reader returns content and digest as one "
+     "object, and acceptance at a trust boundary re-derives the graph from the verified inputs.",
+     ["string_relation:combined_score_threshold", "gnn_score", "hetero_gnn_score"],
+     [code("src/genomic_variant_classifier/information_sources/graph_identity.py", "def map_string_proteins(info: Mapping[str, str], info_sha256: str, hgnc: HgncIndex)"),
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_graph_mapping_receipt_authority_1(tmp_path):")]),
+    ("GRAPH-MUTABLE-MATERIALIZATION-1", "Frozen dataclasses do not freeze the NumPy arrays and dictionaries they hold: "
+     "an in-place write to a StringPairTable leaves its stored content digest stale, and HgncIndex and GeneSetSource "
+     "can be edited after reading (GeneGraph attribute edits are caught by accept_graph, which recomputes). Owner: "
+     "graph materialisation enforcement: bytes-backed read-only buffers, read-only mappings, digests re-verified at "
+     "trust boundaries.",
+     ["string_relation:combined_score_threshold", "kg_relation:reactome", "gnn_score", "hetero_gnn_score"],
+     [code("src/genomic_variant_classifier/information_sources/graph_identity.py", "    content_sha256: str = field(init=False)"),
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_graph_mutable_materialization_1(tmp_path):")]),
+    ("VARIANT-MULTIGENE-ISOLATION-1", "One gene identity per row cannot represent a variant listed under several genes. "
+     "Measured on the Run 15 cohort: 729 gene fields are multi-gene lists (1,838 rows, e.g. 'ABCC8;KCNJ11'); read as "
+     "canonical gene SETS, 419 HGNC genes lie on both sides of the split, 113,568 training rows touch a held-out gene and "
+     "82,999 held-out rows touch a training gene; union-find over genes linked by such lists gives 16,599 components "
+     "(largest 11 genes, 19,985 rows: no giant component), of which 309 straddle the split -- 660 genes, 219,128 rows. "
+     "Owner: 1D-1d (gene-set rows, split groups built from components; which loci bind a group is the owner's decision).",
+     ["supervision:gnn_label", "supervision:hetero_gnn_label", "gnn_score", "hetero_gnn_score", "n_pathogenic_in_gene"],
+     [code("src/genomic_variant_classifier/information_sources/labels.py", "    gene_id: str"), code(RDP, "trainval_idx, test_idx = next(splitter.split(X, y, groups=groups))"),
+      "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
+    ("LABEL-ACCESS-DISCOVERY-SCOPE-1", "labels.discover_label_sites finds only the graph builders' label column and "
+     "label_col/label_column parameters (12 reviewed sites); it does not discover labels passed as y arrays, positional "
+     "arguments or other names, so it is a regression detector, never a complete label-access audit. Owner: 1D-1b.4 "
+     "(claims and evidence interfaces); runtime read receipts and fold-scoped capabilities where the legacy consumers "
+     "are replaced.",
+     ["supervision:gnn_label", "supervision:hetero_gnn_label"],
+     [code("src/genomic_variant_classifier/information_sources/labels.py", 'LABEL_PARAMETERS = frozenset({"label_col", "label_column"})'),
+      "record:docs/census/LABEL_SITES_1D1b3.json"]),
+    ("STRING-PROTEIN-GENE-REDUCTION-1", "The canonical STRING mapping resolves the 4 HGNC identifiers claimed by two "
+     "proteins by keeping the approved-symbol protein and discarding the other, which may remove real protein-level "
+     "evidence (isoforms, distinct products). Owner: 1D-3: keep the protein graph intact and derive gene-level edges by "
+     "a declared, evidence-preserving aggregation.",
+     ["string_relation:combined_score_threshold", "gnn_score", "hetero_gnn_score"],
+     [code("src/genomic_variant_classifier/information_sources/graph_identity.py", "        winners = [p for p in ps if first[p][1] is MappingStatus.APPROVED_SYMBOL]"),
+      "record:docs/census/GRAPH_IDENTITY_1D1b3.json"]),
 ]
 
 

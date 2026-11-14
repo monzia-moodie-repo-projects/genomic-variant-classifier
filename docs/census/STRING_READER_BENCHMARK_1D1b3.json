@@ -1,0 +1,84 @@
+{
+  "author": "Monzia Moodie",
+  "links": {
+    "bytes": 139634808,
+    "file": "9606.protein.links.detailed.v12.0.txt.gz",
+    "sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+  },
+  "platform": {
+    "cpus": 2,
+    "machine": "x86_64",
+    "python": "3.12.3",
+    "system": "Linux"
+  },
+  "reader": "src/genomic_variant_classifier/information_sources/graph_identity.py::read_string_pairs",
+  "reader_sha256": "96446b384c25d53140ef783003fb63d12e3061315bb1c37907a7e8dc02a0fd51",
+  "runs": [
+    {
+      "chunk_records": 262144,
+      "content_sha256": "234e300cd8f640998ebf93bbdbd3bf441235d0f8b658db70b5f5fd848de4145b",
+      "max_partition_records": 859536,
+      "pairs": 6857702,
+      "partitions": 16,
+      "peak_rss_mib": 696.9,
+      "proteins": 19622,
+      "records": 13715404,
+      "scratch_bytes": 342885100,
+      "seconds": 55.8,
+      "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+    },
+    {
+      "chunk_records": 262144,
+      "content_sha256": "234e300cd8f640998ebf93bbdbd3bf441235d0f8b658db70b5f5fd848de4145b",
+      "max_partition_records": 215588,
+      "pairs": 6857702,
+      "partitions": 64,
+      "peak_rss_mib": 663.8,
+      "proteins": 19622,
+      "records": 13715404,
+      "scratch_bytes": 342885100,
+      "seconds": 58.4,
+      "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+    },
+    {
+      "chunk_records": 262144,
+      "content_sha256": "234e300cd8f640998ebf93bbdbd3bf441235d0f8b658db70b5f5fd848de4145b",
+      "max_partition_records": 54206,
+      "pairs": 6857702,
+      "partitions": 256,
+      "peak_rss_mib": 652.3,
+      "proteins": 19622,
+      "records": 13715404,
+      "scratch_bytes": 342885100,
+      "seconds": 57.4,
+      "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+    },
+    {
+      "chunk_records": 65536,
+      "content_sha256": "234e300cd8f640998ebf93bbdbd3bf441235d0f8b658db70b5f5fd848de4145b",
+      "max_partition_records": 215748,
+      "pairs": 6857702,
+      "partitions": 64,
+      "peak_rss_mib": 628.7,
+      "proteins": 19622,
+      "records": 13715404,
+      "scratch_bytes": 342885100,
+      "seconds": 56.0,
+      "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+    },
+    {
+      "chunk_records": 1048576,
+      "content_sha256": "234e300cd8f640998ebf93bbdbd3bf441235d0f8b658db70b5f5fd848de4145b",
+      "max_partition_records": 215674,
+      "pairs": 6857702,
+      "partitions": 64,
+      "peak_rss_mib": 820.1,
+      "proteins": 19622,
+      "records": 13715404,
+      "scratch_bytes": 342885100,
+      "seconds": 54.3,
+      "source_sha256": "28a2ea3b22c964e691c0f2f934c5e3e397a4b0a12c833d8787fa02b7847b91b6"
+    }
+  ],
+  "schema": "gvc.string-reader-benchmark.1d1b3/1"
+}
