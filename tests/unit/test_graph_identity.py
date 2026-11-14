@@ -98,8 +98,11 @@ def test_protein_info_is_read_strictly(tmp_path):
     rows = "\t".join(G.STRING_INFO_HEADER) + "\n9606.A\tAAA\t10\tx\n9606.B\tBBB\t20\ty\n"
     p = tmp_path / "info.gz"
     p.write_bytes(gzip.compress(rows.encode(), mtime=0))
-    info, sha = G.read_string_info(p)
-    assert info == {"9606.A": "AAA", "9606.B": "BBB"} and sha == _sha(p)
+    info = G.read_string_info(p)
+    assert info.names == {"9606.A": "AAA", "9606.B": "BBB"} and info.source_sha256 == _sha(p)
+    assert info.n_bytes == p.stat().st_size
+    with pytest.raises(TypeError):
+        info.names["9606.Z"] = "ZZZ"                                    # read-only: the digest describes this content
     p.write_bytes(gzip.compress((rows + "9606.A\tAAA2\t1\tz\n").encode(), mtime=0))
     with pytest.raises(ValueError, match="listed twice"):
         G.read_string_info(p)
@@ -246,7 +249,7 @@ def test_hgnc_resolution_is_exact_and_ambiguity_is_named(tmp_path):
 def test_canonical_collisions_are_resolved_by_approved_symbol_precedence_and_reported(tmp_path):
     h = _hgnc(tmp_path, HGNC_ROWS)
     info = {"9606.P1": "AAA", "9606.P2": "OLDA", "9606.P3": "OLDB", "9606.P4": "SHARED", "9606.P5": "NOPE"}
-    m, rep = G.map_string_proteins(info, "1" * 64, h)
+    m, rep = G.map_string_proteins(G.StringInfo(info, "1" * 64, 0), h)
     st = {r.protein_id: (r.hgnc_id, r.status.value) for r in m.rows}
     assert st == {"9606.P1": ("HGNC:1", "approved_symbol"), "9606.P2": (None, "collision_superseded"),
                   "9606.P3": ("HGNC:2", "previous_symbol_unique"), "9606.P4": (None, "previous_symbol_ambiguous"),
@@ -256,9 +259,9 @@ def test_canonical_collisions_are_resolved_by_approved_symbol_precedence_and_rep
                                                 ["9606.P2", "OLDA", "previous_symbol_unique"]]}]
     info2 = {"9606.Q1": "OLDA", "9606.Q2": "OLDA2"}
     h2 = _hgnc(tmp_path, [("HGNC:1", "AAA", "a", "Approved", "", '"OLDA|OLDA2"')])
-    m2, rep2 = G.map_string_proteins(info2, "1" * 64, h2)
+    m2, rep2 = G.map_string_proteins(G.StringInfo(info2, "1" * 64, 0), h2)
     assert {r.status.value for r in m2.rows} == {"collision_ambiguous"} and rep2["collisions"][0]["kept"] is None
-    m3, _ = G.map_string_proteins({**info, "9606.P5": "CCC"}, "1" * 64, h)
+    m3, _ = G.map_string_proteins(G.StringInfo({**info, "9606.P5": "CCC"}, "1" * 64, 0), h)
     assert m3.mapping_sha256 != m.mapping_sha256
 
 
@@ -314,7 +317,7 @@ def _graph_inputs(tmp_path):
     h = _hgnc(tmp_path, [("HGNC:1", "AAA", "", "Approved", "", "OLDC"), ("HGNC:2", "BBB", "", "Approved", "", ""),
                          ("HGNC:4", "DDD", "", "Approved", "", "")])
     info = {"9606.A": "AAA", "9606.B": "BBB", "9606.C": "OLDC", "9606.D": "DDD", "9606.E": "UNKNOWN"}
-    m, _ = G.map_string_proteins(info, "9" * 64, h)
+    m, _ = G.map_string_proteins(G.StringInfo(info, "9" * 64, 0), h)
     return t, m, h
 
 
@@ -328,28 +331,28 @@ def test_materialised_identity_is_computed_and_reductions_are_counted(tmp_path):
     assert g.nodes == ("HGNC:1", "HGNC:2", "HGNC:4")                    # the source-defined universe, isolated or not
     assert g.report["selected_pairs"] == 4 and g.report["selected_pairs_with_unmapped_endpoint"] == 2
     assert g.report["unmapped_endpoint_status_counts"] == {"collision_superseded": 1, "unresolved": 1}
-    assert G.accept_graph(pol, g) == g.materialization
+    assert G.verify_graph_consistency(pol, g) == g.materialization
     assert g.materialization.relation_policy_sha256 == pol.policy_sha256
     assert g.materialization.mapping_sha256 == m.mapping_sha256 and g.materialization.source_sha256 == t.source_sha256
 
 
-def test_acceptance_recomputes_identity_and_refuses_every_mismatch(tmp_path):
+def test_the_consistency_check_recomputes_identity_and_refuses_every_mismatch(tmp_path):
     import dataclasses
 
     t, m, h = _graph_inputs(tmp_path)
     pol = _policy(t.source_sha256, "9" * 64, h.source_sha256)
     g = G.materialize_string_graph(t, m, pol)
     with pytest.raises(ValueError, match="different graph policy"):
-        G.accept_graph(_policy(t.source_sha256, "9" * 64, h.source_sha256, threshold_milli=701), g)
+        G.verify_graph_consistency(_policy(t.source_sha256, "9" * 64, h.source_sha256, threshold_milli=701), g)
     tampered = dataclasses.replace(g, edges=g.edges[:1], attributes=g.attributes[:1])
     with pytest.raises(ValueError, match="edge_content_sha256"):
-        G.accept_graph(pol, tampered)
+        G.verify_graph_consistency(pol, tampered)
     renamed = dataclasses.replace(g, nodes=g.nodes + ("HGNC:9",))
     with pytest.raises(ValueError, match="node_universe_sha256"):
-        G.accept_graph(pol, renamed)
+        G.verify_graph_consistency(pol, renamed)
     forged = dataclasses.replace(g, materialization=dataclasses.replace(g.materialization, mapping_sha256="0" * 64))
     with pytest.raises(ValueError, match="mapping_sha256"):
-        G.accept_graph(pol, forged)
+        G.verify_graph_consistency(pol, forged)
     with pytest.raises(ValueError, match="pinned source"):
         G.materialize_string_graph(t, m, _policy("0" * 64, "9" * 64, h.source_sha256))
     with pytest.raises(ValueError, match="pinned protein-info"):
@@ -502,7 +505,7 @@ def test_carriage_returns_are_refused_by_every_reader(tmp_path, reader, where):
         if reader == "string_links":
             assert len(G.read_string_pairs(p)) == 2
         elif reader == "string_info":
-            assert G.read_string_info(p)[0] == {"9606.A": "AAA", "9606.B": "BBB"}
+            assert G.read_string_info(p).names == {"9606.A": "AAA", "9606.B": "BBB"}
         elif reader == "hgnc":
             assert G.read_hgnc(p).approved == {"AAA": "HGNC:1", "BBB": "HGNC:2"}
         else:

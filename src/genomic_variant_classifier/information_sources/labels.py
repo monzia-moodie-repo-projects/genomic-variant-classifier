@@ -1,26 +1,28 @@
-"""Stage 1D-1b.3: authorized labels (SHADOW MODE: nothing in production imports this module).
+"""Stage 1D-1b.3, repaired in stage 1D-1b.4: authorized training labels (SHADOW MODE: nothing in production imports this
+module).
 
 Owner rulings f2ec92cd (Unit 1D-1b.3: "for an ordinary biological feature producer, evaluation labels must be inaccessible;
-for a supervised model fitter, only explicitly authorized training labels are permitted") and 7a2a6ade (section 13: the
-fold-scoped label store and the required non-interference test). Today the boundary is wherever the CALLER puts it: the run
-driver writes ``gnn_df["acmg_label"] = y_train.values`` and the graph builders read every labeled row they are given
-(models/gnn.py build_pyg_dataset, models/hetero_gnn_scorer.py assemble_node_features_and_focal). Nothing in the builders
-knows which rows are authorized.
+for a supervised model fitter, only explicitly authorized training labels are permitted"), 7a2a6ade (section 13: the
+fold-scoped label store and the required non-interference test) and 68ca322f (LABEL-TYPE-IDENTITY-1 and
+LABEL-DENIED-READ-AUDIT-1). Today the boundary is wherever the CALLER puts it: the run driver writes
+``gnn_df["acmg_label"] = y_train.values`` and the graph builders read every labeled row they are given
+(models/gnn.py build_pyg_dataset, models/hetero_gnn_scorer.py assemble_node_features_and_focal).
 
-* ``LabelAuthority`` holds the labels and the partition, keyed by row and CANONICAL gene (an HGNC id, not a symbol: two
-  symbols of one gene in different partitions are one gene, GENE-SYMBOL-SPLIT-IDENTITY-1). It authorizes, for a fit, the
-  training rows whose gene has no held-out row; a training row that shares its gene with a held-out row is refused and
-  counted. Held-out labels never leave the authority.
-* ``FoldScopedLabelStore`` (the owner's reference, kept): a fitter reads labels one row at a time, every read is recorded,
-  and a read outside the authorized genes raises ``PermissionError``. It offers no accessor for the underlying table.
-* ``masked_labels``: the label vector a LEGACY builder may be given -- authorized labels kept, every other label NaN.
+* ``TrainingLabels`` (stage 1D-1b.4; replaces the 1D-1b.3 LabelRecord, FoldScopedLabelStore and LabelAuthority, which
+  chose rows by ONE canonical gene per row, accepted any value equal to 0 or 1, and left refused reads unrecorded): the only
+  label interface a fitting worker receives. It is built from a ``population.FitAuthorization`` -- derived from the split's
+  components, never asserted by the caller -- and keeps the labels of the authorized rows only, as native ``int`` 0 or 1;
+  no held-out value is ever stored. Every read is recorded with its outcome (authorized, denied for a registered row that
+  is not authorized, unknown for a row the population does not hold); a refused read raises ``LabelAccessError``.
+  ``masked`` gives a LEGACY builder its label vector (authorized labels, NaN elsewhere) and records the bulk read. The
+  object cannot be copied or serialised, so its receipt accounts for every read made through it.
 * ``label_noninterference``: the required test. Alter the held-out labels (flip them), rebuild with everything else fixed,
-  and compare the outputs byte for byte. A builder given the raw labels fails it; given ``masked_labels`` it passes.
+  and compare the outputs byte for byte. A builder given the raw labels fails it; given ``TrainingLabels.masked`` it passes.
 * ``discover_label_sites``: every module of src/ and scripts/ that names the graph builders' label column (``acmg_label``)
   or takes a ``label_col`` parameter, so a new graph-label reader cannot appear unreviewed (the census's discovery-closure
   rule, applied to labels). Its scope is stated, not implied: the tabular fitters receive labels as ``y`` arrays and the
   cohort column ``label``, whose fold boundary is the leakage-free baseline's (stage 1D-2); this discovery does not cover
-  them.
+  them (LABEL-ACCESS-DISCOVERY-SCOPE-1).
 
 As the owner states, a Python wrapper is not a security sandbox: these objects make the authorized path the only
 convenient one and make violations measurable; a production boundary must also keep the raw label source unreachable.
@@ -31,119 +33,110 @@ import ast
 import hashlib
 import logging
 import math
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
+
+from genomic_variant_classifier.information_sources.graph_identity import readonly_array
+from genomic_variant_classifier.information_sources.population import FitAuthorization, digest
 
 logger = logging.getLogger(__name__)
 
 LABEL_COLUMN = "acmg_label"
 LABEL_PARAMETERS = frozenset({"label_col", "label_column"})
-PARTITIONS = frozenset({"train", "heldout"})
+FIT_SCOPE_KEYS = frozenset({"model", "population", "split"})
 
 
-@dataclass(frozen=True)
-class LabelRecord:
-    row_id: str
-    gene_id: str
-    label: int
-    partition: str
-
-    def __post_init__(self) -> None:
-        if not self.row_id or not self.gene_id:
-            raise ValueError("label records need a row id and a canonical gene id")
-        if isinstance(self.label, bool) or self.label not in (0, 1):
-            raise ValueError(f"{self.row_id}: a reference label is the integer 0 or 1")
-        if self.partition not in PARTITIONS:
-            raise ValueError(f"{self.row_id}: partition must be one of {sorted(PARTITIONS)}")
+class LabelAccessError(PermissionError):
+    """A label read the fit's authorization does not cover (the row is held out, refused, or unknown)."""
 
 
-class FoldScopedLabelStore:
-    """Authorized training labels for ONE fit. Reads are recorded; a read of an unauthorized gene's row is refused."""
+class TrainingLabels:
+    """Authorized training labels for ONE fit, and the record of every read made through this object."""
 
-    __slots__ = ("_data", "_allowed", "_accesses")
+    __slots__ = ("_labels", "_registered", "_events", "_digest", "_authorization_digest")
 
-    def __init__(self, data: Mapping[str, tuple[str, int]], allowed_genes: frozenset[str]):
-        if not allowed_genes:
-            raise ValueError("empty authorization scope")
-        self._data = MappingProxyType(dict(data))
-        self._allowed = frozenset(allowed_genes)
-        self._accesses: list[tuple[str, str]] = []
+    def __init__(self, authorization: FitAuthorization, label_source: Mapping[str, int], *,
+                 fit_scope: Mapping[str, str]):
+        if not isinstance(authorization, FitAuthorization):
+            raise TypeError("authorization must be a population.FitAuthorization")
+        missing = sorted(r for r in authorization.authorized_rows if r not in label_source)
+        if missing:
+            raise ValueError(f"the label source lacks {len(missing)} authorized row(s), e.g. {missing[0]}")
+        kept = {r: label_source[r] for r in sorted(authorization.authorized_rows)}
+        bad = next((r for r, v in kept.items() if type(v) is not int or v not in (0, 1)), None)
+        if bad is not None:
+            raise TypeError(f"{bad}: a reference label is the native int 0 or 1, got {type(kept[bad]).__name__} "
+                            f"{kept[bad]!r} (convert explicitly at the adapter)")
+        scope = dict(fit_scope)
+        if set(scope) != FIT_SCOPE_KEYS or any(type(v) is not str or not v.strip() for v in scope.values()):
+            raise ValueError(f"fit_scope names exactly {sorted(FIT_SCOPE_KEYS)}, each a nonempty str")
+        self._labels = MappingProxyType(kept)
+        self._registered = authorization.registered_rows
+        self._events: list[tuple[Any, ...]] = []
+        self._authorization_digest = authorization.digest
+        self._digest = digest("training-labels", {
+            "authorization": authorization.digest, "authority": authorization.authority.value, "fit_scope": scope,
+            "labels": digest("label-payload", [[k, v] for k, v in kept.items()])})
+
+    def _state(self, row_id: object) -> str:
+        if type(row_id) is str and row_id in self._labels:
+            return "authorized"
+        return "denied" if type(row_id) is str and row_id in self._registered else "unknown"
 
     def read(self, row_id: str) -> int:
-        gene, label = self._data[row_id]
-        if gene not in self._allowed:
-            raise PermissionError(f"unauthorized reference-label read: row {row_id}, gene {gene}")
-        self._accesses.append((row_id, gene))
-        return label
+        state = self._state(row_id)
+        self._events.append(("read", row_id if type(row_id) is str else repr(row_id), state))
+        if state != "authorized":
+            raise LabelAccessError(f"{state} label read: row {row_id!r}")
+        return self._labels[row_id]
 
-    def authorized_rows(self) -> tuple[str, ...]:
-        return tuple(r for r, (g, _) in self._data.items() if g in self._allowed)
+    def masked(self, row_ids: Sequence[str]) -> np.ndarray:
+        """Float labels aligned with ``row_ids`` for a legacy builder: authorized labels, NaN everywhere else (held-out,
+        refused and unknown rows). Recorded as one bulk read with its counts and the digest of the requested rows."""
+        ids = list(row_ids)
+        states = [self._state(r) for r in ids]
+        out = np.full(len(ids), np.nan)
+        for i, (r, s) in enumerate(zip(ids, states)):
+            if s == "authorized":
+                out[i] = float(self._labels[r])
+        c = Counter(states)
+        self._events.append(("masked", digest("masked-rows", [r if type(r) is str else repr(r) for r in ids]),
+                             c["authorized"], c["denied"], c["unknown"]))
+        return readonly_array(out)
 
     @property
-    def accesses(self) -> tuple[tuple[str, str], ...]:
-        return tuple(self._accesses)
+    def authorized_rows(self) -> tuple[str, ...]:
+        return tuple(self._labels)
 
-    def __reduce__(self):            # no pickled copy of the labels can leave the process through this object
-        raise TypeError("a fold-scoped label store cannot be serialised")
+    @property
+    def digest(self) -> str:
+        return self._digest
 
+    def receipt(self) -> dict[str, Any]:
+        """Every read through this object: single reads by outcome, bulk reads by their counts, and the digest of the
+        ordered event log."""
+        events = tuple(self._events)
+        single = Counter(e[2] for e in events if e[0] == "read")
+        bulk = [e for e in events if e[0] == "masked"]
+        return {"training_labels_digest": self._digest, "authorization_digest": self._authorization_digest,
+                "authorized": single["authorized"], "denied": single["denied"], "unknown": single["unknown"],
+                "masked_calls": len(bulk), "masked_authorized": sum(e[2] for e in bulk),
+                "masked_denied": sum(e[3] for e in bulk), "masked_unknown": sum(e[4] for e in bulk),
+                "events_digest": digest("label-events", [list(e) for e in events])}
 
-@dataclass(frozen=True)
-class Authorization:
-    authorized_rows: int
-    authorized_genes: int
-    heldout_rows: int
-    heldout_genes: int
-    refused_training_rows: int          # training rows whose canonical gene also has a held-out row
-    refused_genes: tuple[str, ...]
+    def __reduce_ex__(self, protocol: object):     # no copy may leave this object's receipt
+        raise TypeError("training labels cannot be serialised or copied")
 
+    def __copy__(self):
+        raise TypeError("training labels cannot be serialised or copied")
 
-class LabelAuthority:
-    """The only holder of the reference labels. ``authorize()`` derives -- never accepts -- the authorized scope."""
-
-    __slots__ = ("_records", "_auth", "_allowed")
-
-    def __init__(self, records: Iterable[LabelRecord]):
-        recs = list(records)
-        ids = [r.row_id for r in recs]
-        if len(set(ids)) != len(ids):
-            raise ValueError("a row id appears twice")
-        if not recs:
-            raise ValueError("no label records")
-        heldout_genes = {r.gene_id for r in recs if r.partition == "heldout"}
-        train_genes = {r.gene_id for r in recs if r.partition == "train"}
-        shared = train_genes & heldout_genes
-        allowed = frozenset(train_genes - heldout_genes)
-        refused = sum(1 for r in recs if r.partition == "train" and r.gene_id in shared)
-        self._records = {r.row_id: r for r in recs}
-        self._allowed = allowed
-        self._auth = Authorization(sum(1 for r in recs if r.partition == "train" and r.gene_id in allowed), len(allowed),
-                                   sum(1 for r in recs if r.partition == "heldout"), len(heldout_genes), refused,
-                                   tuple(sorted(shared)))
-
-    def authorize(self) -> Authorization:
-        return self._auth
-
-    def store_for_fit(self) -> FoldScopedLabelStore:
-        data = {rid: (r.gene_id, r.label) for rid, r in self._records.items()
-                if r.partition == "train" and r.gene_id in self._allowed}
-        return FoldScopedLabelStore(data, self._allowed)
-
-    def masked_labels(self, row_ids: Sequence[str]) -> np.ndarray:
-        """Float labels aligned with ``row_ids``: authorized training labels, NaN everywhere else (held-out rows, refused
-        training rows, rows the authority does not know)."""
-        out = np.full(len(row_ids), np.nan)
-        for i, rid in enumerate(row_ids):
-            r = self._records.get(str(rid))
-            if r is not None and r.partition == "train" and r.gene_id in self._allowed:
-                out[i] = float(r.label)
-        return out
-
-    def __reduce__(self):
-        raise TypeError("the label authority cannot be serialised")
+    def __deepcopy__(self, memo: object):
+        raise TypeError("training labels cannot be serialised or copied")
 
 
 def flip_heldout(labels: np.ndarray, heldout: np.ndarray) -> np.ndarray:
@@ -265,6 +258,6 @@ def check_label_sites(discovered: Mapping[str, Sequence[str]], recorded: Mapping
             raise ValueError(f"{rel}: a reviewed site needs a reason")
 
 
-__all__ = ["Authorization", "FoldScopedLabelStore", "LABEL_COLUMN", "LabelAuthority", "LabelRecord", "NonInterference",
-           "SITE_ROLES", "check_label_sites", "discover_label_sites", "flip_heldout", "label_noninterference",
+__all__ = ["FIT_SCOPE_KEYS", "LABEL_COLUMN", "LABEL_PARAMETERS", "LabelAccessError", "NonInterference", "SITE_ROLES",
+           "TrainingLabels", "check_label_sites", "discover_label_sites", "flip_heldout", "label_noninterference",
            "output_digest"]

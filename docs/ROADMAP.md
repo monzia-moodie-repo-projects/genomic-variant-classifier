@@ -73,16 +73,16 @@ answer, and the classifier must not be described as scientifically validated bec
 | Are artefacts content-bound; are rosters and prediction identities exact? | yes | established (package 1) |
 | Does delivery protect the working repository? | yes | established: guarded installers, receipts, post-merge checks |
 
-| Question | Scientific maturity | State (2026-11-10) |
+| Question | Scientific maturity | State (2026-11-14) |
 |---|---|---|
 | Is the target scientifically defined? | no | binary ClinVar label; clinical, gene-disease and molecular-effect targets not yet separated |
 | Is the information regime enforced? | no | shadow only: 47 names statically reachable unadmitted under the strict regime (docs/census/ADMISSION_SHADOW_1D1b2.json); enforcement is 1D-1c |
 | Is absence kept apart from evidence? | no | 89 of 91 features fabricate a value when their source is absent (docs/census/SOURCE_ABSENCE_1D1b2.json); on the Run 15 cohort a missing gnomAD frequency alone separates the labels with AUROC 0.695 (docs/census/PILOTS_1D1b2.json) |
-| Is the evaluation population valid? | partly | splits are gene-disjoint by SYMBOL; 14 canonical genes straddle training and held-out under two symbols (GENE-SYMBOL-SPLIT-IDENTITY-1, docs/census/GRAPH_IDENTITY_1D1b3.json); canonical gene identity is 1D-1d |
-| Is graph information source-bound? | no | shadow only: the exact-pair STRING reader, computed graph identities, global-size pathway relations and the label authority exist (1D-1b.3); the GNNs still build their graphs with the legacy code |
+| Is the evaluation population valid? | partly | splits are gene-disjoint by SYMBOL only: read as gene SETS with variant identity, 327 of Run 15's 16,964 split components span partitions and validation and test share 54 genes (VARIANT-MULTIGENE-ISOLATION-1, docs/census/POPULATION_ISOLATION_1D1b4.json); 14 canonical genes straddle under two symbols (GENE-SYMBOL-SPLIT-IDENTITY-1); the shadow component authority would admit 910,273 of 1,038,974 training rows for exploratory fits (1D-1b.4); canonical gene and split identities are 1D-1d |
+| Is graph information source-bound? | no | shadow only: the exact-pair STRING reader, computed graph identities and global-size pathway relations exist (1D-1b.3); graphs are accepted by re-derivation from the pinned files and materialisations are immutable (1D-1b.4); the GNNs still build their graphs with the legacy code |
 | Are upstream supervision and label-criterion overlap characterised? | partly | recorded per feature in the census; criterion-independent evaluation is 1D-2 |
 | Does performance generalise to held-out genes under the admitted regime? | not measured | the leakage-free baseline ladder B0-B4 (1D-2) is the next scientific milestone |
-| Are molecular or clinical claims independently supported? | no | none is made |
+| Are molecular or clinical claims independently supported? | no | none is made; the claims authority that would decide one -- pinned, completely scoped evidence; eligibility and finding as separate axes -- exists in shadow (1D-1b.4) |
 
 A source has three separate statuses, never one: an IMPLEMENTED connector (the code exists), a SCIENTIFICALLY ADMISSIBLE source
 (its census disposition under a regime) and an OPERATIONALLY POPULATED source (a materialisation shows its values reach the rows).
@@ -124,7 +124,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,210 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,282 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -1093,6 +1093,48 @@ exists to end.
   Run 15 split and 309 linked gene groups straddling it, 219,128 rows; largest group 11 genes, so component-based splitting is
   feasible; owner 1D-1d), LABEL-ACCESS-DISCOVERY-SCOPE-1 and STRING-PROTEIN-GENE-REDUCTION-1. None is repaired here: the
   shadow scope is kept, as the ruling directs. Suite 9,197 -> 9,210 (+14 / -1 by node identity: one parametrized case renamed); against main +74 / -0.
+  VALIDATED ON WINDOWS AND MERGED 2026-11-14: one -Validate run of revision B (2026-11-10 18:29 to 19:54 UTC; receipt
+  GVC_admission_1d1b3b_validation_20261110T182927Z, sha256 98244de6; candidate 534bde78, tree 61de20ef; all 28 stages exit 0;
+  9,122 passed, 83 skipped, 5 xfailed -- the forecast; test by test against set "aq"'s Windows run, the 9,136 common tests
+  identical and the 74 new ones passed). The branch was published (record 7b936de2) and pull request #75 merged with a merge
+  commit -- afbb8881, parents 5b7335f6 and 534bde78 (2026-11-14 06:28 UTC).
+- **2026-11-14 -- PACKAGE 1D, STAGE 1D-1b.4 (set "as"): population identity, fit authorization, claims, and the repaired label
+  and graph contracts.** Owner ruling 68ca322f and the owner's reference packages cee6713d ("TaskBound"), 7ba10b3b ("TaskScoped")
+  and 7b277d7c ("EvidenceScope"), audited, probed and synthesized on 2026-11-13 (AUDIT_1D1b4_REFERENCES_2026-11-13.md). Shadow
+  mode: no production module imports the new code (a test proves it); no model, feature, scaler, graph, split or inference
+  behaviour changes. (1) information_sources/population.py: PopulationRow (strict str identities; variant identity qualified by an
+  enum, VRS-verified only by the 1D-1d authority; a gene SET plus the tokens that did not resolve, one of which makes the set
+  unknown); resolve_gene_field (prose flagged); split components over variant identity and every listed HGNC locus; the
+  three-way audit of the partitions a declared protocol requires; two fit authorities: STRICT (refused unless the split is
+  supported) and CONDITIONAL_COMPONENT (exploratory: a gene-complete training row whose component, built over the label-carrying
+  training rows and every held-out row, holds no held-out row); tempered component weights with the effective sample size; the
+  component-disjoint, class-stratified checkpoint split. (2) information_sources/claims.py: claim kinds and tiers, a complete
+  scope per evidence kind (a split fact does not depend on the model; upstream independence and the statistical result depend on
+  the evaluation population, so population A's evidence never certifies population B -- both references let it), undefined
+  dimensions NOT_EVALUATED, pins by content digest and issuer, rules that receive their scope, eligibility and finding as
+  separate axes; within-unit AUROC with two estimands and a paired unit bootstrap. (3) labels.TrainingLabels replaces the
+  1D-1b.3 label authority and store: built from a FitAuthorization, it holds authorized native-integer labels only, records
+  every read (authorized, denied, unknown) and every masked bulk read, and cannot be copied. (4) graph_identity: StringInfo
+  (content and digest as one object); map_string_proteins takes no caller digest; a graph holds its mapping; accept_graph
+  re-derives the graph from the pinned files (verify_graph_consistency is the self-check); bytes-backed read-only arrays and
+  read-only mappings throughout. Measured on the Run 15 split manifests and the pinned HGNC file
+  (docs/census/POPULATION_ISOLATION_1D1b4.json, 117 s, 1,969 MiB): 1,490,014 rows, every variant identifier and every (chrom,
+  pos, ref, alt) distinct; 16,964 components (16,599 gene groups and 365 rows with no resolved gene), 327 spanning partitions;
+  shared genes and components training-validation 145 / 115, training-test 291 / 229, validation-test 54 / 53; STRICT refused
+  (violated); CONDITIONAL_COMPONENT authorizes 910,273 training rows (1,038,974 - 266 gene-incomplete - 128,435 in components
+  holding a held-out row); a gene-direct rule would admit 14,967 more (26.73% pathogenic), each joined to a held-out row through
+  another row; the 1D-1b.3 one-gene rule's 206 refused rows are all excluded; pathogenic 14.09% of training rows, 13.32% of the
+  authorized, 19.58% of the excluded; effective sample size 81.5% / 36.6% / 4.76% of rows at alpha 0.25 / 0.5 / 1; the
+  checkpoint split's inner validation is 13.319% positive against 13.320%. Re-measured on the same files with the repaired
+  code: docs/census/GRAPH_IDENTITY_1D1b3.json (every graph accepted by re-derivation; every measured value identical; its label
+  section moved to the population record) and docs/census/STRING_READER_BENCHMARK_1D1b3.json. Repaired, with their witnesses and
+  registrations removed: LABEL-TYPE-IDENTITY-1, LABEL-DENIED-READ-AUDIT-1, GRAPH-MAPPING-RECEIPT-AUTHORITY-1,
+  GRAPH-MUTABLE-MATERIALIZATION-1. Registered, with executable witnesses: GNN-EARLY-STOP-ROW-SPLIT-1 (the GNN early-stops on a
+  row-level split: 155,488 of its 155,847 early-stopping rows share a gene symbol with its training rows; owner 1D-3) and
+  GENE-FIELD-PROSE-1 (32 rows hold ClinVar prose in gene_symbol; owner 1D-1d). Admission unchanged: strict 55 / 47,
+  conditional 65 / 37; semantic digest unchanged (97f64bcb). Still the owner's for 1D-1d: which loci bind a split group
+  ((a) every listed HGNC locus, recommended and implemented here, or (b) protein-coding loci only). Suite 9,210 -> 9,282 (+86 /
+  -14 by node identity).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

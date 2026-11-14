@@ -1,0 +1,327 @@
+{
+  "audit": {
+    "string_protocol": {
+      "components": 16964,
+      "components_spanning_partitions": 327,
+      "gene_incomplete_rows": {
+        "test": 355,
+        "train": 266,
+        "validation": 22
+      },
+      "pairs": {
+        "train|test": {
+          "shared_components": 229,
+          "shared_genes": 291,
+          "shared_variants": 0
+        },
+        "train|validation": {
+          "shared_components": 115,
+          "shared_genes": 145,
+          "shared_variants": 0
+        },
+        "validation|test": {
+          "shared_components": 53,
+          "shared_genes": 54,
+          "shared_variants": 0
+        }
+      },
+      "partition_digest": "e79fedf213d3185cfaa08c178c109822c4f2dadf039e2c4e7e59ab7309987904",
+      "population_digest": "c1b8229a4deac286bbc7297766cedfa5dcd2f000bbb5908d89048a620f74e0a1",
+      "protocol": {
+        "require_vrs": false,
+        "required": [
+          "train",
+          "validation",
+          "test"
+        ]
+      },
+      "sizes": {
+        "calibration": 0,
+        "test": 304711,
+        "train": 1038974,
+        "validation": 146329
+      },
+      "unnormalized_variant_rows": {
+        "test": 304711,
+        "train": 1038974,
+        "validation": 146329
+      },
+      "verdict": "violated"
+    },
+    "vrs_protocol_verdict": "violated"
+  },
+  "author": "Monzia Moodie",
+  "bound_code": {
+    "scripts/measure_1d1b4_population.py::measure": "c7534c3269aa935422aec54a7e1b6fa204009d66795d9a19faa6388844e349c5",
+    "src/genomic_variant_classifier/information_sources/graph_identity.py::read_hgnc": "57fa37dab99566d7f29d57850ba08847776a39d7fa2e29cf7e388eb16cf54918",
+    "src/genomic_variant_classifier/information_sources/labels.py::TrainingLabels": "ad54d1a66678571d29450cdad3319cad84075284e3b2dba64a92e608ba29ebca",
+    "src/genomic_variant_classifier/information_sources/population.py::FitAuthorization": "1b6b7f38eaa6e0e9a960f9cde987d6c998b1db640ad71e746e63967b2e4ac370",
+    "src/genomic_variant_classifier/information_sources/population.py::PopulationRow": "eed96eedecf252b74db9ada06c79c49356876034fb083655370681349744dbee",
+    "src/genomic_variant_classifier/information_sources/population.py::audit_split": "813513e2c4e4ee83af8f7aa96e35e5949475eeefa743916a94fb22ab93d8be79",
+    "src/genomic_variant_classifier/information_sources/population.py::authorize_fit": "3df94affc045013c30d39942ae6e56cc9309011e5e50637e204e2bec3b09fcd5",
+    "src/genomic_variant_classifier/information_sources/population.py::component_checkpoint_split": "f5aa23cc1d17b0ca40b42e9f8d116e23ccc23ae0e803bf706201b461cec2a958",
+    "src/genomic_variant_classifier/information_sources/population.py::resolve_gene_field": "b65a54f6e63d19a8b043440289eeecd507caff019bf8424ef2530b405c030098",
+    "src/genomic_variant_classifier/information_sources/population.py::split_components": "01d168892808f18f9b65fbdbee2172d6e210a7650c6e0669977e89c3cc20b0bf",
+    "src/genomic_variant_classifier/information_sources/population.py::tempered_component_weights": "2466f9492cd48990b2f0564b8fc8c08bc6553909b8752231e5f145576648ffd8"
+  },
+  "checkpoint": {
+    "achieved_fraction": 0.142863,
+    "component_overlap": 0,
+    "folds": 7,
+    "inner_train_components": 9805,
+    "inner_validation_components": 1638,
+    "positive_rate_all": 0.133197,
+    "positive_rate_inner_train": 0.133199,
+    "positive_rate_inner_validation": 0.133186,
+    "scope": "authorized training rows only",
+    "seed": 42
+  },
+  "comparison": {
+    "gene_direct_rule": {
+      "admitted_only_by_gene_direct": 14967,
+      "authorized": 925240,
+      "rule": "a gene-complete training row sharing no HGNC id with any held-out row",
+      "superset_of_component_authorization": true,
+      "their_pathogenic_percent": 26.7321
+    },
+    "one_gene_rule_1d1b3": {
+      "authorized": 1038768,
+      "authorized_by_it_but_excluded_by_components": 128495,
+      "refused_hgnc_genes": [
+        "HGNC:1152",
+        "HGNC:14438",
+        "HGNC:16894",
+        "HGNC:17117",
+        "HGNC:18085",
+        "HGNC:20329",
+        "HGNC:20887",
+        "HGNC:25157",
+        "HGNC:25984",
+        "HGNC:26196",
+        "HGNC:28158",
+        "HGNC:29937",
+        "HGNC:4166",
+        "HGNC:6041"
+      ],
+      "refused_rows_also_excluded_by_components": 206,
+      "refused_training_rows": 206,
+      "refused_unresolved_identities": 0,
+      "rule": "one canonical gene per row (whole field), refuse a training row whose gene has a held-out row (the 1D-1b.3 LabelAuthority)"
+    }
+  },
+  "conditional": {
+    "arithmetic": "training - gene-incomplete - in a component holding a held-out row = authorized",
+    "digest": "a5f63df1c4095d363f738e4a628a368bbc6a6877735342fd01a65ea91fe3862c",
+    "population_digest": "c1b8229a4deac286bbc7297766cedfa5dcd2f000bbb5908d89048a620f74e0a1",
+    "report": {
+      "authorized_rows": 910273,
+      "claims_permitted": "exploratory only",
+      "excluded_component_shares_heldout": 128435,
+      "excluded_gene_incomplete": 266,
+      "heldout_gene_incomplete_rows": 377,
+      "limitation": "conditional on supplied identities; unnormalized variant strings may hide duplicates",
+      "split_verdict": "violated",
+      "training_rows": 1038974,
+      "unnormalized_authorized_rows": 910273
+    }
+  },
+  "gene_fields": {
+    "by_partition": {
+      "test": {
+        "multi_gene_complete": 236,
+        "no_resolved_gene": 300,
+        "partially_resolved": 55,
+        "pathogenic": 44832,
+        "prose": 2,
+        "rows": 304711
+      },
+      "train": {
+        "multi_gene_complete": 765,
+        "no_resolved_gene": 62,
+        "partially_resolved": 204,
+        "pathogenic": 146442,
+        "prose": 29,
+        "rows": 1038974
+      },
+      "val": {
+        "multi_gene_complete": 518,
+        "no_resolved_gene": 3,
+        "partially_resolved": 19,
+        "pathogenic": 19275,
+        "prose": 1,
+        "rows": 146329
+      }
+    },
+    "distinct_fields": 17694,
+    "distinct_unresolved_tokens": 187,
+    "prose_distinct_fields": 10,
+    "prose_rows": 32,
+    "prose_rows_by_consequence": {
+      "(none)": 2,
+      "3_prime_UTR_variant": 4,
+      "intron_variant": 13,
+      "missense_variant": 9,
+      "non-coding_transcript_variant": 1,
+      "splice_donor_variant": 1,
+      "synonymous_variant": 2
+    },
+    "rule": "split on ';' ',' '|' '/', strip, resolve by approved symbol else unique previous symbol (aliases are not identity); a token holding whitespace is prose",
+    "unresolved_tokens_loc_placeholders": 164
+  },
+  "inputs": {
+    "hgnc": {
+      "bytes": 16940274,
+      "file": "hgnc_complete_set.txt",
+      "logical_source": "dataset:hgnc",
+      "sha256": "69bb5722d5a42bb355580deb2c9f197ce3d7f7d13807173b9674a7db65e52191"
+    },
+    "meta_test": {
+      "bytes": 14627756,
+      "file": "meta_test.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "43fe2694a662935aa94a401375d3886901ff4af743d5461c956843b33c7a7295"
+    },
+    "meta_train": {
+      "bytes": 49374531,
+      "file": "meta_train.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "d2c733940331479d0c92e1ce833c6f2dabe73a4b7239664a8904f82e4aa027a1"
+    },
+    "meta_val": {
+      "bytes": 7281137,
+      "file": "meta_val.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "f385c6e3be5888afe7cf029df6b60e16ed9108cb7620ce6173b4f939207dfa4b"
+    },
+    "y_test": {
+      "bytes": 24568,
+      "file": "y_test.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "5cdaac9b9a1195fdb5d65a850b95955fbb09934a6536a042f00833fcf8d732d4"
+    },
+    "y_train": {
+      "bytes": 77580,
+      "file": "y_train.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "65375ac298c25c1710e5b1f6d8ff9bdc319b24b41413eb680bbb2c0414c29bc0"
+    },
+    "y_val": {
+      "bytes": 12847,
+      "file": "y_val.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "a8c97a098ffc44e02301d27467014084e3a76df7e405ae594ebc3f2d25a2b786"
+    }
+  },
+  "label_mix_pathogenic_percent": {
+    "authorized": 13.3197,
+    "excluded": 19.5772,
+    "held_out": 14.2132,
+    "training": 14.0949
+  },
+  "legacy_early_stop": {
+    "call": "train_test_split(np.arange(n), test_size=0.15, random_state=42, stratify=y)",
+    "code": "src/genomic_variant_classifier/models/gnn.py::train_gnn_pipeline",
+    "early_stopping_rows": 155847,
+    "early_stopping_rows_in_an_inner_training_component": 155510,
+    "early_stopping_rows_sharing_a_gene_with_inner_training": 155545,
+    "early_stopping_rows_sharing_a_symbol_with_inner_training": 155488,
+    "early_stopping_rows_without_a_resolved_gene": 5,
+    "early_stopping_symbols": 7860,
+    "early_stopping_symbols_also_inner_training_symbols": 7543,
+    "test_split_from": "scripts/run_phase2_eval.py (test_split=0.15)",
+    "training_rows": 1038974
+  },
+  "run": {
+    "platform": {
+      "python": "3.12.3",
+      "system": "Linux"
+    },
+    "steps": [
+      {
+        "peak_rss_mib": 1260.6,
+        "seconds": 16.7,
+        "step": "rows"
+      },
+      {
+        "peak_rss_mib": 1318.7,
+        "seconds": 46.4,
+        "step": "audit"
+      },
+      {
+        "peak_rss_mib": 1333.4,
+        "seconds": 87.8,
+        "step": "authorize"
+      },
+      {
+        "peak_rss_mib": 1333.4,
+        "seconds": 91.1,
+        "step": "compare"
+      },
+      {
+        "peak_rss_mib": 1968.9,
+        "seconds": 111.2,
+        "step": "weights_and_checkpoint"
+      },
+      {
+        "peak_rss_mib": 1968.9,
+        "seconds": 114.4,
+        "step": "legacy_early_stop"
+      },
+      {
+        "peak_rss_mib": 1968.9,
+        "seconds": 116.6,
+        "step": "labels"
+      }
+    ]
+  },
+  "schema": "gvc.population-isolation-record.1d1b4/1",
+  "strict": {
+    "outcome": "refused",
+    "reason": "strict fit refused: split verdict is violated"
+  },
+  "training_labels_receipt": {
+    "authorized": 1,
+    "denied": 1,
+    "masked_authorized": 1,
+    "masked_calls": 1,
+    "masked_denied": 1,
+    "masked_unknown": 1,
+    "unknown": 1
+  },
+  "variant_identity": {
+    "distinct_chrom_pos_ref_alt": 1490014,
+    "distinct_variant_ids": 1490014,
+    "qualification": "unnormalized (no VRS authority)",
+    "rows": 1490014
+  },
+  "weights": {
+    "0": {
+      "components": 11443,
+      "effective_sample_size": 910273.0,
+      "ess_percent": 100.0,
+      "max_to_min_weight": 1.0,
+      "rows": 910273
+    },
+    "0.25": {
+      "components": 11443,
+      "effective_sample_size": 741932.067,
+      "ess_percent": 81.507,
+      "max_to_min_weight": 9.532,
+      "rows": 910273
+    },
+    "0.5": {
+      "components": 11443,
+      "effective_sample_size": 333467.481,
+      "ess_percent": 36.634,
+      "max_to_min_weight": 90.857,
+      "rows": 910273
+    },
+    "1.0": {
+      "components": 11443,
+      "effective_sample_size": 43358.992,
+      "ess_percent": 4.763,
+      "max_to_min_weight": 8255.0,
+      "rows": 910273
+    }
+  }
+}

@@ -1,12 +1,15 @@
-"""Stage 1D-1b.3 (set "ar"): authorized labels -- the authority derives the fit's scope from canonical gene identity, the
-fold-scoped store records and refuses reads, and the required non-interference test (ruling 7a2a6ade section 13) shows the
-legacy graph builders take whatever labels the caller hands them while the authority's masked labels make them
-independent of the held-out labels. Owner rulings f2ec92cd (Unit 1D-1b.3) and 7a2a6ade (section 13).
-Author: Monzia Moodie."""
+"""Stage 1D-1b.3 (set "ar"), repaired in stage 1D-1b.4 (set "as"): authorized training labels -- the fit's scope is derived
+from the split's components (population.authorize_fit), the training labels hold authorized native integers only and record
+every read with its outcome (LABEL-TYPE-IDENTITY-1 and LABEL-DENIED-READ-AUDIT-1, repaired), and the required
+non-interference test (ruling 7a2a6ade section 13) shows the legacy graph builders take whatever labels the caller hands them
+while the masked training labels make them independent of the held-out labels. Owner rulings f2ec92cd (Unit 1D-1b.3),
+7a2a6ade (section 13) and 68ca322f. Author: Monzia Moodie."""
 from __future__ import annotations
 
+import copy
 import json
 import pickle
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
@@ -14,62 +17,101 @@ import pandas as pd
 import pytest
 
 from genomic_variant_classifier.information_sources import labels as L
+from genomic_variant_classifier.information_sources import population as P
 
 REPO = Path(__file__).resolve().parents[2]
 SITES = REPO / "docs/census/LABEL_SITES_1D1b3.json"
+SCOPE = {"model": "m", "population": "p", "split": "s"}
 
 
-def _records():
-    # gene HGNC:9 carries rows in BOTH partitions (two symbols of one gene, GENE-SYMBOL-SPLIT-IDENTITY-1)
-    return [L.LabelRecord("r1", "HGNC:1", 1, "train"), L.LabelRecord("r2", "HGNC:1", 0, "train"),
-            L.LabelRecord("r3", "HGNC:2", 1, "train"), L.LabelRecord("r4", "HGNC:9", 0, "train"),
-            L.LabelRecord("r5", "HGNC:3", 1, "heldout"), L.LabelRecord("r6", "HGNC:9", 1, "heldout")]
+def _rows():
+    # HGNC:9 carries rows in BOTH partitions; r3 is joined to the held-out gene HGNC:9 only through r4's gene list.
+    t, h = P.Partition.TRAIN, P.Partition.TEST
+
+    def r(i, genes, p):
+        return P.PopulationRow(i, f"v_{i}", P.VariantIdentity.VRS_VERIFIED, frozenset(genes), (), p)
+    return [r("r1", ["HGNC:1"], t), r("r2", ["HGNC:1"], t), r("r3", ["HGNC:2"], t), r("r4", ["HGNC:2", "HGNC:9"], t),
+            r("r5", ["HGNC:3"], h), r("r6", ["HGNC:9"], P.Partition.VALIDATION)]
 
 
-def test_the_scope_is_derived_from_canonical_genes_and_shared_genes_are_refused():
-    a = L.LabelAuthority(_records())
-    auth = a.authorize()
-    assert (auth.authorized_rows, auth.authorized_genes, auth.heldout_rows, auth.heldout_genes) == (3, 2, 2, 2)
-    assert auth.refused_training_rows == 1 and auth.refused_genes == ("HGNC:9",)
-    store = a.store_for_fit()
-    assert sorted(store.authorized_rows()) == ["r1", "r2", "r3"]
-    assert [store.read(r) for r in ("r1", "r2", "r3")] == [1, 0, 1]
-    assert store.accesses == (("r1", "HGNC:1"), ("r2", "HGNC:1"), ("r3", "HGNC:2"))
-    for row in ("r4", "r5", "r6"):                                     # refused or held out: not even present
-        with pytest.raises(KeyError):
-            store.read(row)
+SOURCE = {"r1": 1, "r2": 0, "r3": 1, "r4": 0, "r5": 1, "r6": 1}
 
 
-def test_the_store_refuses_out_of_scope_reads_and_cannot_be_copied_out():
-    s = L.FoldScopedLabelStore({"x": ("HGNC:1", 1), "y": ("HGNC:2", 0)}, frozenset({"HGNC:1"}))
-    assert s.read("x") == 1
-    with pytest.raises(PermissionError, match="unauthorized"):
-        s.read("y")
-    assert s.accesses == (("x", "HGNC:1"),)
-    with pytest.raises(TypeError, match="serialised"):
-        pickle.dumps(s)
-    with pytest.raises(TypeError, match="serialised"):
-        pickle.dumps(L.LabelAuthority(_records()))
-    with pytest.raises(ValueError, match="empty authorization"):
-        L.FoldScopedLabelStore({}, frozenset())
+def _labels(source=SOURCE):
+    auth = P.authorize_fit(_rows(), P.FitAuthority.CONDITIONAL_COMPONENT)
+    return auth, L.TrainingLabels(auth, source, fit_scope=SCOPE)
+
+
+def test_the_scope_comes_from_components_and_only_authorized_labels_are_held():
+    auth, t = _labels()
+    assert auth.authorized_rows == {"r1", "r2"}                          # r3 and r4 share a component with held-out r6
+    assert t.authorized_rows == ("r1", "r2") and [t.read("r1"), t.read("r2")] == [1, 0]
+    assert set(t._labels) == {"r1", "r2"}                                # no held-out or refused value is stored
+
+
+def test_every_read_is_recorded_with_its_outcome():
+    """LABEL-DENIED-READ-AUDIT-1 (repaired): a refused training row and a held-out row are DENIED, an unknown row is
+    UNKNOWN; all three raise LabelAccessError and all three are in the receipt."""
+    _, t = _labels()
+    assert t.read("r1") == 1
+    for row in ("r3", "r6", "nope", 5):
+        with pytest.raises(L.LabelAccessError):
+            t.read(row)
+    rec = t.receipt()
+    assert (rec["authorized"], rec["denied"], rec["unknown"]) == (1, 2, 2)
+    before = rec["events_digest"]
+    with pytest.raises(PermissionError):                                 # LabelAccessError is a PermissionError
+        t.read("r5")
+    assert t.receipt()["events_digest"] != before and t.receipt()["denied"] == 3
+
+
+@pytest.mark.parametrize("value", [True, np.bool_(True), 1.0, np.float64(1.0), np.int64(1), Fraction(1), 2, -1])
+def test_a_label_is_a_native_int_zero_or_one(value):
+    """LABEL-TYPE-IDENTITY-1 (repaired): every value equal to 1 that is not the native int 1 is refused at the adapter."""
+    with pytest.raises(TypeError, match="native int"):
+        _labels(dict(SOURCE, r1=value))
+
+
+def test_held_out_values_are_never_validated_or_kept():
+    _, t = _labels(dict(SOURCE, r6=np.float64(1.0), r5="pathogenic"))   # held-out values are not even read
+    assert set(t._labels) == {"r1", "r2"}
+
+
+def test_the_source_must_cover_every_authorized_row_and_the_scope_must_be_complete():
+    auth = P.authorize_fit(_rows(), P.FitAuthority.CONDITIONAL_COMPONENT)
+    with pytest.raises(ValueError, match="lacks"):
+        L.TrainingLabels(auth, {"r1": 1}, fit_scope=SCOPE)
+    for scope in ({"model": "m", "population": "p"}, dict(SCOPE, split=""), dict(SCOPE, extra="x")):
+        with pytest.raises(ValueError, match="fit_scope"):
+            L.TrainingLabels(auth, SOURCE, fit_scope=scope)
+    with pytest.raises(TypeError, match="FitAuthorization"):
+        L.TrainingLabels({"r1"}, SOURCE, fit_scope=SCOPE)
+
+
+def test_the_digest_binds_authorization_scope_and_labels():
+    _, a = _labels()
+    _, b = _labels(dict(SOURCE, r1=0))
+    auth = P.authorize_fit(_rows(), P.FitAuthority.CONDITIONAL_COMPONENT)
+    c = L.TrainingLabels(auth, SOURCE, fit_scope=dict(SCOPE, model="other"))
+    assert len({a.digest, b.digest, c.digest}) == 3
+
+
+def test_training_labels_cannot_be_copied_or_serialised():
+    _, t = _labels()
+    for attempt in (lambda: pickle.dumps(t), lambda: copy.copy(t), lambda: copy.deepcopy(t)):
+        with pytest.raises(TypeError, match="cannot be serialised or copied"):
+            attempt()
     with pytest.raises(AttributeError):
-        s._extra = 1                                                    # no instance dictionary to smuggle data in
+        t._extra = 1                                                    # no instance dictionary to smuggle data in
 
 
-@pytest.mark.parametrize("bad", [dict(label=True), dict(label=2), dict(partition="val"), dict(gene_id="")])
-def test_label_records_are_validated(bad):
-    base = dict(row_id="r", gene_id="HGNC:1", label=1, partition="train")
-    base.update(bad)
-    with pytest.raises(ValueError):
-        L.LabelRecord(**base)
-    with pytest.raises(ValueError, match="twice"):
-        L.LabelAuthority([L.LabelRecord("r", "HGNC:1", 1, "train"), L.LabelRecord("r", "HGNC:2", 0, "heldout")])
-
-
-def test_masked_labels_keep_only_authorized_training_labels():
-    a = L.LabelAuthority(_records())
-    got = a.masked_labels(["r1", "r2", "r3", "r4", "r5", "r6", "unknown"])
-    assert got[:3].tolist() == [1.0, 0.0, 1.0] and np.isnan(got[3:]).all()
+def test_masked_labels_keep_only_authorized_labels_and_the_bulk_read_is_recorded():
+    _, t = _labels()
+    got = t.masked(["r1", "r2", "r3", "r4", "r5", "r6", "unknown"])
+    assert got[:2].tolist() == [1.0, 0.0] and np.isnan(got[2:]).all() and not got.flags.writeable
+    rec = t.receipt()
+    assert (rec["masked_calls"], rec["masked_authorized"], rec["masked_denied"], rec["masked_unknown"]) == (1, 2, 4, 1)
+    assert (rec["authorized"], rec["denied"], rec["unknown"]) == (0, 0, 0)
 
 
 def test_the_flip_changes_only_labelled_heldout_rows():
@@ -109,14 +151,16 @@ def test_the_legacy_hetero_builder_fails_non_interference_when_handed_raw_labels
     assert not r.holds and r.heldout_labeled_rows == 4
 
 
-def test_the_authoritys_masked_labels_make_the_hetero_builder_non_interfering():
-    recs = [L.LabelRecord(f"v{i}", f"HGNC:{g[1]}", int(LABELS[i]), "heldout" if HELDOUT[i] else "train")
+def test_the_masked_training_labels_make_the_hetero_builder_non_interfering():
+    rows = [P.PopulationRow(f"v{i}", f"var{i}", P.VariantIdentity.VRS_VERIFIED, frozenset({f"HGNC:{g[1]}"}), (),
+                            P.Partition.TEST if HELDOUT[i] else P.Partition.TRAIN)
             for i, g in enumerate(_frame()["gene_symbol"])]
-    a = L.LabelAuthority(recs)
+    auth = P.authorize_fit(rows, P.FitAuthority.STRICT, P.SplitProtocol((P.Partition.TRAIN, P.Partition.TEST)))
+    t = L.TrainingLabels(auth, {f"v{i}": int(LABELS[i]) for i in range(8)}, fit_scope=SCOPE)
 
     def build(labels: np.ndarray):
-        # The producer never sees `labels`: the authority supplies the only labels it gets.
-        return _assemble(a.masked_labels([f"v{i}" for i in range(8)]))
+        # The producer never sees `labels`: the training labels supply the only labels it gets.
+        return _assemble(t.masked([f"v{i}" for i in range(8)]))
 
     r = L.label_noninterference(build, LABELS, HELDOUT)
     assert r.holds and r.digest_original == r.digest_altered

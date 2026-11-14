@@ -18,7 +18,11 @@ size they have inside a cohort and merges sources into one relation. This module
   canonicalisation, and the one rule that resolves a collision (approved-symbol precedence) is declared, not silent.
 * ``GraphPolicy`` / ``materialize_string_graph`` / ``accept_graph``: the requested graph's identity and the materialised
   graph's identity (section 9: source, mapping, node universe, relation policy, edge content, schema), every digest computed
-  from content by the producer; ``accept_graph`` recomputes them from the graph itself and refuses any mismatch.
+  from content by the producer; ``verify_graph_consistency`` recomputes them from the graph itself and refuses any mismatch,
+  and ``accept_graph`` -- the trust boundary since stage 1D-1b.4 (GRAPH-MAPPING-RECEIPT-AUTHORITY-1) -- re-derives the graph
+  from the pinned files and refuses anything else. ``read_string_info`` returns content and digest as one ``StringInfo``.
+* Since stage 1D-1b.4 every array a reader or builder returns is bytes-backed and read-only (``readonly_array``) and every
+  mapping read-only, so no stored digest can go stale (GRAPH-MUTABLE-MATERIALIZATION-1).
 * ``legacy_string_cache_name``: the legacy cache key, read from the code, for the measurement that it cannot tell policies
   apart.
 * ``read_gene_sets`` / ``project_pathways`` / ``induced_subgraph_consistency``: pathway relations keyed by (source, relation)
@@ -47,6 +51,7 @@ from enum import Enum
 from fractions import Fraction
 from itertools import combinations
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Iterable, Mapping, Sequence
 
 import numpy as np
@@ -84,12 +89,45 @@ def _refuse_carriage_return(line: bytes | str, path: Path, lineno: int) -> None:
                          "as published, nothing is stripped")
 
 
+def readonly_array(values: Any, dtype: Any = None) -> np.ndarray:
+    """A bytes-backed copy of ``values``: NumPy refuses to set its WRITEABLE flag again (the buffer is an immutable
+    ``bytes``), so a digest computed from it cannot go stale (GRAPH-MUTABLE-MATERIALIZATION-1)."""
+    a = np.ascontiguousarray(values, dtype)
+    return np.frombuffer(a.tobytes(), dtype=a.dtype).reshape(a.shape)
+
+
+def frozen_value(value: Any) -> Any:
+    """A read-only deep copy of a JSON-like value: mappings become read-only mappings, lists and tuples tuples, NumPy
+    arrays bytes-backed arrays; scalars, strings and frozensets are returned as they are."""
+    if isinstance(value, Mapping):
+        return MappingProxyType({k: frozen_value(v) for k, v in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(frozen_value(v) for v in value)
+    if isinstance(value, np.ndarray):
+        return readonly_array(value)
+    if isinstance(value, (set, bytearray)):
+        raise TypeError(f"{type(value).__name__} has no read-only form here; use frozenset or bytes")
+    return value
+
+
+def plain_value(value: Any) -> Any:
+    """The JSON-ready copy of a ``frozen_value``: read-only mappings become dicts and tuples lists (arrays are refused)."""
+    if isinstance(value, Mapping):
+        return {k: plain_value(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [plain_value(v) for v in value]
+    if isinstance(value, np.ndarray):
+        raise TypeError("an array has no JSON form here")
+    return value
+
+
 # =================================================================================================== STRING exact pairs
 @dataclass(frozen=True)
 class StringPairTable:
     """Every undirected STRING pair once, in canonical order: ``a < b`` index into ``proteins`` (sorted), rows sorted by
     (a, b). ``channels`` holds the seven channel integers (thousandths) in ``STRING_CHANNELS`` order, ``combined`` the
-    published combined score. ``content_sha256`` is computed from those arrays; ``source_sha256`` from the bytes parsed."""
+    published combined score. ``content_sha256`` is computed from those arrays; ``source_sha256`` from the bytes parsed.
+    The arrays are bytes-backed and read-only (copied in ``__post_init__``), so the content digest cannot go stale."""
 
     proteins: tuple[str, ...]
     a: np.ndarray
@@ -110,6 +148,10 @@ class StringPairTable:
             raise ValueError("pair-table arrays disagree in length")
         if self.n_records != 2 * n:
             raise ValueError("every pair must come from exactly two directed records")
+        if type(self.proteins) is not tuple:
+            raise TypeError("proteins is a tuple")
+        for name, dt in (("a", "<i4"), ("b", "<i4"), ("channels", "<u2"), ("combined", "<u2")):
+            object.__setattr__(self, name, readonly_array(getattr(self, name), dt))
         object.__setattr__(self, "content_sha256", pair_table_digest(self.proteins, self.a, self.b, self.channels,
                                                                      self.combined))
 
@@ -296,9 +338,29 @@ def read_string_pairs(path: Path, *, expected_sha256: str | None = None, scratch
                            parsed.n_bytes, int(n_records), partitions, int(largest), int(scratch))
 
 
-def read_string_info(path: Path, *, expected_sha256: str | None = None) -> tuple[dict[str, str], str]:
-    """STRING ``protein.info``: {protein id: preferred name} and the SHA-256 of the bytes parsed. Every row must have the
-    four documented fields; a repeated protein id is refused."""
+@dataclass(frozen=True)
+class StringInfo:
+    """STRING ``protein.info`` as ONE object: {protein id: preferred name} (read-only) and the SHA-256 of exactly the bytes
+    it was parsed from. ``read_string_info`` is its producer; a mapping takes its source digest from here, never from a
+    caller (GRAPH-MAPPING-RECEIPT-AUTHORITY-1). An object built by hand can still claim any digest: a trust boundary
+    re-derives from the pinned file (``accept_graph``)."""
+
+    names: Mapping[str, str]
+    source_sha256: str
+    n_bytes: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.source_sha256, str) or not HEX64.match(self.source_sha256):
+            raise ValueError("source_sha256 is a lower-case SHA-256 digest")
+        names = dict(self.names)
+        if not names or any(type(k) is not str or not k or type(v) is not str or not v for k, v in names.items()):
+            raise ValueError("protein info maps nonempty protein ids to nonempty preferred names")
+        object.__setattr__(self, "names", MappingProxyType(names))
+
+
+def read_string_info(path: Path, *, expected_sha256: str | None = None) -> StringInfo:
+    """STRING ``protein.info`` in one verified pass. Every row must have the four documented fields; a repeated protein id
+    is refused."""
     def parse(stream: io.BufferedReader) -> dict[str, str]:
         head = stream.peek(2)[:2]
         text = gzip.GzipFile(fileobj=stream, mode="rb") if head == b"\x1f\x8b" else stream
@@ -320,7 +382,7 @@ def read_string_info(path: Path, *, expected_sha256: str | None = None) -> tuple
             text.close()
         return out
     parsed = parse_verified(Path(path), parse, expected_sha256=expected_sha256)
-    return parsed.value, parsed.sha256
+    return StringInfo(parsed.value, parsed.sha256, parsed.n_bytes)
 
 
 # ======================================================================================== reconstruction and threshold
@@ -423,6 +485,11 @@ class ThresholdClassification:
     published_passes: np.ndarray
     decided_exactly: Mapping[str, int]
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "status", readonly_array(self.status, np.uint8))
+        object.__setattr__(self, "published_passes", readonly_array(self.published_passes, bool))
+        object.__setattr__(self, "decided_exactly", MappingProxyType(dict(self.decided_exactly)))
+
     @property
     def selected(self) -> np.ndarray:
         return (self.status == _STATUS_CODE[ThresholdStatus.SELECTED_ROBUST]) | (
@@ -502,6 +569,14 @@ class HgncIndex:
     alias: Mapping[str, frozenset[str]]
     source_sha256: str
     n_rows: int
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "approved", MappingProxyType(dict(self.approved)))
+        for name in ("previous", "alias"):
+            table = dict(getattr(self, name))
+            if any(type(v) is not frozenset for v in table.values()):
+                raise TypeError(f"HgncIndex.{name} maps a symbol to a frozenset of HGNC ids")
+            object.__setattr__(self, name, MappingProxyType(table))
 
     def resolve(self, symbol: str) -> tuple[str | None, MappingStatus]:
         if symbol in self.approved:
@@ -595,12 +670,15 @@ class ProteinGeneMapping:
         return dict(sorted(Counter(r.status.value for r in self.rows).items()))
 
 
-def map_string_proteins(info: Mapping[str, str], info_sha256: str, hgnc: HgncIndex) -> tuple[ProteinGeneMapping,
-                                                                                             dict[str, Any]]:
+def map_string_proteins(info: StringInfo, hgnc: HgncIndex) -> tuple[ProteinGeneMapping, dict[str, Any]]:
     """Resolve every STRING protein's preferred name to an HGNC id (approved symbol, else a unique previous symbol), then
     resolve canonical collisions by approved-symbol precedence: when several proteins reach one HGNC id and exactly one is
     named by the approved symbol, it keeps the id and the others become COLLISION_SUPERSEDED; with no approved-symbol
-    claimant, every claimant becomes COLLISION_AMBIGUOUS. Returns the mapping and the measured collision report."""
+    claimant, every claimant becomes COLLISION_AMBIGUOUS. Returns the mapping and the measured collision report. The info
+    digest is the one ``read_string_info`` bound to the content; no caller supplies it."""
+    if not isinstance(info, StringInfo) or not isinstance(hgnc, HgncIndex):
+        raise TypeError("map_string_proteins takes a StringInfo and an HgncIndex, as their readers return them")
+    info_sha256, info = info.source_sha256, info.names
     first: dict[str, tuple[str | None, MappingStatus]] = {p: hgnc.resolve(n) for p, n in info.items()}
     claimants: dict[str, list[str]] = {}
     for p, (hid, st) in first.items():
@@ -718,7 +796,9 @@ class GraphMaterialization:
 @dataclass(frozen=True)
 class GeneGraph:
     """A gene-level graph: ``nodes`` sorted HGNC ids (the global source-defined universe), ``edges`` sorted canonical
-    (u, v) with u < v, ``attributes`` the declared channel integers per edge (thousandths)."""
+    (u, v) with u < v, ``attributes`` the declared channel integers per edge (thousandths, bytes-backed and read-only).
+    The graph holds the canonical mapping it was built with; ``mapping_sha256`` is that mapping's computed digest and
+    cannot be set (GRAPH-MAPPING-RECEIPT-AUTHORITY-1)."""
 
     policy: GraphPolicy
     nodes: tuple[str, ...]
@@ -726,9 +806,19 @@ class GeneGraph:
     attribute_channels: tuple[str, ...]
     attributes: np.ndarray
     source_sha256: str
-    mapping_sha256: str
+    mapping: ProteinGeneMapping
     materialization: GraphMaterialization
     report: Mapping[str, Any]
+    mapping_sha256: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.mapping, ProteinGeneMapping):
+            raise TypeError("a gene graph holds its ProteinGeneMapping")
+        if type(self.nodes) is not tuple or type(self.edges) is not tuple:
+            raise TypeError("nodes and edges are tuples")
+        object.__setattr__(self, "attributes", readonly_array(self.attributes, np.uint16))
+        object.__setattr__(self, "report", frozen_value(self.report))
+        object.__setattr__(self, "mapping_sha256", self.mapping.mapping_sha256)
 
 
 def node_universe_digest(nodes: Sequence[str]) -> str:
@@ -801,26 +891,59 @@ def materialize_string_graph(table: StringPairTable, mapping: ProteinGeneMapping
               "unmapped_endpoint_status_counts": dict(sorted(lost.items())),
               "selected_pairs_becoming_self_loops": int(self_loop.sum()), "nodes": len(nodes),
               "threshold_crosstab": crosstab}
-    return GeneGraph(policy, nodes, edges, tuple(policy.attribute_channels), attrs, table.source_sha256,
-                     mapping.mapping_sha256, mat, report)
+    return GeneGraph(policy, nodes, edges, tuple(policy.attribute_channels), attrs, table.source_sha256, mapping, mat,
+                     report)
 
 
-def accept_graph(policy: GraphPolicy, graph: GeneGraph) -> GraphMaterialization:
-    """Accept a graph for ``policy`` only if its identity, RECOMPUTED from its own content, matches the policy and the
-    manifest it carries. A matching filename, a declared label or a syntactically valid digest proves nothing."""
+def verify_graph_consistency(policy: GraphPolicy, graph: GeneGraph) -> GraphMaterialization:
+    """The graph's identity RECOMPUTED from its own content must match the policy and the manifest it carries: the policy
+    digest, the five content digests, the mapping's pinned sources, and the node universe the mapping defines. This
+    detects a corrupted or edited graph; it is NOT a trust boundary -- in-process content (a StringInfo, a pair table) can
+    be constructed with any claimed digest, and only ``accept_graph`` re-derives the graph from the pinned bytes."""
+    if not isinstance(graph, GeneGraph) or not isinstance(policy, GraphPolicy):
+        raise TypeError("verify_graph_consistency takes a GraphPolicy and a GeneGraph")
     if graph.policy.policy_sha256 != policy.policy_sha256:
         raise ValueError("the graph was built for a different graph policy")
+    if graph.mapping.info_sha256 != policy.info_sha256 or graph.mapping.hgnc_sha256 != policy.mapping_source_sha256:
+        raise ValueError("the graph's mapping was not built from the policy's pinned protein-info and HGNC sources")
     recomputed = materialization_of(policy, graph.nodes, graph.edges, graph.attributes, graph.source_sha256,
-                                    graph.mapping_sha256)
+                                    graph.mapping.mapping_sha256)
     if recomputed != graph.materialization:
         diff = sorted(k for k, v in recomputed.as_dict().items() if graph.materialization.as_dict()[k] != v)
         raise ValueError(f"the graph's manifest disagrees with its content in {diff}")
     if recomputed.source_sha256 != policy.source_sha256:
         raise ValueError("the graph's source is not the policy's pinned source")
+    if graph.nodes != tuple(sorted(set(graph.mapping.gene_of().values()))):
+        raise ValueError("the graph's node universe is not the one its mapping defines")
     node_set = set(graph.nodes)
     if any(u not in node_set or v not in node_set for u, v in graph.edges):
         raise ValueError("an edge names a node outside the graph's universe")
     return recomputed
+
+
+def accept_graph(policy: GraphPolicy, graph: GeneGraph, *, links: Path, info: Path, hgnc: Path,
+                 scratch_dir: Path | None = None, partitions: int = 64) -> GraphMaterialization:
+    """The trust boundary (GRAPH-MAPPING-RECEIPT-AUTHORITY-1): RE-DERIVE the graph from the policy's pinned files -- each
+    read in one verified pass against the digest the policy pins -- and accept ``graph`` only if it is exactly that graph
+    (policy, nodes, edges, attribute bytes, mapping digest and every manifest digest). A graph built from different
+    identities, a hand-made StringInfo or a pair table claiming the pinned digest is refused; nothing the graph carries is
+    trusted. Costs one full read of the links file (measured: docs/census/STRING_READER_BENCHMARK_1D1b3.json)."""
+    claimed = verify_graph_consistency(policy, graph)
+    table = read_string_pairs(Path(links), expected_sha256=policy.source_sha256, scratch_dir=scratch_dir,
+                              partitions=partitions)
+    string_info = read_string_info(Path(info), expected_sha256=policy.info_sha256)
+    index = read_hgnc(Path(hgnc), expected_sha256=policy.mapping_source_sha256)
+    mapping, _ = map_string_proteins(string_info, index)
+    derived = materialize_string_graph(table, mapping, policy)
+    differ = [name for name, same in (
+        ("nodes", derived.nodes == graph.nodes), ("edges", derived.edges == graph.edges),
+        ("attributes", derived.attributes.shape == graph.attributes.shape
+         and derived.attributes.tobytes() == graph.attributes.tobytes()),
+        ("mapping", derived.mapping_sha256 == graph.mapping_sha256),
+        ("materialization", derived.materialization == claimed)) if not same]
+    if differ:
+        raise ValueError(f"the graph is not the one its pinned sources define: it differs in {differ}")
+    return derived.materialization
 
 
 # ----------------------------------------------------------------------------------------------- legacy cache identity
@@ -888,6 +1011,14 @@ class GeneSetSource:
     member_status_counts: Mapping[str, int]
     duplicate_names: int
 
+    def __post_init__(self) -> None:
+        sets = dict(self.sets)
+        if any(type(v) is not frozenset for v in sets.values()):
+            raise TypeError("a gene set is a frozenset of HGNC ids")
+        object.__setattr__(self, "sets", MappingProxyType(sets))
+        object.__setattr__(self, "names", MappingProxyType(dict(self.names)))
+        object.__setattr__(self, "member_status_counts", MappingProxyType(dict(self.member_status_counts)))
+
     @property
     def relation_key(self) -> tuple[str, str]:
         return (self.source_id, self.relation)
@@ -943,6 +1074,9 @@ class PathwayProjection:
     max_set_size: int | None
     sets_used: int
     sets_over_cap: int
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "edges", MappingProxyType(dict(self.edges)))
 
 
 def project_pathways(src: GeneSetSource, node_universe: Iterable[str], *, max_set_size: int | None) -> PathwayProjection:
@@ -1000,12 +1134,13 @@ def hypergraph_matvec(sets: Mapping[Any, Iterable[str]], values: Mapping[str, fl
     return out
 
 
-__all__ = ["GRAPH_SCHEMA_VERSION", "STRING_CHANNELS", "STRING_CURATED_CHANNELS", "STRING_HEADER", "STRING_PRIOR",
-           "GeneGraph", "GeneSetSource", "GraphMaterialization", "GraphPolicy", "HgncIndex", "MappingStatus",
-           "PathwayProjection", "ProteinGeneMapping", "ProteinGeneRow", "QuantizationModel", "Regime",
-           "StringPairTable", "ThresholdClassification", "ThresholdStatus", "accept_graph", "census_admission",
-           "channel_bounds", "classify_threshold", "combine_channels", "combine_exact", "edge_content_digest",
-           "hypergraph_matvec", "induced_subgraph_consistency", "legacy_cache_collisions", "legacy_string_cache_name",
-           "map_string_proteins", "materialization_of", "materialize_string_graph", "model_consistency",
-           "node_universe_digest", "pair_table_digest", "project_pathways", "read_gene_sets", "read_hgnc",
-           "read_string_info", "read_string_pairs"]
+__all__ = ["GRAPH_SCHEMA_VERSION", "HGNC_ID", "STRING_CHANNELS", "STRING_CURATED_CHANNELS", "STRING_HEADER",
+           "STRING_PRIOR", "GeneGraph", "GeneSetSource", "GraphMaterialization", "GraphPolicy", "HgncIndex",
+           "MappingStatus", "PathwayProjection", "ProteinGeneMapping", "ProteinGeneRow", "QuantizationModel", "Regime",
+           "StringInfo", "StringPairTable", "ThresholdClassification", "ThresholdStatus", "accept_graph",
+           "census_admission", "channel_bounds", "classify_threshold", "combine_channels", "combine_exact",
+           "edge_content_digest", "frozen_value", "hypergraph_matvec", "induced_subgraph_consistency",
+           "legacy_cache_collisions", "legacy_string_cache_name", "map_string_proteins", "materialization_of",
+           "materialize_string_graph", "model_consistency", "node_universe_digest", "pair_table_digest",
+           "plain_value", "project_pathways", "read_gene_sets", "read_hgnc", "read_string_info", "read_string_pairs", "readonly_array",
+           "verify_graph_consistency"]

@@ -8406,4 +8406,22 @@
 #   GRAPH-MAPPING-RECEIPT-AUTHORITY-1, GRAPH-MUTABLE-MATERIALIZATION-1); +1 / -1 renamed: the case of a record ending in a
 #   carriage return now expects "carriage return", so its id [lines10-canonical integer] became [lines10-carriage return].
 #   Against main (5b7335f6): +74 / -0.
-9210
+# 2026-11-14  PACKAGE 1D, STAGE 1D-1b.4 (set "as"; owner ruling 68ca322f; reference packages cee6713d, 7ba10b3b, 7b277d7c) --
+#   population identity, fit authorization, claims, and the repaired label and graph contracts. +86 / -14 by node identity
+#   (collected against main, afbb8881). New files: +37 tests/unit/test_population.py (strict row types; gene fields as sets,
+#   partial resolution unknown, prose flagged; components through genes and variants, order-free; the audit's verdicts, the
+#   validation-test pair, the VRS and string protocols, empty and calibration partitions; STRICT refusal; the component
+#   authority against T1; one incomplete row excludes only itself; a held-out row links through its variant; authorization
+#   digests; tempered weights; the stratified, component-disjoint checkpoint split on 4 seeds; refused labels and settings);
+#   +16 tests/unit/test_claims.py (no placeholder dimensions; undefined dimensions not evaluated; population A never certifies
+#   B, for 4 kinds; complete scopes; tampered, re-issued and mislabelled evidence; tiers; rule result types; the authority
+#   fixed; the assessment digest; many pins of one kind; both estimands; ties; the bootstrap); +7
+#   tests/unit/test_graph_trust_boundary.py (acceptance re-derives; swapped identities refused at the boundary; an unpinned
+#   file refused; the mapping digest cannot be set; no caller digest; read-only content; frozen values); +6
+#   tests/unit/test_population_record.py (bound code; the graph record's files; the audit, the authorities, weights,
+#   checkpoint and early stop close; the census states the measured numbers). tests/unit/test_label_authority.py: +16 / -8
+#   (TrainingLabels replaces the 1D-1b.3 authority and store). tests/unit/test_registered_defect_witnesses.py: +2 / -4 (four
+#   witnesses removed with their repaired defects; GNN-EARLY-STOP-ROW-SPLIT-1 and GENE-FIELD-PROSE-1 added). +1 / -1 renamed
+#   in each of test_graph_identity.py (acceptance -> the consistency check) and test_graph_identity_record.py (the label
+#   authority -> the one-gene rule it measured). (tests_drift/: unchanged, 22.)
+9282

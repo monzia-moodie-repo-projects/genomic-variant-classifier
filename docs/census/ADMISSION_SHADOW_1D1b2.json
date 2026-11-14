@@ -1,7 +1,7 @@
 {
   "census": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "ledger_sha256": "40aed059d9b4f51607964a283d6462d0df36f06ea42831b2c51b8ad53ce59810",
+    "ledger_sha256": "704a8718bbeb25680b097bacb5eedb4cfd344f82da27c60cc85bd0cb2151f916",
     "path": "docs/census/FEATURE_CENSUS_1D1a.json",
     "schema": "gvc.feature-census.1d1a/2",
     "semantic_digest": "97f64bcb096eebea5bb532c00ba8b394a8946b67145ab11e980927e738b628a0"
@@ -1188,6 +1188,7 @@
       "name": "n_pathogenic_in_gene",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
+        "GENE-FIELD-PROSE-1",
         "GENE-SYMBOL-SPLIT-IDENTITY-1",
         "VARIANT-MULTIGENE-ISOLATION-1"
       ]
@@ -1799,11 +1800,11 @@
       "name": "gnn_score",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
+        "GENE-FIELD-PROSE-1",
         "GENE-SYMBOL-SPLIT-IDENTITY-1",
+        "GNN-EARLY-STOP-ROW-SPLIT-1",
         "GNN-NODE-LABEL-COUNT-1",
         "GNN-SCALE-SKEW-1",
-        "GRAPH-MAPPING-RECEIPT-AUTHORITY-1",
-        "GRAPH-MUTABLE-MATERIALIZATION-1",
         "MISSINGNESS-SEMANTICS-1",
         "STRING-CHANNEL-ORIGIN-1",
         "STRING-GENE-MAPPING-1",
@@ -1841,11 +1842,10 @@
       "name": "hetero_gnn_score",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
+        "GENE-FIELD-PROSE-1",
         "GENE-SYMBOL-SPLIT-IDENTITY-1",
         "GNN-NODE-LABEL-COUNT-1",
         "GNN-SCALE-SKEW-1",
-        "GRAPH-MAPPING-RECEIPT-AUTHORITY-1",
-        "GRAPH-MUTABLE-MATERIALIZATION-1",
         "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
         "KG-COHORT-DEPENDENT-PROJECTION-1",
         "KG-DISEASE-RELATION-1",
@@ -3031,7 +3031,6 @@
       "name": "kg_relation:reactome",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "GRAPH-MUTABLE-MATERIALIZATION-1",
         "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
         "KG-COHORT-DEPENDENT-PROJECTION-1",
         "KG-DISEASE-RELATION-1",
@@ -3132,8 +3131,6 @@
       "name": "string_relation:combined_score_threshold",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "GRAPH-MAPPING-RECEIPT-AUTHORITY-1",
-        "GRAPH-MUTABLE-MATERIALIZATION-1",
         "GRAPH-NODE-UNIVERSE-SPLIT-DEPENDENT-1",
         "STRING-CHANNEL-ORIGIN-1",
         "STRING-GENE-MAPPING-1",
@@ -3162,10 +3159,10 @@
       "name": "supervision:gnn_label",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
+        "GENE-FIELD-PROSE-1",
         "GENE-SYMBOL-SPLIT-IDENTITY-1",
+        "GNN-EARLY-STOP-ROW-SPLIT-1",
         "LABEL-ACCESS-DISCOVERY-SCOPE-1",
-        "LABEL-DENIED-READ-AUDIT-1",
-        "LABEL-TYPE-IDENTITY-1",
         "VARIANT-MULTIGENE-ISOLATION-1"
       ]
     },
@@ -3189,10 +3186,9 @@
       "name": "supervision:hetero_gnn_label",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
+        "GENE-FIELD-PROSE-1",
         "GENE-SYMBOL-SPLIT-IDENTITY-1",
         "LABEL-ACCESS-DISCOVERY-SCOPE-1",
-        "LABEL-DENIED-READ-AUDIT-1",
-        "LABEL-TYPE-IDENTITY-1",
         "VARIANT-MULTIGENE-ISOLATION-1"
       ]
     }
