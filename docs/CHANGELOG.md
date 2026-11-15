@@ -1,3 +1,39 @@
+## 2026-11-15 (package 1D, stage 1D-1c.1 A and B, set "at") -- the columns.py repairs and the allele-frequency materialiser
+
+Owner rulings 482cd291, 4bef3910 and b937681e (2026-11-14), audited with measurements on the real files
+(AUDIT_OF_RULING_1D1c_2026-11-14.md, AUDIT_OF_RULING_1D1c1B_2026-11-15.md). Shadow mode: no model, feature, scaler, graph, split
+or inference behaviour changes; no production module imports the new code. No model is fitted.
+
+- information_sources/columns.py (A): Population.sha256 is identity version 2 (canonical JSON of schema, population_id and the
+  ordered identities; sha256_v1 kept for sealed records and refusing identities with a newline); ObservationColumn owns
+  read-only copies of its arrays taken before validation; a derived column carries its lineage (derivation_identity: rule,
+  implementation code closure, input column digests) in its identity; derive(name, inputs) takes rule and implementation from
+  DERIVED_RULES and refuses undeclared inputs, retired features and model outputs; every implementation equals the production
+  formula. readonly_array defers to graph_identity's definition (graph_identity.py unchanged, so its sealed record still binds).
+- information_sources/allele_frequency.py (B, new): the gnomAD file's two logical sources read once and verified --
+  dataset:gnomad_af (statistic gnomad_preprocessed_mixed_af_unfiltered_v1) and dataset:gnomad_ymt_api (Y and MT statistics) --
+  under strict identifier grammars; refused, never repaired: unknown forms, duplicated keys, non-floating or out-of-range
+  frequencies, malformed positions, cohort identities that are not their coordinates, unadjudicated allele forms. Source
+  states as source facts with details (reported zero filter unknown, record without value, no row in the extracted table,
+  allele sequence incomplete, chromosome outside the extract's scope, MT zero ambiguous); select_strict (policy
+  strict_primary_exome_autosomes_x_v2, the unknown-base treatment declared, arms A/B/C) and claim eligibility as separate
+  projections bound to the reference-identity evidence; audit_binary_flag (prevalence with exact intervals, likelihood
+  ratios, AUROC and mutual information). The 1D-1b.2 pilot materialiser is not modified.
+- scripts/measure_af_repair_1d1c1.py (new, --check re-measures) and docs/census/AF_REPAIR_1D1c1.json: measured on the pilot's
+  population (identity version 1 equal to PILOTS_1D1b2.json) and source; census equal to the pre-registered figures; every row
+  classified against the current join; label-blind; the owner's v3 reference equals the new materialiser on every row.
+- Census: datasets gnomad_ymt_api and grch38_reference_check; registered with executable witnesses
+  GNOMAD-SOURCE-REVISED-AFTER-RUN15-1, GNOMAD-YMT-STATISTIC-MIXING-1, GNOMAD-DUPLICATE-LOCUS-FIRST-WINS-1,
+  GNOMAD-PRIMARY-EXOME-GENOME-FALLBACK-1, GNOMAD-FILTER-NOT-RECORDED-1, GNOMAD-YPAR-REKEY-DUPLICATES-1,
+  GNOMAD-BUILD-FILTER-IDENTITY-UNRECORDED-1, GNOMAD-QUERY-UNIVERSE-UNRECORDED-1, GNOMAD-MT-AC-HOM-NULL-AS-ZERO-1. Ledger
+  rebuilt (semantic digest unchanged, 97f64bcb); SOURCE_ABSENCE_1D1b2.json and ADMISSION_SHADOW_1D1b2.json re-derived (the
+  ledger digest, the dataset count and the six frequency features' defect attachments; admission counts unchanged).
+- ROADMAP: the current-execution pointer at section 5, the maturity table, the 1D-1b.3 merge verification, the 1D-1b.4 merge
+  record, the entry. docs/census/README.md: the stage 1D-1c.1 section.
+- Tests: +54 / -0 by node identity (test_columns_repairs_1d1c1.py 11, test_allele_frequency_1d1c1.py 25,
+  test_af_repair_record.py 9, test_registered_defect_witnesses.py 9; test_observation_columns.py four tests rewritten,
+  test_admission_shadow.py lists extended). Suite 9,282 -> 9,336; README badge.
+
 ## 2026-11-14 (package 1D, stage 1D-1b.4, set "as") -- population identity, fit authorization, claims; four defects repaired
 
 Owner ruling 68ca322f and the reference packages cee6713d, 7ba10b3b and 7b277d7c (audited and synthesized 2026-11-13,

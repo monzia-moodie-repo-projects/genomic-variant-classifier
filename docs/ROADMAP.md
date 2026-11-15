@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-10 (v3; section 9 current to 2026-11-10, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
+**Version: 2026-11-15 (v3; section 9 current to 2026-11-15, section 5 last re-derived 2026-09-04 with a current-execution pointer of 2026-11-15)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -73,11 +73,11 @@ answer, and the classifier must not be described as scientifically validated bec
 | Are artefacts content-bound; are rosters and prediction identities exact? | yes | established (package 1) |
 | Does delivery protect the working repository? | yes | established: guarded installers, receipts, post-merge checks |
 
-| Question | Scientific maturity | State (2026-11-14) |
+| Question | Scientific maturity | State (2026-11-15) |
 |---|---|---|
 | Is the target scientifically defined? | no | binary ClinVar label; clinical, gene-disease and molecular-effect targets not yet separated |
 | Is the information regime enforced? | no | shadow only: 47 names statically reachable unadmitted under the strict regime (docs/census/ADMISSION_SHADOW_1D1b2.json); enforcement is 1D-1c |
-| Is absence kept apart from evidence? | no | 89 of 91 features fabricate a value when their source is absent (docs/census/SOURCE_ABSENCE_1D1b2.json); on the Run 15 cohort a missing gnomAD frequency alone separates the labels with AUROC 0.695 (docs/census/PILOTS_1D1b2.json) |
+| Is absence kept apart from evidence? | no | 89 of 91 features fabricate a value when their source is absent (docs/census/SOURCE_ABSENCE_1D1b2.json); on the Run 15 cohort a missing gnomAD frequency alone separates the labels with AUROC 0.695 (docs/census/PILOTS_1D1b2.json). For allele frequency only, and in shadow: every Run 15 row is typed -- observed, record without value, no row in the extracted table, allele sequence incomplete, outside the extract's scope -- and the strict selection is separate (docs/census/AF_REPAIR_1D1c1.json, 1D-1c.1); production still fills 0.0 until 1D-1c.1C |
 | Is the evaluation population valid? | partly | splits are gene-disjoint by SYMBOL only: read as gene SETS with variant identity, 327 of Run 15's 16,964 split components span partitions and validation and test share 54 genes (VARIANT-MULTIGENE-ISOLATION-1, docs/census/POPULATION_ISOLATION_1D1b4.json); 14 canonical genes straddle under two symbols (GENE-SYMBOL-SPLIT-IDENTITY-1); the shadow component authority would admit 910,273 of 1,038,974 training rows for exploratory fits (1D-1b.4); canonical gene and split identities are 1D-1d |
 | Is graph information source-bound? | no | shadow only: the exact-pair STRING reader, computed graph identities and global-size pathway relations exist (1D-1b.3); graphs are accepted by re-derivation from the pinned files and materialisations are immutable (1D-1b.4); the GNNs still build their graphs with the legacy code |
 | Are upstream supervision and label-criterion overlap characterised? | partly | recorded per feature in the census; criterion-independent evaluation is 1D-2 |
@@ -88,7 +88,8 @@ A source has three separate statuses, never one: an IMPLEMENTED connector (the c
 (its census disposition under a regime) and an OPERATIONALLY POPULATED source (a materialisation shows its values reach the rows).
 Measured on the Run 15 cohort (1,490,014 rows): EVE is implemented, conditional_only, and was not populated in Run 15 (unconfigured;
 with the release on disk it would observe 91,164 rows); gnomAD allele frequency is implemented, admit_strict, and populated for
-992,044 rows -- none on chromosome X (GNOMAD-CHRX-LOCUS-PARSE-1).
+992,044 rows -- none on chromosome X (GNOMAD-CHRX-LOCUS-PARSE-1), and 1,694 of them (20 Y, 1,674 MT) values of other statistics
+appended from the gnomAD API (GNOMAD-YMT-STATISTIC-MIXING-1).
 
 # 3. Current state snapshot (2026-08-23)
 
@@ -124,7 +125,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,282 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,336 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -169,6 +170,14 @@ ClinVar (labels+cohort), gnomAD v4 (LOEUF, pLI, AF, **mis_z, syn_z, gene_constra
 Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature NOT label), TCGA (OPTIONAL), Reactome (DONE), KEGG (OPTIONAL, overlaps Reactome). BioGRID overlaps STRING. dbGaP is an access prerequisite (blocked), not a connector. ProteomeXchange / SRA / ENA / DDBJ DRA / SILVA out of scope.
 
 # 5. Immediate plan
+
+> **CURRENT EXECUTION POINTER (2026-11-15; owner ruling b937681e, section 2.3).** The active scientific repair is PACKAGE 1D,
+> stage 1D-1c: 1D-1c.1 allele-frequency evidence (A and B built in set "at"; C, the model-facing projection into
+> engineer_features, and D, qualification, next), then 1D-1c.2 REVEL and predictor applicability, 1D-1c.3 EVE identity and the
+> 310-row population reconciliation (1,490,324 binary-labelled against Run 15's 1,490,014), 1D-1c.4 enforced admission, 1D-1c.5
+> end-to-end compatibility. Next milestones: 1D-1d canonical leakage-disjoint evaluation (components built on the full identity
+> graph before any eligibility projection) and 1D-2 the corrected strict baseline. The plan quoted below is historical, not the
+> current operational order; section 9 records the current state.
 
 > **NOT RE-DERIVED SINCE 2026-09-04 (recorded 2026-11-05).** The work of 2026-09-22 to 2026-11-05 -- the structural quarantine,
 > containment, the gnomAD approval and source-monitor changes A, B, C1 and C2, the science stage (exact inference, the DANDELION
@@ -1097,7 +1106,9 @@ exists to end.
   GVC_admission_1d1b3b_validation_20261110T182927Z, sha256 98244de6; candidate 534bde78, tree 61de20ef; all 28 stages exit 0;
   9,122 passed, 83 skipped, 5 xfailed -- the forecast; test by test against set "aq"'s Windows run, the 9,136 common tests
   identical and the 74 new ones passed). The branch was published (record 7b936de2) and pull request #75 merged with a merge
-  commit -- afbb8881, parents 5b7335f6 and 534bde78 (2026-11-14 06:28 UTC).
+  commit -- afbb8881, parents 5b7335f6 and 534bde78 (2026-11-14 06:28 UTC). Merge verified on Windows (record
+  GVC_admission_1d1b3b_merge_verified_20261114T090826Z, sha256 e938d2c1; 09:08 to 09:27 UTC): targeted 2,471 passed, 5 skipped,
+  every test as in V1; drift 22 passed; guard unchanged.
 - **2026-11-14 -- PACKAGE 1D, STAGE 1D-1b.4 (set "as"): population identity, fit authorization, claims, and the repaired label
   and graph contracts.** Owner ruling 68ca322f and the owner's reference packages cee6713d ("TaskBound"), 7ba10b3b ("TaskScoped")
   and 7b277d7c ("EvidenceScope"), audited, probed and synthesized on 2026-11-13 (AUDIT_1D1b4_REFERENCES_2026-11-13.md). Shadow
@@ -1135,6 +1146,22 @@ exists to end.
   conditional 65 / 37; semantic digest unchanged (97f64bcb). Still the owner's for 1D-1d: which loci bind a split group
   ((a) every listed HGNC locus, recommended and implemented here, or (b) protein-coding loci only). Suite 9,210 -> 9,282 (+86 /
   -14 by node identity).
+  VALIDATED ON WINDOWS AND MERGED 2026-11-14: receipt c98ee35d (all 29 stages; 9,194 passed, 83 skipped, 5 xfailed -- the
+  forecast); pull request #76 merged as 6f5ba69e (parents afbb8881, f2bd1397) after every check succeeded; merge verified on
+  Windows (record 42b38082: targeted 2,567 passed, 5 skipped; drift 22 passed); branch deleted (record 7224b565).
+- **2026-11-15 -- PACKAGE 1D, STAGE 1D-1c.1 A AND B (set "at"; owner rulings 482cd291, 4bef3910, b937681e): column identity
+  and typed allele-frequency evidence.** Shadow mode (no production module imports the new code; a test proves it). (A)
+  columns.py: version-2 population identity (version 1 kept for sealed records), read-only arrays, lineage-bound derived columns,
+  implementation-bound DERIVED_RULES. (B) information_sources/allele_frequency.py: dataset:gnomad_af (statistic
+  gnomad_preprocessed_mixed_af_unfiltered_v1) and dataset:gnomad_ymt_api as separate typed columns; strict grammars; duplicates,
+  values outside [0, 1] and malformed positions refused; source states with details; the strict selection (unknown-base
+  treatment declared), claim eligibility and arms A/B/C as separate projections; the 1D-1b.2 pilot untouched. Measured
+  (docs/census/AF_REPAIR_1D1c1.json, equal to the owner's pre-registered census and, row by row, to his v3 reference): 1,028,224
+  selected (42,571 reported zeros); 459,512 eligible unselected; 500 unknown-base; 1,778 Y and MT; against the current join
+  990,350 unchanged, 37,874 X recovered, 1,694 Y/MT withdrawn; label-blind. Nine gnomAD defects registered with executable
+  witnesses (census registered_defects); datasets gnomad_ymt_api and grch38_reference_check. Admission unchanged (strict 55 / 47;
+  digest 97f64bcb). Suite 9,282 -> 9,336 (+54 / -0). Note: this file is near its 120,000-byte bound (test_roadmap_claims); the
+  owner's succession procedure is due before the next stage's entry.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

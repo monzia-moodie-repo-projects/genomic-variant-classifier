@@ -1,0 +1,554 @@
+{
+  "arms": {
+    "retain_reported_zeros": {
+      "census": {
+        "eligible_unselected": 459512,
+        "full": 1490014,
+        "outside_domain": 1778,
+        "primary_domain": 1488236,
+        "selected": 1028224,
+        "selected_reported_zero": 42571,
+        "sequence_resolved_primary": 1487736,
+        "unknown_base": 500
+      },
+      "identity": "c7b5f3ae238d5015d8e23490887359868f7153770ce2fb1592a0e1dbafae82eb",
+      "selection": {
+        "allele_sequence_incomplete": 500,
+        "no_qualified_observation": 459512,
+        "policy_out_of_scope": 1778,
+        "selected": 1028224
+      }
+    },
+    "withhold_reported_zeros": {
+      "census": {
+        "eligible_unselected": 502083,
+        "full": 1490014,
+        "outside_domain": 1778,
+        "primary_domain": 1488236,
+        "selected": 985653,
+        "selected_reported_zero": 0,
+        "sequence_resolved_primary": 1487736,
+        "unknown_base": 500
+      },
+      "identity": "38aa4de8ee0ba2b3a8fe32836087ffd0e3085466e2c397370310c9a1308afc17",
+      "selection": {
+        "allele_sequence_incomplete": 500,
+        "no_qualified_observation": 459512,
+        "policy_out_of_scope": 1778,
+        "selected": 985653,
+        "withheld_zero_sensitivity": 42571
+      }
+    },
+    "without_af": {
+      "census": {
+        "eligible_unselected": 1487736,
+        "full": 1490014,
+        "outside_domain": 1778,
+        "primary_domain": 1488236,
+        "selected": 0,
+        "selected_reported_zero": 0,
+        "sequence_resolved_primary": 1487736,
+        "unknown_base": 500
+      },
+      "identity": "f842162369d800a10ca08c6eeaf9903d340ba889343941a2aaea9d5f6ccfa7c3",
+      "selection": {
+        "allele_sequence_incomplete": 500,
+        "no_qualified_observation": 459512,
+        "policy_out_of_scope": 1778,
+        "withheld_af_ablation": 1028224
+      }
+    }
+  },
+  "census": {
+    "eligible_unselected": 459512,
+    "full": 1490014,
+    "outside_domain": 1778,
+    "primary_domain": 1488236,
+    "selected": 1028224,
+    "selected_reported_zero": 42571,
+    "sequence_resolved_primary": 1487736,
+    "unknown_base": 500
+  },
+  "expected": {
+    "eligible_unselected": 459512,
+    "full": 1490014,
+    "outside_domain": 1778,
+    "primary_domain": 1488236,
+    "selected": 1028224,
+    "selected_reported_zero": 42571,
+    "sequence_resolved_primary": 1487736,
+    "unknown_base": 500
+  },
+  "inputs": {
+    "cohort": {
+      "bytes": 142269185,
+      "columns_not_read": [
+        "metadata"
+      ],
+      "file": "clinvar_grch38_clean.parquet",
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "8d8747eb741cecd960ae3118d2b0b844a1cf55662ab617a1fd2b5dfc4f6e2c2c"
+    },
+    "gnomad": {
+      "bytes": 39477981,
+      "file": "gnomad_v4_exomes.parquet",
+      "logical_source": "dataset:gnomad_af",
+      "logical_sources": [
+        "dataset:gnomad_af",
+        "dataset:gnomad_ymt_api"
+      ],
+      "sha256": "d4c604277c2848e0a15d78810343219a2eab0088e627386c36b2a1281d3c6310"
+    },
+    "reference_evidence": {
+      "bytes": 560606657,
+      "file": "clinvar_grch38_clean_seq.parquet",
+      "logical_source": "dataset:grch38_reference_check",
+      "sha256": "27ce4f69d10962b2da1fd7d348288354b0d4e77b9d22fbc43883c9a212016517"
+    },
+    "split_test": {
+      "file": "meta_test.parquet",
+      "sha256": "43fe2694a662935aa94a401375d3886901ff4af743d5461c956843b33c7a7295"
+    },
+    "split_train": {
+      "file": "meta_train.parquet",
+      "sha256": "d2c733940331479d0c92e1ce833c6f2dabe73a4b7239664a8904f82e4aa027a1"
+    },
+    "split_val": {
+      "file": "meta_val.parquet",
+      "sha256": "f385c6e3be5888afe7cf029df6b60e16ed9108cb7620ce6173b4f939207dfa4b"
+    }
+  },
+  "label_blind": true,
+  "legacy_comparison": {
+    "recovered_x": 37874,
+    "still_unselected:allele_sequence_incomplete:unsupported_variant:allele_sequence_incomplete": 500,
+    "still_unselected:no_qualified_observation:not_in_source:no_row_in_extracted_table": 458158,
+    "still_unselected:no_qualified_observation:not_in_source:record_without_value": 1354,
+    "still_unselected:policy_out_of_scope:unsupported_variant:chromosome_outside_extract_scope": 84,
+    "unchanged_value": 990350,
+    "withdrawn_policy_out_of_scope:MT": 1674,
+    "withdrawn_policy_out_of_scope:Y": 20
+  },
+  "policy": {
+    "arm": "retain_reported_zeros",
+    "policy_id": "strict_primary_exome_autosomes_x_v2",
+    "primary_domain": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "X"
+    ],
+    "statistic": "gnomad_preprocessed_mixed_af_unfiltered_v1",
+    "unknown_base_treatment": "exclude_from_sequence_resolved_primary"
+  },
+  "population": {
+    "benign": 1279465,
+    "pathogenic": 210549,
+    "pilot_population_v1": "d4085699adaf257ad032da6eb1284d5ea8d05d220defd7dc7144bfa2485d79f5",
+    "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+    "rows": 1490014,
+    "sha256_v1": "d4085699adaf257ad032da6eb1284d5ea8d05d220defd7dc7144bfa2485d79f5",
+    "sha256_v2": "5f58c0349413aa4ce83c6a873e0938992b26ae701dbec0d4699bf238d7284dce"
+  },
+  "procedure": {
+    "scripts/measure_1d1b2_pilots.py::load_population": "e86fc2fbdfb929b2e8a8b189a4840a60a0b0a23e87c01ec5da2c7afff4ce9b85",
+    "scripts/measure_af_repair_1d1c1.py::measure": "6a582a572a2a32e526d6f2f547d627d363e90789788882cc06b435c0b729e6e9",
+    "src/genomic_variant_classifier/information_sources/allele_frequency.py::audit_binary_flag": "38fe1b9f8111632f5e4322104db1b801590c6435ff8b1fcfe63d83d7e600f5ab",
+    "src/genomic_variant_classifier/information_sources/allele_frequency.py::materialize_allele_frequency": "f8c4c579132fff0bf4c59a2f538f781d20d0788d9f1d323bb3f7209c6cb72bb8",
+    "src/genomic_variant_classifier/information_sources/allele_frequency.py::read_source_tables": "d6c04c794af5efff456840a9eeaf4e406785426c3bdc235c9fdebfa8f193e121",
+    "src/genomic_variant_classifier/information_sources/allele_frequency.py::select_strict": "66a7fd8065d7bbfa76d380d6403b9d40c5aca31563b408f124313ca0067b4580"
+  },
+  "rare_flags": {
+    "mt_homoplasmic_zero": {
+      "auroc": 0.500164037429,
+      "benign": 36,
+      "by_split": {
+        "test": {
+          "n": 16,
+          "pathogenic": 10
+        },
+        "train": {
+          "n": 74,
+          "pathogenic": 48
+        },
+        "val": {
+          "n": 21,
+          "pathogenic": 17
+        }
+      },
+      "lr_plus": 12.6600082799,
+      "lr_plus_95ci": [
+        8.50857905498,
+        18.8369654454
+      ],
+      "mutual_information_bits": 7.9702066022e-05,
+      "n": 111,
+      "pathogenic": 75,
+      "prevalence": 0.675675675676,
+      "prevalence_95ci": [
+        0.580253548869,
+        0.761456317913
+      ]
+    },
+    "no_row_in_extracted_table": {
+      "auroc": 0.703781558605,
+      "benign": 319731,
+      "by_split": {
+        "test": {
+          "n": 91409,
+          "pathogenic": 29072
+        },
+        "train": {
+          "n": 321537,
+          "pathogenic": 96889
+        },
+        "val": {
+          "n": 45212,
+          "pathogenic": 12466
+        }
+      },
+      "lr_plus": 2.63094208494,
+      "lr_plus_95ci": [
+        2.61964476832,
+        2.64228812166
+      ],
+      "mutual_information_bits": 0.0627306369653,
+      "n": 458158,
+      "pathogenic": 138427,
+      "prevalence": 0.302138127022,
+      "prevalence_95ci": [
+        0.300808668892,
+        0.303470087758
+      ]
+    },
+    "outside_domain_y_mt": {
+      "auroc": 0.49969235288,
+      "benign": 1638,
+      "by_split": {
+        "test": {
+          "n": 201,
+          "pathogenic": 13
+        },
+        "train": {
+          "n": 1214,
+          "pathogenic": 94
+        },
+        "val": {
+          "n": 363,
+          "pathogenic": 33
+        }
+      },
+      "lr_plus": 0.519384955075,
+      "lr_plus_95ci": [
+        0.437084217033,
+        0.61718250407
+      ],
+      "mutual_information_bits": 3.23065918905e-05,
+      "n": 1778,
+      "pathogenic": 140,
+      "prevalence": 0.0787401574803,
+      "prevalence_95ci": [
+        0.0666430532633,
+        0.092247946807
+      ]
+    },
+    "record_without_value": {
+      "auroc": 0.499470872591,
+      "benign": 1354,
+      "by_split": {
+        "test": {
+          "n": 248,
+          "pathogenic": 0
+        },
+        "train": {
+          "n": 956,
+          "pathogenic": 0
+        },
+        "val": {
+          "n": 150,
+          "pathogenic": 0
+        }
+      },
+      "lr_plus": 0.0,
+      "lr_plus_95ci": null,
+      "mutual_information_bits": 0.000199820482369,
+      "n": 1354,
+      "pathogenic": 0,
+      "prevalence": 0.0,
+      "prevalence_95ci": [
+        0.0,
+        0.00272072301763
+      ]
+    },
+    "selected_nonzero": {
+      "auroc": 0.288903040169,
+      "benign": 922705,
+      "by_split": {
+        "test": {
+          "n": 204232,
+          "pathogenic": 13915
+        },
+        "train": {
+          "n": 685481,
+          "pathogenic": 43114
+        },
+        "val": {
+          "n": 95940,
+          "pathogenic": 5919
+        }
+      },
+      "lr_plus": 0.414566580412,
+      "lr_plus_95ci": [
+        0.411827564203,
+        0.417323813491
+      ],
+      "mutual_information_bits": 0.0658134167183,
+      "n": 985653,
+      "pathogenic": 62948,
+      "prevalence": 0.0638642605461,
+      "prevalence_95ci": [
+        0.0633823273994,
+        0.064348758628
+      ]
+    },
+    "selected_reported_zero": {
+      "auroc": 0.507025645408,
+      "benign": 34015,
+      "by_split": {
+        "test": {
+          "n": 8528,
+          "pathogenic": 1748
+        },
+        "train": {
+          "n": 29423,
+          "pathogenic": 5993
+        },
+        "val": {
+          "n": 4620,
+          "pathogenic": 815
+        }
+      },
+      "lr_plus": 1.5285354933,
+      "lr_plus_95ci": [
+        1.49340369427,
+        1.56449375561
+      ],
+      "mutual_information_bits": 0.000564023404534,
+      "n": 42571,
+      "pathogenic": 8556,
+      "prevalence": 0.200981889079,
+      "prevalence_95ci": [
+        0.19718393895,
+        0.204820663183
+      ]
+    },
+    "unknown_base": {
+      "auroc": 0.501126530347,
+      "benign": 22,
+      "by_split": {
+        "test": {
+          "n": 93,
+          "pathogenic": 84
+        },
+        "train": {
+          "n": 363,
+          "pathogenic": 352
+        },
+        "val": {
+          "n": 44,
+          "pathogenic": 42
+        }
+      },
+      "lr_plus": 132.032377261,
+      "lr_plus_95ci": [
+        86.1162667397,
+        202.430380522
+      ],
+      "mutual_information_bits": 0.000821984492192,
+      "n": 500,
+      "pathogenic": 478,
+      "prevalence": 0.956,
+      "prevalence_95ci": [
+        0.934138999676,
+        0.972223232714
+      ]
+    }
+  },
+  "receipt": {
+    "bytes": 39477981,
+    "columns": {
+      "af_hom_mt_api": {
+        "column_sha256": "099b4bf4d39d8c8b8a62771453fc1f57d146ab6355089196ec752bff256f373f",
+        "detail_counts": {
+          "not_in_source": {
+            "no_row_in_api_extract": 58
+          },
+          "observed": {
+            "": 1563,
+            "zero_ac_hom_or_missing_ac_hom": 111
+          },
+          "unsupported_variant": {
+            "chromosome_outside_extract_scope": 1488282
+          }
+        },
+        "logical_source": "dataset:gnomad_ymt_api",
+        "state_counts": {
+          "bad_mapping": 0,
+          "computation_failed": 0,
+          "input_unobserved": 0,
+          "not_in_source": 58,
+          "observed": 1674,
+          "source_absent": 0,
+          "unsupported_variant": 1488282
+        }
+      },
+      "af_raw": {
+        "column_sha256": "baf1438b3e62f905149fcd6ba8d0d215e50d3b1df509529168333c8935f767c6",
+        "detail_counts": {
+          "not_in_source": {
+            "no_row_in_extracted_table": 458158,
+            "record_without_value": 1354
+          },
+          "observed": {
+            "": 985653,
+            "reported_zero_filter_unknown": 42571
+          },
+          "unsupported_variant": {
+            "allele_sequence_incomplete": 500,
+            "chromosome_outside_extract_scope": 1778
+          }
+        },
+        "logical_source": "dataset:gnomad_af",
+        "state_counts": {
+          "bad_mapping": 0,
+          "computation_failed": 0,
+          "input_unobserved": 0,
+          "not_in_source": 459512,
+          "observed": 1028224,
+          "source_absent": 0,
+          "unsupported_variant": 2278
+        }
+      },
+      "af_y_api": {
+        "column_sha256": "52a177ece7a9ab59e61255d54d001d8c2942c10feaf705af88d0084c8e2435cf",
+        "detail_counts": {
+          "not_in_source": {
+            "no_row_in_api_extract": 26
+          },
+          "observed": {
+            "": 20
+          },
+          "unsupported_variant": {
+            "chromosome_outside_extract_scope": 1489968
+          }
+        },
+        "logical_source": "dataset:gnomad_ymt_api",
+        "state_counts": {
+          "bad_mapping": 0,
+          "computation_failed": 0,
+          "input_unobserved": 0,
+          "not_in_source": 26,
+          "observed": 20,
+          "source_absent": 0,
+          "unsupported_variant": 1489968
+        }
+      }
+    },
+    "content_sha256": "d4c604277c2848e0a15d78810343219a2eab0088e627386c36b2a1281d3c6310",
+    "n_population": 1490014,
+    "parser": {
+      "closure_sha256": "f8c4c579132fff0bf4c59a2f538f781d20d0788d9f1d323bb3f7209c6cb72bb8",
+      "symbol": "src/genomic_variant_classifier/information_sources/allele_frequency.py::materialize_allele_frequency"
+    },
+    "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+    "population_identity_schema": "gvc.population-order/2",
+    "population_sha256": "5f58c0349413aa4ce83c6a873e0938992b26ae701dbec0d4699bf238d7284dce",
+    "schema": "gvc.materialization-receipt.1d1c1/2",
+    "source_records": {
+      "dataset:gnomad_af": 2947370,
+      "dataset:gnomad_ymt_api": 3778
+    },
+    "source_records_requested_by_population": {
+      "dataset:gnomad_af": 1029578,
+      "dataset:gnomad_ymt_api": 1694
+    }
+  },
+  "reference_evidence": {
+    "rows_sha256": "a97e9b23e891b8bfe2b54f72d869283a6fbc57117b33f4e355e962f71c83d074",
+    "verdicts": {
+      "False:non_acgt_allele": 500,
+      "True:": 1489514
+    }
+  },
+  "schema": "gvc.af-repair-ledger.1d1c1/1",
+  "selection_identity": "c7b5f3ae238d5015d8e23490887359868f7153770ce2fb1592a0e1dbafae82eb",
+  "statistics": {
+    "gnomad_api_mt_homoplasmic_fraction_v1": {
+      "api_dataset": "gnomad_r4 (live API, not pinned)",
+      "builder": "scripts/build_gnomad_ymt_af.py",
+      "logical_source": "dataset:gnomad_ymt_api",
+      "quantity": "ac_hom / an",
+      "query_universe": {
+        "completeness": "one region call",
+        "kind": "mitochondrial_region_1_16569"
+      },
+      "zero": "a missing ac_hom became 0: a zero is ambiguous"
+    },
+    "gnomad_api_y_exome_else_genome_af_v1": {
+      "api_dataset": "gnomad_r4 (live API, not pinned)",
+      "builder": "scripts/build_gnomad_ymt_af.py",
+      "fallback_events_recorded": false,
+      "logical_source": "dataset:gnomad_ymt_api",
+      "par_records": "X-PAR records re-keyed to Y (GNOMAD-YPAR-REKEY-DUPLICATES-1)",
+      "quantity": "exome.af else genome.af",
+      "query_universe": {
+        "completeness": "unverified",
+        "kind": "cohort_y_genes_with_clean_symbols"
+      }
+    },
+    "gnomad_preprocessed_mixed_af_unfiltered_v1": {
+      "allele_counts_available": false,
+      "allele_numbers_available": false,
+      "builder": "scripts/build_gnomad_parquet.py",
+      "claims": {
+        "complete_gnomad_catalogue": false,
+        "exome_only": false,
+        "filter_qualified": false
+      },
+      "fallback_events_recorded": false,
+      "fallback_field": "AF_genome",
+      "fallback_rule": "exome_else_genome",
+      "filter_policy": {
+        "applied": false,
+        "source_filter_values_available": false
+      },
+      "logical_source": "dataset:gnomad_af",
+      "primary_field": "AF",
+      "query_universe": {
+        "completeness": "unverified",
+        "kind": "clinvar_ascertained_extract"
+      },
+      "release": "not recorded by the extract",
+      "serialization_precision": "6 significant digits (VCF text)"
+    }
+  }
+}

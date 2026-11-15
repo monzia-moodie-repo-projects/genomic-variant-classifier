@@ -1,7 +1,7 @@
 {
   "census": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "ledger_sha256": "704a8718bbeb25680b097bacb5eedb4cfd344f82da27c60cc85bd0cb2151f916",
+    "ledger_sha256": "ff5638d2d5e076eeade160c261d514f244fc1cc0b55cb262290915dc901cd888",
     "path": "docs/census/FEATURE_CENSUS_1D1a.json",
     "schema": "gvc.feature-census.1d1a/2",
     "semantic_digest": "97f64bcb096eebea5bb532c00ba8b394a8946b67145ab11e980927e738b628a0"
@@ -45,7 +45,7 @@
     "dependency_order_sha256": "eb53e5b4b73bbd9cdfda067d26a270a56c930c17ced43b9625d7230f6084a7c3",
     "identities": 102,
     "leaves": 85,
-    "registered_datasets": 27,
+    "registered_datasets": 29,
     "ungrounded_leaves": []
   },
   "mode": "shadow: computed from the verified census; no model, matrix, split or prediction is read or changed",
@@ -96,7 +96,16 @@
       "name": "af_raw",
       "observation": "shadow_materializer:src/genomic_variant_classifier/information_sources/materialization.py::materialize_gnomad_af",
       "registered_defects": [
+        "GNOMAD-BUILD-FILTER-IDENTITY-UNRECORDED-1",
         "GNOMAD-CHRX-LOCUS-PARSE-1",
+        "GNOMAD-DUPLICATE-LOCUS-FIRST-WINS-1",
+        "GNOMAD-FILTER-NOT-RECORDED-1",
+        "GNOMAD-MT-AC-HOM-NULL-AS-ZERO-1",
+        "GNOMAD-PRIMARY-EXOME-GENOME-FALLBACK-1",
+        "GNOMAD-QUERY-UNIVERSE-UNRECORDED-1",
+        "GNOMAD-SOURCE-REVISED-AFTER-RUN15-1",
+        "GNOMAD-YMT-STATISTIC-MIXING-1",
+        "GNOMAD-YPAR-REKEY-DUPLICATES-1",
         "MISSINGNESS-SEMANTICS-1"
       ]
     },
@@ -129,7 +138,14 @@
       "name": "af_log10",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "GNOMAD-CHRX-LOCUS-PARSE-1"
+        "GNOMAD-BUILD-FILTER-IDENTITY-UNRECORDED-1",
+        "GNOMAD-CHRX-LOCUS-PARSE-1",
+        "GNOMAD-DUPLICATE-LOCUS-FIRST-WINS-1",
+        "GNOMAD-FILTER-NOT-RECORDED-1",
+        "GNOMAD-PRIMARY-EXOME-GENOME-FALLBACK-1",
+        "GNOMAD-QUERY-UNIVERSE-UNRECORDED-1",
+        "GNOMAD-SOURCE-REVISED-AFTER-RUN15-1",
+        "GNOMAD-YMT-STATISTIC-MIXING-1"
       ]
     },
     {
@@ -162,7 +178,14 @@
       "observation": "not_recorded_by_producer",
       "registered_defects": [
         "ABSENCE-AS-EVIDENCE-1",
+        "GNOMAD-BUILD-FILTER-IDENTITY-UNRECORDED-1",
         "GNOMAD-CHRX-LOCUS-PARSE-1",
+        "GNOMAD-DUPLICATE-LOCUS-FIRST-WINS-1",
+        "GNOMAD-FILTER-NOT-RECORDED-1",
+        "GNOMAD-PRIMARY-EXOME-GENOME-FALLBACK-1",
+        "GNOMAD-QUERY-UNIVERSE-UNRECORDED-1",
+        "GNOMAD-SOURCE-REVISED-AFTER-RUN15-1",
+        "GNOMAD-YMT-STATISTIC-MIXING-1",
         "MISSINGNESS-SEMANTICS-1"
       ]
     },
@@ -196,7 +219,14 @@
       "observation": "not_recorded_by_producer",
       "registered_defects": [
         "ABSENCE-AS-EVIDENCE-1",
-        "GNOMAD-CHRX-LOCUS-PARSE-1"
+        "GNOMAD-BUILD-FILTER-IDENTITY-UNRECORDED-1",
+        "GNOMAD-CHRX-LOCUS-PARSE-1",
+        "GNOMAD-DUPLICATE-LOCUS-FIRST-WINS-1",
+        "GNOMAD-FILTER-NOT-RECORDED-1",
+        "GNOMAD-PRIMARY-EXOME-GENOME-FALLBACK-1",
+        "GNOMAD-QUERY-UNIVERSE-UNRECORDED-1",
+        "GNOMAD-SOURCE-REVISED-AFTER-RUN15-1",
+        "GNOMAD-YMT-STATISTIC-MIXING-1"
       ]
     },
     {
@@ -228,7 +258,14 @@
       "name": "af_is_rare",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "GNOMAD-CHRX-LOCUS-PARSE-1"
+        "GNOMAD-BUILD-FILTER-IDENTITY-UNRECORDED-1",
+        "GNOMAD-CHRX-LOCUS-PARSE-1",
+        "GNOMAD-DUPLICATE-LOCUS-FIRST-WINS-1",
+        "GNOMAD-FILTER-NOT-RECORDED-1",
+        "GNOMAD-PRIMARY-EXOME-GENOME-FALLBACK-1",
+        "GNOMAD-QUERY-UNIVERSE-UNRECORDED-1",
+        "GNOMAD-SOURCE-REVISED-AFTER-RUN15-1",
+        "GNOMAD-YMT-STATISTIC-MIXING-1"
       ]
     },
     {
@@ -260,7 +297,14 @@
       "name": "af_is_common",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "GNOMAD-CHRX-LOCUS-PARSE-1"
+        "GNOMAD-BUILD-FILTER-IDENTITY-UNRECORDED-1",
+        "GNOMAD-CHRX-LOCUS-PARSE-1",
+        "GNOMAD-DUPLICATE-LOCUS-FIRST-WINS-1",
+        "GNOMAD-FILTER-NOT-RECORDED-1",
+        "GNOMAD-PRIMARY-EXOME-GENOME-FALLBACK-1",
+        "GNOMAD-QUERY-UNIVERSE-UNRECORDED-1",
+        "GNOMAD-SOURCE-REVISED-AFTER-RUN15-1",
+        "GNOMAD-YMT-STATISTIC-MIXING-1"
       ]
     },
     {

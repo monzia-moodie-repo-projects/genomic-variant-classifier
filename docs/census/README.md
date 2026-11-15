@@ -137,3 +137,18 @@ Repaired, with their witnesses and registrations removed: LABEL-TYPE-IDENTITY-1,
 GRAPH-MAPPING-RECEIPT-AUTHORITY-1, GRAPH-MUTABLE-MATERIALIZATION-1. Registered, with witnesses: GNN-EARLY-STOP-ROW-SPLIT-1 and
 GENE-FIELD-PROSE-1. `tests/unit/test_population_record.py` refuses a record whose bound code has changed and checks that the
 registered defects state the measured numbers.
+
+## Stage 1D-1c.1 A and B (set "at"): the columns.py repairs and the allele-frequency materialiser
+
+Owner rulings 482cd291, 4bef3910 and b937681e (2026-11-14). Shadow mode: nothing is enforced and no production module imports this
+code.
+
+| File | What it is |
+|---|---|
+| `AF_REPAIR_1D1c1.json` | Measured on the pilot's population (DataPrepPipeline._load_and_label on the verified ClinVar cohort; identity version 1 equal to `PILOTS_1D1b2.json`'s) and the verified gnomAD file, with reference identity from the recorded GRCh38 window check: the three typed evidence columns and their receipt, the strict selection's census against the owner's pre-registered figures, the three sensitivity arms, a label-permutation check, every row classified against the current join, and the rare flags described beyond AUROC (counts, prevalence with exact intervals, likelihood ratios, mutual information, per split). Binds the digests of the code that produced it; `--check` re-measures it (`scripts/measure_af_repair_1d1c1.py`; about 80 s and 3.4 GB peak memory in the sandbox). |
+| `../../src/genomic_variant_classifier/information_sources/allele_frequency.py` | The two logical sources of the gnomAD file under strict grammars, typed source states with details, `select_strict` (policy, arms, claim eligibility) and `audit_binary_flag`. |
+| `../../src/genomic_variant_classifier/information_sources/columns.py` | Since stage 1D-1c.1: population identity version 2, read-only column arrays, derivation lineage, `derive(name, inputs)` from the registry. |
+
+Registered, with executable witnesses: the nine gnomAD extraction and join defects listed in the ledger (GNOMAD-*-1 added
+2026-11-15). `tests/unit/test_af_repair_record.py` refuses a record whose bound code has changed; the 1D-1b.2 pilot materialiser is
+not modified, so `PILOTS_1D1b2.json` still binds.

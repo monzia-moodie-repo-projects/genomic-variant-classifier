@@ -57,6 +57,15 @@ DATASETS = {
                        "public", [code(RDP, 'df.loc[df["clinical_sig"].isin(PATHOGENIC_TERMS), "label"] = 1')]),
     "gnomad_af": ("gnomAD allele frequencies joined by chrom:pos:ref:alt", "public",
                   [code(RDP, 'gnomad_path, columns=["variant_id", "allele_freq"]')]),
+    "gnomad_ymt_api": ("gnomAD Y and mitochondrial frequencies fetched from the live API (dataset gnomad_r4) and appended "
+                       "to the gnomAD extract on 2026-06-16 as 'gnomad:'-prefixed records: Y exome AF else genome AF, MT "
+                       "ac_hom / an (stage 1D-1c.1)", "public",
+                       [code("scripts/build_gnomad_ymt_af.py", "def parse_mt_af(payload: dict) -> dict:")]),
+    "grch38_reference_check": ("the per-row GRCh38 reference-allele check of the 101 bp window build "
+                               "(delta_window_builder: ok and reason per cohort row, data/processed/"
+                               "clinvar_grch38_clean_seq.parquet) -- reference identity for claim eligibility, stage 1D-1c.1",
+                               "project-built",
+                               [code(D + "delta_window_builder.py", 'return WindowResult(poly, poly, False, "non_acgt_allele")')]),
     "kg_1000g": ("1000 Genomes Phase 3 (release 20130502) global and super-population allele frequencies", "public",
                  [code(D + "thousandgenomes.py", "ALL.chr*.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz")]),
     "finngen": ("FinnGen annotated-variant allele frequencies (Finnish and non-Finnish-Swedish-Estonian)", "public",
@@ -839,6 +848,70 @@ DEFECTS = [
       code(RDP, 'groups = df[self.config.group_column].fillna("unknown").reset_index(drop=True)\n\n'),
       code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_gene_field_prose_1():"),
       "record:docs/census/POPULATION_ISOLATION_1D1b4.json"]),
+    ("GNOMAD-SOURCE-REVISED-AFTER-RUN15-1", "data/processed/gnomad_v4_exomes.parquet was rewritten on 2026-06-16 16:45 UTC, "
+     "after Run 15 (2026-06-05), when build_gnomad_ymt_af.py appended 3,778 'gnomad:'-prefixed Y and MT records (1,047 Y, "
+     "2,731 MT; merge_into_gnomad rewrites the whole file). No digest of the bytes Run 15 read was recorded, so Run 15's "
+     "allele-frequency input cannot be byte-certified from the current file: Run 15 logged 990,350 rows with a frequency; "
+     "the current join gives 992,044 (990,350 + 20 Y + 1,674 MT). Run 15 stays a historical record with this "
+     "qualification (stage 1D-1c.1, owner ruling 4bef3910).",
+     ['af_raw', 'af_log10', 'af_is_absent', 'af_is_ultra_rare', 'af_is_rare', 'af_is_common'],
+     [code("scripts/build_gnomad_ymt_af.py", "def merge_into_gnomad(ymt_df: pd.DataFrame, base_path: str, out_path: str) -> tuple:"),
+      "record:docs/census/PILOTS_1D1b2.json", "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    ("GNOMAD-YMT-STATISTIC-MIXING-1", "The appended API records carry statistics other than the extract's: Y is exome AF "
+     "else genome AF per variant (fallback unrecorded) and MT is the homoplasmic fraction ac_hom / an. The CURRENT join "
+     "parses them ('gnomad:MT:100:T:C' -> MT) and writes them into allele_freq, so the next production run would "
+     "train on 1,674 MT homoplasmic fractions and 20 Y values as if they were the primary frequency. Stage 1D-1c.1 types "
+     "them as their own logical source (dataset:gnomad_ymt_api) and never selects them (owner rulings 4bef3910, "
+     "b937681e).",
+     ['af_raw', 'af_log10', 'af_is_absent', 'af_is_ultra_rare', 'af_is_rare', 'af_is_common'],
+     [code("scripts/build_gnomad_ymt_af.py", "out[norm_key(vid)] = float(ac_hom) / float(an)"), code("scripts/build_gnomad_ymt_af.py", 'af = (v.get("genome") or {}).get("af")'),
+      code(RDP, 'df["allele_freq"] = _af.fillna(_gf)'), "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    ("GNOMAD-DUPLICATE-LOCUS-FIRST-WINS-1", "DataPrepPipeline._join_gnomad resolves a locus that occurs more than once by "
+     "keeping the first record, whatever the values; build_gnomad_parquet.py does the same on variant_id. Latent today: "
+     "the current file has no duplicated normalised locus (measured, stage 1D-1c.1). The 1D-1c.1 materialiser refuses "
+     "a duplicated key instead.",
+     ['af_raw', 'af_log10', 'af_is_absent', 'af_is_ultra_rare', 'af_is_rare', 'af_is_common'],
+     [code(RDP, '.drop_duplicates(subset=["_chrom", "_pos", "_ref", "_alt"])['), "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    ("GNOMAD-PRIMARY-EXOME-GENOME-FALLBACK-1", "build_gnomad_parquet.py takes the INFO field AF and, where it is absent "
+     "or empty, AF_genome, and records nothing about which it used: the primary statistic is exome-else-genome with "
+     "fallback events unrecorded (named gnomad_preprocessed_mixed_af_unfiltered_v1). Whether the fallback ever fired "
+     "cannot be measured without the source VCFs. A reported zero cannot be read as AC0 for the same reason.",
+     ['af_raw', 'af_log10', 'af_is_absent', 'af_is_ultra_rare', 'af_is_rare', 'af_is_common'],
+     [code("scripts/build_gnomad_parquet.py", "af_str = info[_EXOME_AF_FIELD] or info[_GENOME_AF_FIELD]"), "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    ("GNOMAD-FILTER-NOT-RECORDED-1", "build_gnomad_parquet.py never reads the VCF FILTER column, so records that failed "
+     "gnomAD quality control (AC0, RF, InbreedingCoeff) are included indistinguishably; 130,341 of the extract's "
+     "2,947,370 records are exactly 0, and 42,571 Run 15 rows select one. Their quality is unknown, not PASS and not AC0. "
+     "Measurement owner: a FILTER-aware, allele-specific source reconstruction (a separately identified source).",
+     ['af_raw', 'af_log10', 'af_is_absent', 'af_is_ultra_rare', 'af_is_rare', 'af_is_common'],
+     [code("scripts/build_gnomad_parquet.py", "chrom, pos, _id, ref, alt_field, _qual, _filter, info_str = ("), "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    ("GNOMAD-YPAR-REKEY-DUPLICATES-1", "build_gnomad_ymt_af.py re-keys gnomAD's X-PAR records to Y coordinates (PAR1 "
+     "identical, PAR2 minus 98,813,480): 913 of the 956 Y-PAR API records have an X twin in the primary extract with the "
+     "same REF and ALT, equal within six-significant-digit rounding (relative difference <= 4.75e-6). The same "
+     "biological variant is represented twice; exact equivalence is not certified. No Run 15 row is a Y-PAR "
+     "representation (measured).",
+     ["af_raw"],
+     [code("scripts/build_gnomad_ymt_af.py", 'return f"Y:{ip - _PAR2_SHIFT}:{ref}:{alt}"'), "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    ("GNOMAD-BUILD-FILTER-IDENTITY-UNRECORDED-1", "build_gnomad_parquet.py keeps only VCF lines whose locus is in the "
+     "--clinvar locus set, and records neither that file's identity nor its digest. Every record of the extract and "
+     "every Run 15 locus lies in data/processed/clinvar_grch38.parquet's locus set (measured), consistent with that "
+     "file (or a superset) having been the filter; it is not proven.",
+     ['af_raw', 'af_log10', 'af_is_absent', 'af_is_ultra_rare', 'af_is_rare', 'af_is_common'],
+     [code("scripts/build_gnomad_parquet.py", "if loci_filter is not None and locus not in loci_filter:"), "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    ("GNOMAD-QUERY-UNIVERSE-UNRECORDED-1", "(Registered by the owner, ruling b937681e.) The complete set of attempted "
+     "source queries and their outcomes was not recorded -- the ClinVar-ascertained VCF scan for the primary extract, "
+     "and for the API append one request per cleaned Y gene symbol (rows of uncleanable symbols were never queried) "
+     "and one mitochondrial region call. A row missing from the extract is therefore 'no row in the extracted table', "
+     "never 'not in gnomAD'.",
+     ['af_raw', 'af_log10', 'af_is_absent', 'af_is_ultra_rare', 'af_is_rare', 'af_is_common'],
+     [code("scripts/build_gnomad_ymt_af.py", "def fetch_y_af(clean_genes, dataset: str, pause: float = 6.0) -> dict:"),
+      code("scripts/build_gnomad_parquet.py", "if loci_filter is not None and locus not in loci_filter:"), "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    ("GNOMAD-MT-AC-HOM-NULL-AS-ZERO-1", "build_gnomad_ymt_af.py computes the MT value as (ac_hom or 0) / an, so a "
+     "missing homoplasmic count becomes a homoplasmic fraction of 0.0, indistinguishable from a genuine zero (ac_het "
+     "was not kept). 660 of the 2,731 MT records are exactly 0; 111 Run 15 MT rows match one, 75 of them pathogenic "
+     "(measured, stage 1D-1c.1). Not selected into any model input; a future mitochondrial source must keep ac_hom, "
+     "ac_het and an.",
+     ["af_raw"],
+     [code("scripts/build_gnomad_ymt_af.py", 'ac_hom = v.get("ac_hom") or 0'), "record:docs/census/AF_REPAIR_1D1c1.json"]),
 ]
 
 
