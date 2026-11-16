@@ -91,7 +91,9 @@ def test_a_population_is_ordered_and_unique():
     with pytest.raises(ValueError, match="non-empty tuple"):
         K.Population("p", ())
     assert K.Population("p", ("a", "b")).sha256 != K.Population("p", ("b", "a")).sha256      # order is identity
-    assert K.Population("p", ("a", "b")).sha256 == K.Population("q", ("a", "b")).sha256      # the rows, not the label
+    # Since 1D-1c.1 (ruling 482cd291) the identifier is bound too; version 1 bound the rows only (it stays verifiable).
+    assert K.Population("p", ("a", "b")).sha256 != K.Population("q", ("a", "b")).sha256
+    assert K.Population("p", ("a", "b")).sha256_v1 == K.Population("q", ("a", "b")).sha256_v1
 
 
 def test_a_column_reconciles_with_its_population_exactly():
@@ -151,34 +153,39 @@ def test_a_million_row_column_validates_in_vectorised_form():
 
 
 # -------------------------------------------------------------------------------------------------------- derivation
-def _col(name, pairs):
-    return K.ObservationColumn.from_rows(name, O.SourceIdentity(f"dataset:{name}", SHA), POP, dict(zip(POP.row_ids, pairs)))
+def _col(name, pairs, pop=POP):
+    return K.ObservationColumn.from_rows(name, O.SourceIdentity(f"dataset:{name}", SHA), pop, dict(zip(pop.row_ids, pairs)))
 
 
 def test_n_tools_pathogenic_counts_only_observed_tools_and_says_how_many():
-    revel = _col("dbnsfp", [(S.OBSERVED, 0.8), (S.NOT_IN_SOURCE, None), (S.NOT_IN_SOURCE, None), (S.OBSERVED, 0.2)])
-    sift = _col("dbnsfp", [(S.OBSERVED, 0.01), (S.OBSERVED, 0.01), (S.NOT_IN_SOURCE, None), (S.OBSERVED, 0.9)])
-    d = K.derive("n_tools_pathogenic", [revel, sift],
-                 [lambda v: (v >= 0.5).astype(float), lambda v: (v < 0.05).astype(float)], K.Propagation.PARTIAL_COUNT)
-    assert list(d.inputs_observed) == [2, 1, 0, 2] and d.n_inputs == 2
+    U = (S.NOT_IN_SOURCE, None)
+    cadd = K.derive("cadd_high", [_col("cadd_phred", [U, U, U, U])]).column
+    sift = K.derive("sift_deleterious", [_col("sift_score", [(S.OBSERVED, 0.01), (S.OBSERVED, 0.01), U,
+                                                              (S.OBSERVED, 0.9)])]).column
+    poly = K.derive("polyphen_probably_damaging", [_col("polyphen2_score", [U, U, U, U])]).column
+    revel = K.derive("revel_pathogenic", [_col("revel_score", [(S.OBSERVED, 0.8), U, U, (S.OBSERVED, 0.2)])]).column
+    d = K.derive("n_tools_pathogenic", [cadd, sift, poly, revel])
+    assert list(d.inputs_observed) == [2, 1, 0, 2] and d.n_inputs == 4
     assert d.column.values[0] == 2 and d.column.values[1] == 1 and np.isnan(d.column.values[2]) and d.column.values[3] == 0
     assert d.column.states[2] == K.CODE[S.INPUT_UNOBSERVED] and d.column.source.logical_id == "derived:n_tools_pathogenic"
     # The CURRENT builder fills an absent REVEL with 0.5 and calls it pathogenic: r2 would count 2 (not 1) and r3 1 (not
     # unobserved) -- ABSENCE-AS-EVIDENCE-1.
-    with pytest.raises(ValueError, match="0 or 1"):
-        K.derive("n", [revel], [lambda v: v], K.Propagation.PARTIAL_COUNT)
+    with pytest.raises(ValueError, match="declared inputs"):            # inputs in another order are refused
+        K.derive("n_tools_pathogenic", [sift, cadd, poly, revel])
 
 
 def test_strict_propagation_marks_any_unobserved_input():
-    af = _col("gnomad_af", [(S.OBSERVED, 0.0), (S.NOT_IN_SOURCE, None), (S.BAD_MAPPING, None), (S.OBSERVED, 1e-5)])
-    d = K.derive("af_is_ultra_rare", [af], lambda v: (v < 1e-4).astype(float), K.Propagation.STRICT)
+    af = _col("af_raw", [(S.OBSERVED, 0.0), (S.NOT_IN_SOURCE, None), (S.BAD_MAPPING, None), (S.OBSERVED, 1e-5)])
+    d = K.derive("af_is_ultra_rare", [af])
     assert d.column.values[0] == 1 and d.column.values[3] == 1 and np.isnan(d.column.values[1:3]).all()
-    other = K.ObservationColumn.from_rows("b", O.SourceIdentity("dataset:b", SHA), K.Population("p2", ("r1",)),
-                                          {"r1": (S.OBSERVED, 1.0)})
+    ins = _col("is_insertion", [(S.OBSERVED, 1.0)] * 4)
+    other = _col("is_deletion", [(S.OBSERVED, 0.0)], pop=K.Population("p2", ("r1",)))
     with pytest.raises(ValueError, match="different populations"):
-        K.derive("x", [af, other], lambda a, b: a + b, K.Propagation.STRICT)
-    with pytest.raises(ValueError, match="one function"):
-        K.derive("x", [af], [lambda v: v], K.Propagation.STRICT)
+        K.derive("is_indel", [ins, other])
+    with pytest.raises(ValueError, match="one function of all inputs"):
+        K.DerivedRule(("x",), K.Propagation.STRICT, "s", ("f",))
+    with pytest.raises(ValueError, match="one indicator per input"):
+        K.DerivedRule(("x", "y"), K.Propagation.PARTIAL_COUNT, "s", ("f",))
 
 
 def test_every_derived_feature_of_the_census_has_exactly_one_declared_rule():

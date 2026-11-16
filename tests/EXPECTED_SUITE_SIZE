@@ -8424,4 +8424,25 @@
 #   witnesses removed with their repaired defects; GNN-EARLY-STOP-ROW-SPLIT-1 and GENE-FIELD-PROSE-1 added). +1 / -1 renamed
 #   in each of test_graph_identity.py (acceptance -> the consistency check) and test_graph_identity_record.py (the label
 #   authority -> the one-gene rule it measured). (tests_drift/: unchanged, 22.)
-9282
+# 2026-11-15  PACKAGE 1D, STAGE 1D-1c.1 (set "at", parts A and B; owner rulings 482cd291, 4bef3910, b937681e) -- the
+#   columns.py repairs and the allele-frequency materialiser. +54 / -0 by node identity (collected against main, 6f5ba69e). New
+#   files: +11 tests/unit/test_columns_repairs_1d1c1.py (the version-2 population identity: no newline collision, the
+#   identifier bound, version 1 verifiable and refusing what it cannot represent; exact-str identities; read-only copies taken
+#   before validation; non-array refusal; derivation lineage bound to inputs, rule and code and required exactly for derived
+#   columns; the source-column digest unchanged; derive(name, inputs) from the registry with declared inputs, retired features and
+#   model outputs refused; every implementation equal to the production formula at its thresholds; module-level implementations);
+#   +25 tests/unit/test_allele_frequency_1d1c1.py (the strict identifier grammar against the legacy parse; malformed positions
+#   refused, never 0; frequencies outside [0, 1] refused, never clipped (4 cases); non-floating columns refused; duplicated keys
+#   refused, never first-wins; both logical sources registered; source states as source facts with details; Y and MT in their
+#   own columns with their own statistics; every row in every column; the cohort identity equal to its coordinates; an
+#   unadjudicated allele form refused; label-blind; the unknown-base treatment declared, never assumed; selection, claim and
+#   value separate and reconciling; Y and MT never selected; eligibility independent of frequency; reference evidence agreeing
+#   with the allele form; sensitivity arms that never rewrite the source; audit details unable to reach the model view; the
+#   identity bound to policy and evidence; the statistic declaration; the rare-flag description); +9
+#   tests/unit/test_af_repair_record.py (canonical form; the pilot's population and source; the pre-registered census and the
+#   partition; one legacy class per row; reconciled typed columns; label-blind and distinct arms; reference evidence for every
+#   row; consistent rare flags; bound to the code); +9 tests/unit/test_registered_defect_witnesses.py (one executable witness
+#   per registered gnomAD defect, each running the real builder or the current join). tests/unit/test_observation_columns.py:
+#   four tests rewritten to the new identity and derive signature, no test added or removed.
+#   tests/unit/test_admission_shadow.py: the shadow-mode lists extended, no test added or removed. (tests_drift/: unchanged, 22.)
+9336

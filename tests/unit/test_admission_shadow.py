@@ -236,10 +236,10 @@ def _imports(path: Path) -> set[str]:
 
 
 NEW_MODULES = ("admission", "observation", "lineage", "columns", "materialization", "absence_census", "graph_identity",
-               "labels", "population", "claims")
+               "labels", "population", "claims", "allele_frequency")
 #: Measurement scripts that may import the shadow modules: they fit no model and write no production artefact.
 DIAGNOSTIC_IMPORTERS = {"scripts/measure_1d1b2_pilots.py", "scripts/measure_1d1b3_graph_identity.py",
-                        "scripts/measure_1d1b4_population.py"}
+                        "scripts/measure_1d1b4_population.py", "scripts/measure_af_repair_1d1c1.py"}
 
 
 def test_shadow_mode_no_production_code_imports_the_new_modules():
@@ -259,7 +259,7 @@ def test_only_the_absence_census_consumes_the_feature_contract_and_it_is_classif
     sites = K.discover_sites(REPO)
     base = "src/genomic_variant_classifier/information_sources/"
     for name in ("admission", "observation", "lineage", "columns", "materialization", "graph_identity", "labels",
-                 "population", "claims"):
+                 "population", "claims", "allele_frequency"):
         assert f"{base}{name}.py" not in sites
     for site in (f"{base}absence_census.py", "scripts/measure_1d1b2_pilots.py"):
         assert ledger["consumer_sites"][site]["classes"] == ["diagnostic"], site
