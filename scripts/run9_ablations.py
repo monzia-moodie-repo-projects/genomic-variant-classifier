@@ -628,7 +628,11 @@ def main() -> int:
     p.add_argument(
         "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
     )
+    from genomic_variant_classifier.models.execution import add_execution_arguments, fit_context_from_arguments
+    add_execution_arguments(p)
     args = p.parse_args()
+    # Stage 1D-1c.1C (owner ruling aa999b96 decision B): what this run is, declared before any data is read.
+    fit_context = fit_context_from_arguments(args, "scripts/run9_ablations.py")
 
     logging.basicConfig(
         level=getattr(logging, args.log_level),
@@ -763,7 +767,7 @@ def main() -> int:
     # gene_symbol is passed (since set 1b): the calibration carve and the inner folds are gene-disjoint, as in the
     # mainline run, instead of the legacy label-stratified carve this harness used to fall back to.
     fit_t0 = time.perf_counter()
-    ensemble.fit(X_fit_abl, None, y_fit, gene_symbol=meta_fit["gene_symbol"])
+    ensemble.fit(X_fit_abl, None, y_fit, gene_symbol=meta_fit["gene_symbol"], authorization=fit_context)
     fit_sec = time.perf_counter() - fit_t0
     logger.info("Fit complete in %.1f min", fit_sec / 60)
     ensemble.save(args.output_dir / "models" / "ensemble.joblib")

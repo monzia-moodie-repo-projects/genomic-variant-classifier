@@ -84,7 +84,7 @@ class SurfaceRule:
 #: The measured rules. The anchors are the code that decides each surface's columns at 7cb70ec2 (main after PR #71).
 SURFACE_RULES: tuple[SurfaceRule, ...] = (
     SurfaceRule("feature_engineering", "engineered", CONTRACT_FILE,
-                "def engineer_features(df: pd.DataFrame) -> pd.DataFrame:",
+                "def engineer_features(df: pd.DataFrame, *,",
                 "the single feature builder; its output columns, measured by running it"),
     SurfaceRule("tabular_fit", "contract", "src/genomic_variant_classifier/data/real_data_prep.py",
                 "engineer_features output violates the TABULAR_FEATURES contract -- ",

@@ -18,6 +18,7 @@ from genomic_variant_classifier.containment import ContainmentError, QuarantineE
 from genomic_variant_classifier.models.variant_ensemble import (
     EnsembleConfig, VariantEnsemble, engineer_features,
 )
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 
 class _Raising(BaseEstimator, ClassifierMixin):
@@ -54,13 +55,13 @@ def _ensemble(tmp_path, bad):
 def test_refusal_inside_a_base_model_escapes_even_with_dropout_allowed(tmp_path, refusal):
     X, y = _data()
     with pytest.raises(refusal):
-        _ensemble(tmp_path, _Raising(refusal)).fit(X, None, y)
+        _ensemble(tmp_path, _Raising(refusal)).fit(X, None, y, authorization=EPOCH1_TEST_FIT)
 
 
 def test_control_ordinary_failure_is_dropped_under_dropout(tmp_path):
     # Proves the test above reaches the handler: an ordinary error there is DROPPED, not raised.
     X, y = _data()
-    ens = _ensemble(tmp_path, _Raising(ValueError)).fit(X, None, y)
+    ens = _ensemble(tmp_path, _Raising(ValueError)).fit(X, None, y, authorization=EPOCH1_TEST_FIT)
     assert "bad" in ens.dropped_models_
     # Dropped for the PLANTED error -- not for some earlier failure that never reached fit.
     assert ens.dropped_models_["bad"].startswith("ValueError: planted inside a base model")

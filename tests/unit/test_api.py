@@ -39,6 +39,7 @@ from genomic_variant_classifier.api.attribution import (
     served_model_roster,
 )
 from tests.unit._prediction_support import FixedProba, blend_pipeline
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 
 # ---------------------------------------------------------------------------
@@ -493,7 +494,7 @@ class TestInferencePipeline:
         # model takes the sequence branch. Before Part 3 (ff97c34) the signature
         # demanded a value and this test fabricated one -- a pd.Series, which is
         # also the wrong shape (roadmap 6.28: production passes a 2-column frame).
-        ens.fit(X_tab, None, y)
+        ens.fit(X_tab, None, y, authorization=EPOCH1_TEST_FIT)
 
         pipe = InferencePipeline.from_variant_ensemble(ens)
         out  = tmp_path / "pipeline.joblib"
@@ -554,7 +555,7 @@ class TestInferencePipeline:
         X_tab = pd.DataFrame(rng.random((20, len(TABULAR_FEATURES))),
                              columns=TABULAR_FEATURES)
         y = pd.Series([0] * 10 + [1] * 10)
-        ens.fit(X_tab, None, y)
+        ens.fit(X_tab, None, y, authorization=EPOCH1_TEST_FIT)
 
         pipe = InferencePipeline.from_variant_ensemble(ens)
         assert pipe.preprocessor_ is not None, (
@@ -592,7 +593,7 @@ class TestInferencePipeline:
         rng = np.random.default_rng(11)
         X_tab = pd.DataFrame(rng.random((20, len(TABULAR_FEATURES))),
                              columns=TABULAR_FEATURES)
-        ens.fit(X_tab, None, pd.Series([0] * 10 + [1] * 10))
+        ens.fit(X_tab, None, pd.Series([0] * 10 + [1] * 10), authorization=EPOCH1_TEST_FIT)
 
         pipe = InferencePipeline.from_variant_ensemble(ens)
         pipe.preprocessor_ = None          # a pipeline pickled before 2026-08-11

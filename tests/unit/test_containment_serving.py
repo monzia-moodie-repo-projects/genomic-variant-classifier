@@ -26,6 +26,7 @@ from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 from tests.unit._admission_support import AllowForTests, register  # tests/unit is a package: no sys.path entry (2026-11-05)
 from tests.unit._prediction_support import blend_pipeline
 from genomic_variant_classifier.prediction_contract import ContractError
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 Q0 = QUARANTINED_FEATURES[0]
 
@@ -223,16 +224,16 @@ class TestFittedModelBoundary:
     def test_fit_refuses_a_cached_frame_with_a_quarantined_column(self):
         X, y, g = self._data()
         with pytest.raises(ContainmentError, match="suspended"):
-            self._light().fit(X.assign(**{Q0: 50.0}), None, y, gene_symbol=g)
+            self._light().fit(X.assign(**{Q0: 50.0}), None, y, gene_symbol=g, authorization=EPOCH1_TEST_FIT)
 
     def test_fit_refuses_an_anonymous_array(self):
         X, y, g = self._data()
         with pytest.raises(ContainmentError, match="named columns"):
-            self._light().fit(X.to_numpy(), None, y, gene_symbol=g)
+            self._light().fit(X.to_numpy(), None, y, gene_symbol=g, authorization=EPOCH1_TEST_FIT)
 
     def test_predict_requires_the_fitted_names_in_the_fitted_order(self):
         X, y, g = self._data()
-        ens = self._light().fit(X, None, y, gene_symbol=g)
+        ens = self._light().fit(X, None, y, gene_symbol=g, authorization=EPOCH1_TEST_FIT)
         assert ens.tabular_columns_ == ("a", "b", "c")
         assert ens.feature_names_ == ["logistic_regression"]     # the pre-existing stacking-order list, untouched
         assert ens.predict_proba(X).shape == (len(X), 2)
@@ -243,7 +244,7 @@ class TestFittedModelBoundary:
 
     def _saved(self, tmp_path, members=("logistic_regression",)):
         X, y, g = self._data()
-        ens = self._light(members).fit(X, None, y, gene_symbol=g)
+        ens = self._light(members).fit(X, None, y, gene_symbol=g, authorization=EPOCH1_TEST_FIT)
         path = tmp_path / "ens.joblib"
         ens.save(path)
         return X, ens, path
@@ -302,7 +303,7 @@ class TestFittedModelBoundary:
 
     def test_save_is_all_or_nothing(self, tmp_path):
         X, y, g = self._data()
-        ens = self._light().fit(X, None, y, gene_symbol=g)
+        ens = self._light().fit(X, None, y, gene_symbol=g, authorization=EPOCH1_TEST_FIT)
         ens.trained_models_[next(iter(ens.trained_models_))] = lambda: None     # unpicklable member
         path = tmp_path / "ens.joblib"
         with pytest.raises(RuntimeError, match="Ensemble NOT saved"):

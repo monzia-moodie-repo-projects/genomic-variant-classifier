@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from genomic_variant_classifier.models.variant_ensemble import EnsembleConfig, VariantEnsemble
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 FAST = {"random_forest", "xgboost", "lightgbm", "logistic_regression"}
 
@@ -47,7 +48,7 @@ def test_per_model_checkpoints_written(tmp_path):
     # X_seq=None: the FAST filter above drops every model but the fast tabular
     # ones, so nothing takes the sequence branch. The old placeholder carried
     # the comment "inert" -- since Part 3 (ff97c34) the code can say it instead.
-    ens.fit(X_tab, None, y)
+    ens.fit(X_tab, None, y, authorization=EPOCH1_TEST_FIT)
 
     md = cfg.model_dir
     for name in trained:

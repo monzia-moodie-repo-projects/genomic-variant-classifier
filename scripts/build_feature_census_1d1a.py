@@ -624,6 +624,9 @@ SITES = {
                                                                              "source-absence census: executes the builder "
                                                                              "on absent, NaN and varied frames"),
     "src/genomic_variant_classifier/information_sources/consumers.py": (["diagnostic"], "this census's measurement"),
+    "src/genomic_variant_classifier/models/feature_semantics.py": (["definition"], "defines the feature-semantics "
+                                                                   "epochs from the contract (epoch 2 is epoch 1 with the "
+                                                                   "registered rename); fits and serves nothing itself"),
     "src/genomic_variant_classifier/models/gnn.py": (["definition"], "defines the GNN graph and dataset builders"),
     "src/genomic_variant_classifier/models/hetero_gnn_scorer.py": (["definition"], "defines the hetero-GNN builders"),
     "src/genomic_variant_classifier/models/variant_ensemble.py": (["definition", "surface:feature_engineering",
@@ -905,6 +908,16 @@ DEFECTS = [
      ['af_raw', 'af_log10', 'af_is_absent', 'af_is_ultra_rare', 'af_is_rare', 'af_is_common'],
      [code("scripts/build_gnomad_ymt_af.py", "def fetch_y_af(clean_genes, dataset: str, pause: float = 6.0) -> dict:"),
       code("scripts/build_gnomad_parquet.py", "if loci_filter is not None and locus not in loci_filter:"), "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    ("LOEUF-SENTINEL-1", "(Registered at stage 1D-1c.1C, owner ruling aa999b96, audit R2.) The model feature loeuf is "
+     "filled with 1.0 -- an assertion of loss-of-function tolerance -- when its source is absent, while "
+     "gene_is_constrained, a STRICT function of the same LOEUF, is three-valued (NaN): one derivation family with a "
+     "fabricated root and an unknown dependent, so it cannot be imputed jointly. Measured 2026-11-16 on Run 15's "
+     "meta_train.parquet: loeuf has no NaN but 57,556 rows at exactly 1.0 against 34,688 in the whole (0.98, 1.02) "
+     "neighbourhood (1,866 distinct values); rows at 1.0 are 24.1% pathogenic against 13.5% elsewhere -- an upstream "
+     "sentinel carrying ascertainment. Repair: the constraint stage (1D-1c.2-1c.5).",
+     ["loeuf", "gene_is_constrained"],
+     [ve('feats["loeuf"] = ('),
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_loeuf_sentinel_1():")]),
     ("GNOMAD-MT-AC-HOM-NULL-AS-ZERO-1", "build_gnomad_ymt_af.py computes the MT value as (ac_hom or 0) / an, so a "
      "missing homoplasmic count becomes a homoplasmic fraction of 0.0, indistinguishable from a genuine zero (ac_het "
      "was not kept). 660 of the 2,731 MT records are exactly 0; 111 Run 15 MT rows match one, 75 of them pathogenic "

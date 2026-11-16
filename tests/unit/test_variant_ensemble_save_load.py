@@ -28,6 +28,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +171,7 @@ def test_ensemble_save_load_with_cnn1d(synthetic_data, tmp_path):
         k: v for k, v in ens.base_estimators.items() if k in keep
     }
 
-    ens.fit(X_tab, X_seq, y)
+    ens.fit(X_tab, X_seq, y, authorization=EPOCH1_TEST_FIT)
 
     # After fit(), trained_models_ must contain both. A base model that fails
     # out-of-fold prediction has been a HARD STOP since 2026-07-15 (RuntimeError

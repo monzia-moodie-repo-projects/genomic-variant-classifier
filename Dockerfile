@@ -133,6 +133,10 @@ COPY src/genomic_variant_classifier/model_admission.py  src/genomic_variant_clas
 # mc_dropout, variant_ensemble) import prediction_contract.py -- the row and probability-block contract -- at module
 # level. One file, as above.
 COPY src/genomic_variant_classifier/prediction_contract.py  src/genomic_variant_classifier/prediction_contract.py
+# STAGE 1D-1c.1C (2026-11-16). models/model_preprocessing.py binds each fitted member projection to the code closures it
+# executes, through code_identity.py (standard library only; census.py re-exports it). The projection re-reads the
+# models/ source files above at every transform, so this image must keep shipping source, not bytecode alone. One file.
+COPY src/genomic_variant_classifier/code_identity.py  src/genomic_variant_classifier/code_identity.py
 COPY src/genomic_variant_classifier/__init__.py  src/genomic_variant_classifier/__init__.py
 
 # Model artefact placeholder — override at runtime via bind-mount or COPY

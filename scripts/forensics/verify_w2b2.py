@@ -42,7 +42,7 @@ def main() -> int:
     chk("fit branch external-cal (X_tab_cal_ext)", "X_tab_cal_ext=X_tune," in src)
     chk("fit branch gene_symbol_cal_ext", "gene_symbol_cal_ext=genes_tune," in src)
     chk("fit branch passes gene_symbol", "gene_symbol=genes_train," in src)
-    chk("legacy fit preserved", "        ensemble.fit(X_train, X_seq_train, y_train)" in src)
+    chk("legacy fit preserved", "        ensemble.fit(X_train, X_seq_train, y_train, authorization=fit_context)" in src)
     print("-"*78)
     try:
         py_compile.compile(str(tp), doraise=True); chk("train.py compiles", True)

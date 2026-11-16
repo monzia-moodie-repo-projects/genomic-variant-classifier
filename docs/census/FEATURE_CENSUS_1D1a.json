@@ -1,7 +1,7 @@
 {
   "authority": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "file_sha256_at_capture": "626ac4db7a6740de89f65a335dd4040df8adae4fdf73920c5f7619520c5df8c7",
+    "file_sha256_at_capture": "7e8540864a80594af6b63dab80b74bfcd5ea7b16973eeb322ff4fd5a8ab8ea28",
     "path": "src/genomic_variant_classifier/models/variant_ensemble.py"
   },
   "consumer_sites": {
@@ -169,6 +169,15 @@
       "reason": "this census's measurement",
       "symbols": [
         "engineer_features"
+      ]
+    },
+    "src/genomic_variant_classifier/models/feature_semantics.py": {
+      "classes": [
+        "definition"
+      ],
+      "reason": "defines the feature-semantics epochs from the contract (epoch 2 is epoch 1 with the registered rename); fits and serves nothing itself",
+      "symbols": [
+        "TABULAR_FEATURES"
       ]
     },
     "src/genomic_variant_classifier/models/gnn.py": {
@@ -3951,7 +3960,7 @@
     "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::HeteroGNNTrainer": "73b3078b1ff338b259819cc1545f96a675f37e159b0ca34e083170f745b06264",
     "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::build_hetero_focal_graph": "17d0f4b79723a8322595c41bcc80808b100be797e81066429d302d0163dce669",
     "src/genomic_variant_classifier/models/hetero_gnn_scorer.py::load_kg_edge_specs": "bfe77eb2f61fd0cd91c0b6b35bc42d7b7de56968761ab07c6c14e0c7d858a31b",
-    "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features": "54d79e0936c460ec1da164501617af6fc6e2fd9c1120b9a357d79adc84901b2b",
+    "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features": "8ec7841073291a68be9b103808997d3c9aa90920bfb3aac2ee36bfd4fdb466cc",
     "src/genomic_variant_classifier/pipelines/rna_pipeline.py::RNASpliceIsoformPipeline": "a124193a5ab553b1eb1ddad9eceab3250849b2000efd70cd837281d5f9b594d5"
   },
   "registered_defects": [
@@ -4444,6 +4453,18 @@
     },
     {
       "affects": [
+        "loeuf",
+        "gene_is_constrained"
+      ],
+      "evidence_refs": [
+        "code:src/genomic_variant_classifier/models/variant_ensemble.py#feats[\"loeuf\"] = (",
+        "code:tests/unit/test_registered_defect_witnesses.py#def test_witness_loeuf_sentinel_1():"
+      ],
+      "id": "LOEUF-SENTINEL-1",
+      "statement": "(Registered at stage 1D-1c.1C, owner ruling aa999b96, audit R2.) The model feature loeuf is filled with 1.0 -- an assertion of loss-of-function tolerance -- when its source is absent, while gene_is_constrained, a STRICT function of the same LOEUF, is three-valued (NaN): one derivation family with a fabricated root and an unknown dependent, so it cannot be imputed jointly. Measured 2026-11-16 on Run 15's meta_train.parquet: loeuf has no NaN but 57,556 rows at exactly 1.0 against 34,688 in the whole (0.98, 1.02) neighbourhood (1,866 distinct values); rows at 1.0 are 24.1% pathogenic against 13.5% elsewhere -- an upstream sentinel carrying ascertainment. Repair: the constraint stage (1D-1c.2-1c.5)."
+    },
+    {
+      "affects": [
         "af_raw"
       ],
       "evidence_refs": [
@@ -4566,7 +4587,7 @@
     },
     "evaluation": {
       "anchor": "self.tabular_columns_ = tuple(X_tab.columns)",
-      "line": 2994,
+      "line": 3091,
       "note": "prediction and evaluation consume exactly the columns recorded at fit",
       "observed": [
         "af_1kg_afr",
@@ -4673,8 +4694,8 @@
       "rule": "none"
     },
     "feature_engineering": {
-      "anchor": "def engineer_features(df: pd.DataFrame) -> pd.DataFrame:",
-      "line": 756,
+      "anchor": "def engineer_features(df: pd.DataFrame, *,",
+      "line": 776,
       "note": "the single feature builder; its output columns, measured by running it",
       "observed": [
         "af_1kg_afr",
@@ -4774,7 +4795,7 @@
     },
     "gnn_node_attributes": {
       "anchor": "c for c in X_train.columns if c != \"gnn_score\"",
-      "line": 667,
+      "line": 672,
       "note": "gene-level means of these columns over the training rows are the STRING-GNN node attributes",
       "observed": [
         "af_1kg_afr",
@@ -4873,7 +4894,7 @@
     },
     "hetero_gnn_node_attributes": {
       "anchor": "c for c in X_train.columns if c not in (\"gnn_score\", \"hetero_gnn_score\")",
-      "line": 892,
+      "line": 897,
       "note": "node attributes of the heterogeneous knowledge-graph GNN",
       "observed": [
         "af_1kg_afr",
@@ -4971,7 +4992,7 @@
     },
     "inference": {
       "anchor": "INFERENCE_FEATURE_COLUMNS: list[str] = list(TABULAR_FEATURES)",
-      "line": 84,
+      "line": 92,
       "note": "the inference pipeline renders the contract (or the fitted scaler's feature_names_in_)",
       "observed": [
         "af_1kg_afr",

@@ -53,9 +53,17 @@ from genomic_variant_classifier.models.combiner import (
     SELECTED_PREDICTOR_SCOPE,
     MemberSlot,
     member_draw_schedule,
+    member_execution_sha256,
     member_modalities,
     require_supported_modalities,
     score_once,
+)
+from genomic_variant_classifier.models.feature_semantics import FeatureSemantics, tabular_features
+from genomic_variant_classifier.models.member import (
+    SERVABLE_PROTOCOLS,
+    ProjectionProtocol,
+    is_projected,
+    projected_member_of,
 )
 from genomic_variant_classifier.models.disagreement import draw_decomposition
 from genomic_variant_classifier.models.variant_ensemble import TABULAR_FEATURES, engineer_features
@@ -370,6 +378,8 @@ class InferencePipeline:
         gnn_scorer=None,
         preprocessor=None,
         research_candidates: Optional[Mapping[str, Any]] = None,
+        feature_semantics: Optional[str] = None,
+        fit_context: Optional[Mapping[str, Any]] = None,
     ) -> None:
         self.trained_models = trained_models
         self.combiner = combiner
@@ -385,8 +395,13 @@ class InferencePipeline:
         #: Separately identified candidates (for example the logistic stacker) carried for research only. No
         #: method of this class calls them (gate G3.3).
         self.research_candidates = dict(research_candidates or {})
+        #: Stage 1D-1c.1C: the semantic epoch the members were fitted on (rendering uses it) and the fit context the
+        #: ensemble recorded. None for both on a pipeline built from an epoch-1 ensemble that predates them.
+        self.feature_semantics = None if feature_semantics is None else FeatureSemantics(feature_semantics).value
+        self.fit_context = None if fit_context is None else dict(fit_context)
         self._require_admissible()   # CONTAINMENT: a quarantine-era model cannot even be assembled
         self._require_combiner()     # the declared blend, the full roster, supported modalities (G3)
+        self._require_servable_projection()
 
     # ------------------------------------------------------------------
     # Factory
@@ -433,6 +448,8 @@ class InferencePipeline:
             # records the distinction; it does not paper over it.
             preprocessor=getattr(ensemble, "preprocessor_", None),
             research_candidates={"logistic_stacker": ensemble.meta_learner},
+            feature_semantics=getattr(ensemble, "feature_semantics_", None),
+            fit_context=getattr(ensemble, "fit_context_", None),
         )
         declared = [str(f) for f in pipeline._declared_features()]
         if feature_names is not None and [str(f) for f in feature_names] != declared:
@@ -448,11 +465,42 @@ class InferencePipeline:
     # Containment boundary (serving, loading, construction)
     # ------------------------------------------------------------------
 
+    def _semantics(self) -> FeatureSemantics:
+        """The epoch this pipeline renders: recorded at construction; an object pickled before it existed is epoch 1."""
+        value = getattr(self, "feature_semantics", None)
+        return FeatureSemantics.V1_LEGACY if value is None else FeatureSemantics(value)
+
+    def _projected_members(self) -> list[str]:
+        return [name for name, model in (getattr(self, "trained_models", None) or {}).items() if is_projected(model)]
+
+    def _require_servable_projection(self) -> None:
+        """A projected pipeline serves exactly its members' fitted projections (MEMBER-PROJECTION-SERVING-DRIFT-1):
+        epoch 2, no global serving policy, and a servable protocol. The availability-blinded research protocol is
+        refused: its surrogate for an unobserved frequency is a draw, not an estimate."""
+        projected = self._projected_members()
+        context = getattr(self, "fit_context", None) or {}
+        protocol = context.get("projection")
+        if protocol is not None and ProjectionProtocol(protocol) not in SERVABLE_PROTOCOLS:
+            raise ContractError(f"a predictor fitted under the {protocol} projection protocol is research only and is "
+                                "never served")
+        if not projected:
+            return
+        if self._semantics() is not FeatureSemantics.V2_OBSERVED_AF:
+            raise ContractError("projected members require epoch-2 rendering; this pipeline records "
+                                f"{self._semantics().value}")
+        if getattr(self, "preprocessor_", None) is not None:
+            raise ContractError("a projected pipeline carries no global missing-value policy; its members carry theirs")
+        if getattr(self, "scaler", None) is not None:
+            raise ContractError("a projected pipeline applies no external scaler; each member owns its input rendering")
+        unprojected = [n for n in self.trained_models if n not in projected and n not in ("cnn_1d",)]
+        if unprojected:
+            raise ContractError(f"members {unprojected} are unprojected beside projected members; one fit, one protocol")
+
     def _declared_features(self) -> list[str]:
         """The feature list the fitted models consume: the scaler's (authoritative) or the contract's."""
         scaler_features = getattr(self.scaler, "feature_names_in_", None) if self.scaler is not None else None
         if scaler_features is None:
-            return list(INFERENCE_FEATURE_COLUMNS)
+            return list(tabular_features(self._semantics()))
         # numpy string subtypes -> str; any NON-string name is left as is so the contract check refuses it.
         return [str(c) if isinstance(c, str) else c for c in scaler_features]
 
@@ -506,11 +554,20 @@ class InferencePipeline:
         matching member NAMES is necessary and never sufficient.
         """
         spec = self._require_combiner()
-        return canonical_digest("gvc.predictor-contract.v1", {
+        value = {
             "combiner_sha256": spec.digest,
             "declared_features": [str(f) for f in self._declared_features()],
             "rendering": self.preprocessing_identity(),
-            "class_order": [0, 1], "positive_class": 1})
+            "class_order": [0, 1], "positive_class": 1}
+        # Stage 1D-1c.1C: a pipeline that records its semantic epoch and fit context binds both, and each projected
+        # member's fitted projection. A pipeline that records neither keeps its earlier identity byte for byte.
+        if getattr(self, "feature_semantics", None) is not None or getattr(self, "fit_context", None) is not None:
+            value["feature_semantics"] = self._semantics().value
+            value["fit_context_digest"] = (getattr(self, "fit_context", None) or {}).get("digest")
+            value["member_projection_identities"] = {
+                n: projected_member_of(self.trained_models[n]).projection_.identity_
+                for n in sorted(self._projected_members())}
+        return canonical_digest("gvc.predictor-contract.v1", value)
 
     def _require_combiner(self) -> ConvexBlendSpec:
         """The declared blend over exactly the held members, in its fitted order, all executable here (G3)."""
@@ -560,6 +617,9 @@ class InferencePipeline:
         policy has no preprocessor_; X is returned unchanged (an estimator that cannot consume NaN raises its own
         error) and every record carries preprocessing_status "absent_legacy_artifact_passed_through".
         """
+        if self._projected_members():
+            # Each member executes its own fitted projection inside predict_proba; nothing is applied here.
+            return X, "fitted_member_projections"
         preproc = getattr(self, "preprocessor_", None)
         if preproc is None:
             residual = [c for c in X.columns if X[c].isna().any()]
@@ -591,6 +651,7 @@ class InferencePipeline:
         """Render once, call each member once, apply the declared blend once; every payload identity-bound."""
         self._require_admissible()
         spec = self._require_combiner()
+        self._require_servable_projection()
         rows = rows_from_frame(df)
         enriched = df.copy()
 
@@ -612,7 +673,7 @@ class InferencePipeline:
                 )
                 enriched["gnn_score"] = 0.5
 
-        X = engineer_features(enriched)
+        X = engineer_features(enriched, semantics=self._semantics())
         X, preprocessing_status = self._apply_missing_value_policy(X)
         frame, model_features = self._model_matrix(X)
         try:
@@ -628,7 +689,8 @@ class InferencePipeline:
         bindings, draw_ids = [], []
         for slot in spec.members:
             model = self.trained_models[slot.name]
-            rendering = "named_dataframe" if slot.name == "catboost" else "ndarray"
+            rendering = ("member_projection_named_canonical_frame" if is_projected(model)
+                         else "named_dataframe" if slot.name == "catboost" else "ndarray")
             bindings.append(Binding(
                 producer_sha256=slot.artifact_sha256,
                 input_contract_sha256=canonical_digest("gvc.member-input-contract.v1", {
@@ -637,16 +699,14 @@ class InferencePipeline:
                 draw_schedule_sha256=canonical_digest("gvc.member-draw-schedule.v1", {
                     "member": slot.name, "schedule": self._member_schedule(slot.name, model)}),
                 ordered_input_sha256=ordered_input,
-                execution_sha256=canonical_digest("gvc.member-execution.v1", {
-                    "adapter": "gvc.inference-pipeline.member-adapter.v1", "member": slot.name,
-                    "served_class": f"{type(model).__module__}.{type(model).__qualname__}",
-                    "rendering": rendering})))
+                execution_sha256=member_execution_sha256(
+                    "gvc.inference-pipeline.member-adapter.v1", slot.name, model, rendering)))
             draw_ids.append(f"{slot.name}:single_evaluation")
         slots = {m.name: m for m in spec.members}
         expected = dict(zip(spec.member_names, zip(bindings, draw_ids)))
 
         def predict_member(name: str, model: Any) -> tuple[MemberSlot, ProbabilityBlock]:
-            X_input = frame if name == "catboost" else X_np
+            X_input = frame if (name == "catboost" or is_projected(model)) else X_np
             values = model.predict_proba(X_input)
             _positive, classes, _conversion = positive_column(model, values, len(rows))
             binding, draw_id = expected[name]
@@ -698,6 +758,7 @@ class InferencePipeline:
 
         self._require_admissible()   # never export a quarantine-era pipeline
         self._require_combiner()     # never export a pipeline without its declared, computable blend
+        self._require_servable_projection()
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(self, path)
@@ -735,6 +796,7 @@ class InferencePipeline:
             raise TypeError(f"Expected InferencePipeline, got {type(obj)}")
         obj._require_admissible()
         obj._require_combiner()
+        obj._require_servable_projection()
         if tuple(obj._declared_features()) != tuple(record.feature_names):
             raise ContainmentError("the loaded pipeline's features differ from its registry record")
         # EXACT ONLY (owner ruling 2026-11-07, decision 38f15c7a). A declared serving projection explains a

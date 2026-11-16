@@ -47,6 +47,7 @@ from genomic_variant_classifier.prediction_contract import (
     select_original_rows,
 )
 from tests.unit._prediction_support import FixedProba, WidthSensitive, blend_pipeline, blend_spec
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 D = canonical_digest("test.dataset", {"n": 1})
 U = canonical_digest("test.unit", {"unit": "whole_variant"})
@@ -447,7 +448,7 @@ def _fitted_two_member_ensemble(tmp_path=None):
     ens = VariantEnsemble(EnsembleConfig(n_folds=2, model_dir=tmp_path))
     ens.base_estimators = {"logistic_regression": LogisticRegression(max_iter=200),
                            "random_forest": RandomForestClassifier(n_estimators=15, random_state=0)}
-    ens.fit(X, None, y)
+    ens.fit(X, None, y, authorization=EPOCH1_TEST_FIT)
     return ens, X, y
 
 

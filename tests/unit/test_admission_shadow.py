@@ -240,19 +240,30 @@ NEW_MODULES = ("admission", "observation", "lineage", "columns", "materializatio
 #: Measurement scripts that may import the shadow modules: they fit no model and write no production artefact.
 DIAGNOSTIC_IMPORTERS = {"scripts/measure_1d1b2_pilots.py", "scripts/measure_1d1b3_graph_identity.py",
                         "scripts/measure_1d1b4_population.py", "scripts/measure_af_repair_1d1c1.py"}
+#: Stage 1D-1c.1C (owner ruling aa999b96) ends shadow mode for exactly two authorities, imported by exactly one
+#: production module: the regime vocabulary and the AF arms (the experiment declaration reuses them rather than
+#: restating them). models/execution.py is a launcher module, outside the inference service's import closure; the
+#: models that serving imports reach no information-source module (tests/unit/test_docker_image_covers_the_api.py).
+PRODUCTION_IMPORTERS = {
+    "src/genomic_variant_classifier/models/execution.py": {"admission", "allele_frequency"},
+}
 
 
-def test_shadow_mode_no_production_code_imports_the_new_modules():
+def test_only_declared_code_imports_the_information_source_modules():
     package = REPO / "src/genomic_variant_classifier/information_sources"
-    new = {f"genomic_variant_classifier.information_sources.{m}" for m in NEW_MODULES}
-    users = []
+    prefix = "genomic_variant_classifier.information_sources."
+    new = {f"{prefix}{m}" for m in NEW_MODULES}
+    users: dict[str, set[str]] = {}
     for root in ("src", "scripts"):
         for path in sorted((REPO / root).rglob("*.py")):
             if path.parent == package:
                 continue
-            if _imports(path) & new:
-                users.append(path.relative_to(REPO).as_posix())
-    assert set(users) == DIAGNOSTIC_IMPORTERS
+            hit = _imports(path) & new
+            if hit:
+                users[path.relative_to(REPO).as_posix()] = {m[len(prefix):] for m in hit}
+    assert set(users) == DIAGNOSTIC_IMPORTERS | set(PRODUCTION_IMPORTERS)
+    for rel, allowed in PRODUCTION_IMPORTERS.items():
+        assert users[rel] == allowed, (rel, users[rel])
 
 
 def test_only_the_absence_census_consumes_the_feature_contract_and_it_is_classified_diagnostic(ledger):

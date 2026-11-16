@@ -1,3 +1,65 @@
+## 2026-11-16 (package 1D, stage 1D-1c.1C, set "au") -- the fitted member owns its projection; the roadmap's second succession
+
+Owner ruling aa999b96 (both parts; the revised ruling governs where they differ), audited with measurements on the code and
+on Run 15's data (AUDIT_OF_RULING_1D1c1C_2026-11-16.md, refinements R1-R9). No model is fitted on real data; no scientific
+fit is reachable.
+
+- models/feature_semantics.py (new): two feature-semantics epochs, never mixed. `gvc.features/1` is the historical builder,
+  unchanged and still the default. `gvc.features/2` makes the allele-frequency family three-valued (NaN in all six features
+  where the frequency was not observed) and renames af_is_absent to af_is_observed_zero through an explicit translation to
+  its census identity (the census is not regenerated). The AF family is the registry's live STRICT dependents of af_raw; its
+  formulas are in-module, shared by the builder and the projection, and proven identical to columns.DERIVED_RULES'
+  registered implementations in syntax tree and bit for bit (not imported: columns.py reaches the data layer, which the API
+  image does not ship, and its implementations are sealed in derivation identities). roster_without_family is the AF-free
+  arm: the whole family removed; the registry is measured to hold no other dependent of it.
+- engineer_features(df, semantics=...): epoch 2 refuses an absent allele_freq column, a string, a boolean, an infinite or
+  out-of-[0, 1] value; never clips. Every other feature is identical to epoch 1 (tested).
+- models/model_preprocessing.py, schema version 2 (version 1 kept for its artifacts): MemberProjection, fitted inside each
+  member on exactly that member's fitting rows (every out-of-fold clone and the final fit). The family is projected jointly
+  and renamed to model-projected names (af_model_*), so an imputed zero is never an observed zero; the canonical family is
+  checked exactly against its derivation on every fit and transform; no availability indicator; undeclared missingness
+  fails closed. Modes: native NaN, fold median, and the availability-blinded draw (research only; a deterministic
+  content-keyed draw from the fold's observed values). The identity binds the fitted statistic in binary64 hexadecimal, the
+  families and the code (symbol closures of the projection, the derivation and every formula), re-checked at every transform.
+- code_identity.py (new, standard library only): the canonical bytes and the symbol-closure digest, moved verbatim from
+  information_sources/census.py, which re-exports them, so the models layer binds code without importing the census.
+- models/member.py (new): ProjectedMember (one registered adapter; renders an ndarray, or a named frame for CatBoost;
+  validates every probability matrix through prediction_contract.positive_column); ESTIMATOR_CAPABILITIES (measured, and
+  re-measured by the suite on every live roster member); ProjectionProtocol P (capability-aware), C (common fold median), B
+  (availability-blinded, never served) and the legacy protocol. The isotonic calibrator stays outermost; cnn_1d is never
+  wrapped. combiner.py resolves the adapter for the draw schedule, the prediction stage (version 2 for a projected member)
+  and the execution identity; every legacy digest is byte-identical (tested).
+- models/fit_context.py (new): FitContext through named constructors only (historical_replay, engineering_qualification);
+  no scientific context can be constructed at this stage. models/execution.py (new, launchers only): InformationRegime built
+  from admission.REGIMES; ExperimentIntent from a manifest with exactly its keys; scientific_fit_context(intent), refused,
+  naming the five readiness gates without a certifying authority; launcher flags --execution-protocol and
+  --information-regime, checked before any data is read.
+- VariantEnsemble.fit requires authorization=FitContext (every fit call site in the launchers and tests updated). The matrix's epoch must equal the context's;
+  a projected fit wraps the tabular members, routes the canonical frame to them at every dispatch site, fits no global
+  missing-value policy (preprocessor_ is None) and records member_projections_; fit_context_, feature_semantics_ and
+  member_projections_ are saved and loaded. InferencePipeline renders with the recorded epoch, executes only the members'
+  own projections (preprocessing_status "fitted_member_projections"), refuses the blinded protocol, and binds the epoch, the
+  fit context and every projection identity into predictor_contract_sha256 (a pipeline recording neither keeps its digest).
+  Measured: serving equals offline prediction bit for bit; the out-of-fold surrogates inside the ensemble equal the
+  fold-training medians exactly; MC dropout and deep-ensemble draw schedules survive the adapter.
+- Measured on Run 15 (audit R1; scratchpad af_projection_diagnostics.py, through VariantEnsemble's own carve and folds): the
+  fold median ties 31 of 608,771 observed values, so P(unobserved | projected AF equals the median) = 0.99989 and a 20-tree
+  LightGBM recovers missingness from that one column at AUROC 0.99983; the availability-blinded draw gives 0.50487.
+- The API image: the inference service's static import closure is measured at 25 first-party modules, every one shipped
+  (the first integration reached 48 more through census.py and the admission authorities; repaired by the two light
+  modules above). The Dockerfile ships code_identity.py.
+- Registered in the census ledger, with an executable witness: LOEUF-SENTINEL-1 (57,556 Run 15 rows at exactly 1.0, 24.1%
+  pathogenic against 13.5%; 34 registered defects). Named, each with an executable witness in the new tests:
+  KAN-NONFINITE-MISSING-INPUT-1 (measured; repaired by the projection), MEMBER-PROJECTION-SERVING-DRIFT-1 (repaired for
+  projected fits), AF-OOF-PROJECTION-LEAKAGE-1 and AF-PROJECTION-OBSERVATION-CONFLATION-1 (each prevented by construction
+  and witnessed).
+- Roadmap: the second authority succession (owner ruling aa999b96, section 20): the predecessor preserved verbatim at
+  docs/archive/legacy/ROADMAP_2026-08-23_to_2026-11-16.md (118,940 bytes, blob 771a678b); a concise living roadmap;
+  test_roadmap_claims binds the archive chain. The bound is unchanged.
+- Tests: 9,336 -> 9,436 collected, +104 / -4 by node identity against main 1fba4cb8: five new files
+  (+95), the roadmap archive tests parametrized over both archives (+7 / -3), the shadow-importer test renamed (+1 / -1),
+  the LOEUF-SENTINEL-1 witness (+1).
+
 ## 2026-11-15 (package 1D, stage 1D-1c.1 A and B, set "at") -- the columns.py repairs and the allele-frequency materialiser
 
 Owner rulings 482cd291, 4bef3910 and b937681e (2026-11-14), audited with measurements on the real files
