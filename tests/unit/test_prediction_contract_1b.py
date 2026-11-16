@@ -650,7 +650,7 @@ def _run9(monkeypatch, argv):
     monkeypatch.syspath_prepend(str(REPO / "scripts"))
     sys.modules.pop("run9_ablations", None)
     import run9_ablations
-    monkeypatch.setattr(sys, "argv", ["run9_ablations.py", *argv])
+    monkeypatch.setattr(sys, "argv", ["run9_ablations.py", "--execution-protocol", "historical_replay", *argv])
     return run9_ablations
 
 
@@ -722,7 +722,8 @@ def _phase2(monkeypatch, tmp_path, argv):
     monkeypatch.syspath_prepend(str(REPO / "scripts"))
     sys.modules.pop("run_phase2_eval", None)
     import run_phase2_eval
-    monkeypatch.setattr(sys, "argv", ["run_phase2_eval.py", "--clinvar", str(clinvar), "--seq-windows", "",
+    monkeypatch.setattr(sys, "argv", ["run_phase2_eval.py", "--execution-protocol", "historical_replay",
+                                      "--clinvar", str(clinvar), "--seq-windows", "",
                                       "--skip-cnn", "--allow-dead-features", "--n-folds", "3", *argv])
     return run_phase2_eval, frames
 

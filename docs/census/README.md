@@ -152,3 +152,19 @@ code.
 Registered, with executable witnesses: the nine gnomAD extraction and join defects listed in the ledger (GNOMAD-*-1 added
 2026-11-15). `tests/unit/test_af_repair_record.py` refuses a record whose bound code has changed; the 1D-1b.2 pilot materialiser is
 not modified, so `PILOTS_1D1b2.json` still binds.
+
+## Stage 1D-1c.1C (set "au"): feature-semantics epochs and the member projection
+
+Owner ruling aa999b96 (2026-11-16), audited in AUDIT_OF_RULING_1D1c1C_2026-11-16.md. No record changes its meaning: the census
+semantic digest is unchanged (97f64bcb) and admission is unchanged (strict 55 / 47, conditional 65 / 37).
+
+- The census identity of every epoch-2 feature is read through `models/feature_semantics.py` `census_identity`: epoch 2 calls the
+  census entry `af_is_absent` by the name `af_is_observed_zero` (an explicit translation; the ledger is not regenerated).
+- The ledger cites `models/feature_semantics.py` as a definition site, and registers LOEUF-SENTINEL-1 (the model feature `loeuf`
+  is filled with 1.0, and Run 15's metadata holds 57,556 rows at exactly 1.0; it affects `loeuf` and `gene_is_constrained`),
+  with an executable witness. 34 registered defects.
+- `census.py`'s canonical bytes and symbol-closure digest moved, verbatim, to `src/genomic_variant_classifier/code_identity.py`
+  (standard library only); `census.py` re-exports every name, so each caller and each sealed module's import line is unchanged.
+  The models layer binds its fitted projections to code closures through it without importing the census.
+- `FEATURE_CENSUS_1D1a.json`, `SOURCE_ABSENCE_1D1b2.json` and `ADMISSION_SHADOW_1D1b2.json` are re-derived: the recorded file
+  digest, the surface anchors' lines, the builder's closure digest and the ledger digest each record cites.

@@ -17,6 +17,7 @@ from genomic_variant_classifier.models.variant_ensemble import (
     VariantEnsemble,
     EnsembleConfig,
 )
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 
 def _cohort(n_genes=30, seed=0):
@@ -91,7 +92,7 @@ def test_fit_accepts_gene_symbol_and_runs():
     # model is active and None is the honest input. The empty-string Series this
     # replaced was inert, but it was still a fabricated value satisfying a signature.
     ens = _light_ensemble()
-    ens.fit(X, None, pd.Series(y), gene_symbol=gene)
+    ens.fit(X, None, pd.Series(y), gene_symbol=gene, authorization=EPOCH1_TEST_FIT)
     assert ens.trained_models_
     proba = ens.predict_proba(X, None)
     assert proba.shape[0] == len(y)
@@ -101,5 +102,5 @@ def test_fit_accepts_gene_symbol_and_runs():
 def test_fit_backward_compatible_without_gene_symbol():
     X, y, gene = _cohort()
     ens = _light_ensemble()
-    ens.fit(X, None, pd.Series(y))  # gene_symbol=None -> legacy StratifiedKFold path
+    ens.fit(X, None, pd.Series(y), authorization=EPOCH1_TEST_FIT)  # gene_symbol=None -> legacy StratifiedKFold path
     assert ens.trained_models_

@@ -273,6 +273,8 @@ def parse_args() -> argparse.Namespace:
         metavar="DEV",
         help="Device for ESM-2 ('cpu','cuda','auto'). Default None -> cuda if available else cpu.",
     )
+    from genomic_variant_classifier.models.execution import add_execution_arguments
+    add_execution_arguments(p)
     return p.parse_args()
 
 
@@ -282,6 +284,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     _configure_logging()
     args = parse_args()
+    # Stage 1D-1c.1C (owner ruling aa999b96 decision B): what this run is, declared before any data is read.
+    from genomic_variant_classifier.models.execution import fit_context_from_arguments
+    fit_context = fit_context_from_arguments(args, "scripts/train.py")
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
@@ -580,9 +585,10 @@ def main() -> None:
             X_seq_cal_ext=X_seq_tune,
             y_cal_ext=y_tune,
             gene_symbol_cal_ext=genes_tune,
+            authorization=fit_context,
         )
     else:
-        ensemble.fit(X_train, X_seq_train, y_train)
+        ensemble.fit(X_train, X_seq_train, y_train, authorization=fit_context)
 
     # -- 5. Evaluate --------------------------------------------------------
     logger.info("PHASE 4: Evaluation")

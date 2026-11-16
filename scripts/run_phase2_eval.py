@@ -301,11 +301,16 @@ def parse_args(argv=None) -> argparse.Namespace:
              "RECORDED in the run artifacts, never hidden.",
     )
     p.add_argument("--output", default="outputs/phase2_eval")
+    from genomic_variant_classifier.models.execution import add_execution_arguments
+    add_execution_arguments(p)
     return p.parse_args(argv)
 
 
 def main() -> int:
     args = parse_args()
+    # Stage 1D-1c.1C (owner ruling aa999b96 decision B): what this run is, declared before any data is read.
+    from genomic_variant_classifier.models.execution import fit_context_from_arguments
+    fit_context = fit_context_from_arguments(args, "scripts/run_phase2_eval.py")
     t0 = time.perf_counter()
     outdir = Path(args.output)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -620,7 +625,7 @@ def main() -> int:
             # Level 2 (INCIDENT_2026-06-13): thread gene_symbol so the
             # stacking OOF uses gene-disjoint inner CV + per-fold train-only
             # n_pathogenic_in_gene recompute. Row-aligned with X_train (subsampled with it).
-            ensemble.fit(X_train, seq_tr, y_train, gene_symbol=meta_train["gene_symbol"])
+            ensemble.fit(X_train, seq_tr, y_train, gene_symbol=meta_train["gene_symbol"], authorization=fit_context)
             ensemble.save(_ensemble_path)
         writer.register_external("models/ensemble.joblib")
         for _member in ensemble.trained_models_:
@@ -1135,7 +1140,8 @@ def main() -> int:
             # gene_symbol is passed (set 1b), as for the main ensemble: the calibration carve and inner folds are
             # gene-disjoint inside the holdout experiment too.
             ensemble_ugh.fit(X_train_ugh, seq_tr_ugh, y_train_ugh,
-                             gene_symbol=_meta_train_ugh.iloc[sub_train_idx]["gene_symbol"].reset_index(drop=True))
+                             gene_symbol=_meta_train_ugh.iloc[sub_train_idx]["gene_symbol"].reset_index(drop=True),
+                             authorization=fit_context)
             elapsed_ugh = time.perf_counter() - t0_ugh
             logger.info("[UGH] training done in %.2fs", elapsed_ugh)
 

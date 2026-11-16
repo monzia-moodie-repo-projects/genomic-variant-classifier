@@ -78,6 +78,7 @@ __all__ = [
     "historical_parity",
     "member_artifact_sha256",
     "member_draw_schedule",
+    "member_execution_sha256",
     "member_modalities",
     "SELECTED_PREDICTOR_SCOPE",
     "prediction_stage_sha256",
@@ -172,12 +173,43 @@ def member_artifact_sha256(model: Any) -> str:
 ISOTONIC_STAGE_MEMBERS = frozenset({"xgboost", "lightgbm", "random_forest"})
 
 
+def _projected(model: Any):
+    """The registered ProjectedMember inside ``model`` (bare or under the isotonic calibrator), else None. Imported at
+    call time: models/member.py imports this package's modules."""
+    from genomic_variant_classifier.models.member import projected_member_of
+    return projected_member_of(model)
+
+
 def prediction_stage_sha256(name: str, model: Any) -> str:
-    """Identity of the prediction stage a member serves: wrapper class and calibration stage."""
+    """Identity of the prediction stage a member serves: wrapper class and calibration stage.
+
+    A projected member (stage 1D-1c.1C) is identified under version 2, which adds the class it wraps and its fitted
+    projection's identity; every other member keeps its version-1 identity byte for byte."""
     require_text(name, "member name")
     stage = "isotonic_calibrated_on_calibration_fold" if type(model).__name__ == "_IsotonicCalibrator" else "raw"
-    return canonical_digest("gvc.member-prediction-stage.v1", {
-        "member": name, "served_class": f"{type(model).__module__}.{type(model).__qualname__}", "stage": stage})
+    value = {"member": name, "served_class": f"{type(model).__module__}.{type(model).__qualname__}", "stage": stage}
+    projected = _projected(model)
+    if projected is None:
+        return canonical_digest("gvc.member-prediction-stage.v1", value)
+    est = projected.estimator_
+    value.update({"underlying_class": f"{type(est).__module__}.{type(est).__qualname__}",
+                  "member_projection_identity": projected.projection_.identity_})
+    return canonical_digest("gvc.member-prediction-stage.v2", value)
+
+
+def member_execution_sha256(adapter: str, name: str, model: Any, rendering: str) -> str:
+    """The execution identity of one member call (ONE definition, shared by serving and the offline split scorer).
+
+    Version-1 content for every member that is not a registered adapter (unchanged bytes); a projected member adds the
+    class it wraps and its fitted projection's identity."""
+    value = {"adapter": adapter, "member": name,
+             "served_class": f"{type(model).__module__}.{type(model).__qualname__}", "rendering": rendering}
+    projected = _projected(model)
+    if projected is not None:
+        est = projected.estimator_
+        value.update({"underlying_class": f"{type(est).__module__}.{type(est).__qualname__}",
+                      "member_projection_identity": projected.projection_.identity_})
+    return canonical_digest("gvc.member-execution.v1", value)
 
 
 @dataclass(frozen=True)
@@ -484,6 +516,9 @@ def member_draw_schedule(name: str, model: Any) -> dict[str, Any]:
     """The declared draw schedule of one member's prediction (ONE definition, shared by serving and the offline
     split scorer): the MC dropout seed schedule, the fitted deep-ensemble member seeds, or a single evaluation."""
     require_text(name, "member name")
+    projected = _projected(model)
+    if projected is not None:      # the draw schedule is the wrapped estimator's (MEMBER-WRAPPER-DRAW-SCHEDULE-1)
+        model = projected.estimator_
     if hasattr(model, "draw_seeds") and getattr(model, "_supports_mc", False):
         return {"mechanism": "mc_dropout_mean", "seeds": model.draw_seeds()}
     if hasattr(model, "members_"):

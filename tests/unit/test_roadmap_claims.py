@@ -60,11 +60,15 @@ from genomic_variant_classifier.models.variant_ensemble import (
 
 ROADMAP = Path("docs/ROADMAP.md")
 SUITE_SIZE_FILE = Path("tests/EXPECTED_SUITE_SIZE")
-ARCHIVE = Path("docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md")
 
-#: The predecessor, as measured at f2b93ff and preserved by D2c at 2bfc5b1.
-ARCHIVED_BLOB_OID = "990088a61365ef3de3a02fd34327c7c5f3134731"
-ARCHIVED_BYTES = 466826
+#: Every preserved predecessor, oldest first: (address, git blob object identifier, bytes). A succession APPENDS a row;
+#: a row is never edited or removed, because each is the proof that its archive holds the bytes that were live.
+#:   2026-08-23 (D2c, 2bfc5b1): the predecessor as measured at f2b93ff.
+#:   2026-11-16 (owner ruling aa999b96, section 20): the predecessor as live at 1fba4cb8.
+ARCHIVES: tuple[tuple[Path, str, int], ...] = (
+    (Path("docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md"), "990088a61365ef3de3a02fd34327c7c5f3134731", 466826),
+    (Path("docs/archive/legacy/ROADMAP_2026-08-23_to_2026-11-16.md"), "771a678b5512a8616df31079eb4fdf98847b218c", 118940),
+)
 
 #: Every place the roadmap makes a CLAIM about present state, with the live source
 #: each must equal.
@@ -244,19 +248,21 @@ def test_the_roadmap_does_not_quote_a_passing_count(roadmap):
 # 3. THE ARCHIVAL PROOF -- the succession's guarantee, still true
 # ---------------------------------------------------------------------------
 
-def test_the_archive_pointer_resolves(roadmap):
-    """The roadmap names its predecessor's address. That address must exist."""
-    assert ARCHIVE.as_posix() in roadmap, (
+@pytest.mark.parametrize("archive,_oid,_size", ARCHIVES, ids=[a.name for a, _o, _s in ARCHIVES])
+def test_the_archive_pointer_resolves(roadmap, archive, _oid, _size):
+    """The roadmap names every predecessor's address. Each address must exist."""
+    assert archive.as_posix() in roadmap, (
         "docs/ROADMAP.md no longer names its archive at {}. The succession notice "
         "is the only thing telling a reader where the discharged history went."
-        .format(ARCHIVE.as_posix()))
-    assert ARCHIVE.is_file(), (
+        .format(archive.as_posix()))
+    assert archive.is_file(), (
         "docs/ROADMAP.md points at {} but that file does not exist. The roadmap is "
         "asserting an archival guarantee that no longer holds."
-        .format(ARCHIVE.as_posix()))
+        .format(archive.as_posix()))
 
 
-def test_the_archived_blob_identity_still_holds():
+@pytest.mark.parametrize("archive,oid,size", ARCHIVES, ids=[a.name for a, _o, _s in ARCHIVES])
+def test_the_archived_blob_identity_still_holds(archive, oid, size):
     """THE SUCCESSION'S PROOF, re-derived rather than trusted.
 
     D2c preserved the predecessor by CREATE rather than `git mv`, because git blobs
@@ -266,29 +272,38 @@ def test_the_archived_blob_identity_still_holds():
     on disk, so a later edit to the archive fails here rather than silently voiding
     the guarantee the roadmap states.
     """
-    raw = ARCHIVE.read_bytes()
-    assert len(raw) == ARCHIVED_BYTES, (
-        "the archived predecessor is {:,} bytes; it was preserved at {:,}. An "
+    raw = archive.read_bytes()
+    assert len(raw) == size, (
+        "the archived predecessor {} is {:,} bytes; it was preserved at {:,}. An "
         "archive is only evidence while its bytes are the bytes that existed."
-        .format(len(raw), ARCHIVED_BYTES))
+        .format(archive.name, len(raw), size))
     actual = _blob_oid(raw)
-    assert actual == ARCHIVED_BLOB_OID, (
+    assert actual == oid, (
         "the archived predecessor's git blob object identifier is {} but the "
         "succession preserved {}.\n\nThe roadmap quotes the latter as proof that "
-        "the archived bytes are the bytes that were live at f2b93ff. If they "
-        "differ, that proof is false.".format(actual, ARCHIVED_BLOB_OID))
+        "the archived bytes are the bytes that were live. If they "
+        "differ, that proof is false.".format(actual, oid))
 
 
-def test_the_roadmap_quotes_the_blob_identity_it_can_prove(roadmap):
+@pytest.mark.parametrize("archive,oid,_size", ARCHIVES, ids=[a.name for a, _o, _s in ARCHIVES])
+def test_the_roadmap_quotes_the_blob_identity_it_can_prove(roadmap, archive, oid, _size):
     """The identifier printed in the document must be the one on disk.
 
     Otherwise the roadmap states an archival proof that is merely plausible.
     """
-    assert ARCHIVED_BLOB_OID in roadmap, (
+    assert oid in roadmap, (
         "docs/ROADMAP.md no longer quotes the archived blob object identifier {}. "
         "That string is the succession's proof; without it the notice is an "
-        "assertion.".format(ARCHIVED_BLOB_OID))
-    assert _blob_oid(ARCHIVE.read_bytes()) == ARCHIVED_BLOB_OID
+        "assertion.".format(oid))
+    assert _blob_oid(archive.read_bytes()) == oid
+
+
+def test_the_archive_chain_only_grows():
+    """A succession appends; it never rewrites an earlier proof. The rows are ordered oldest first and distinct."""
+    assert len({a for a, _o, _s in ARCHIVES}) == len(ARCHIVES)
+    assert len({o for _a, o, _s in ARCHIVES}) == len(ARCHIVES)
+    assert ARCHIVES[0] == (Path("docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md"),
+                           "990088a61365ef3de3a02fd34327c7c5f3134731", 466826)
 
 
 # ---------------------------------------------------------------------------

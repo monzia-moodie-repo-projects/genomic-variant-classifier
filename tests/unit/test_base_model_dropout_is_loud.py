@@ -64,6 +64,7 @@ from genomic_variant_classifier.models.variant_ensemble import (
     EnsembleConfig,
     VariantEnsemble,
 )
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 
 class _ExplodingModel(ClassifierMixin, BaseEstimator):
@@ -184,7 +185,7 @@ def test_a_failing_base_model_raises_by_default(tmp_path):
     )
 
     with pytest.raises(RuntimeError) as exc:
-        ens.fit(*_tiny_inputs())
+        ens.fit(*_tiny_inputs(), authorization=EPOCH1_TEST_FIT)
 
     msg = str(exc.value)
     assert "doomed" in msg, "the error must name the model that failed"
@@ -202,7 +203,7 @@ def test_the_healthy_model_is_not_what_failed(tmp_path):
     """Sanity: the harness itself is sound -- the roster trains fine without the saboteur."""
     ens = _ensemble_with_one_exploding_model(tmp_path)
     ens.base_estimators.pop("doomed")
-    ens.fit(*_tiny_inputs())
+    ens.fit(*_tiny_inputs(), authorization=EPOCH1_TEST_FIT)
     assert "healthy" in ens.trained_models_
     assert ens.dropped_models_ == {}, "a clean run must record ZERO dropped models"
 
@@ -212,7 +213,7 @@ def test_opt_in_dropout_is_permitted_but_recorded(tmp_path, caplog):
     ens = _ensemble_with_one_exploding_model(tmp_path, allow_base_model_dropout=True)
 
     with caplog.at_level(logging.ERROR):
-        ens.fit(*_tiny_inputs())
+        ens.fit(*_tiny_inputs(), authorization=EPOCH1_TEST_FIT)
 
     # The run completed -- but the ensemble is a model short, and SAYS SO.
     assert "healthy" in ens.trained_models_
@@ -241,7 +242,7 @@ def test_dropped_model_is_absent_from_the_comparison_artifacts(tmp_path):
     configured at all. That is precisely why the default must raise.
     """
     ens = _ensemble_with_one_exploding_model(tmp_path, allow_base_model_dropout=True)
-    ens.fit(*_tiny_inputs())
+    ens.fit(*_tiny_inputs(), authorization=EPOCH1_TEST_FIT)
 
     assert ens.oof_model_names_ == ["healthy"]
     assert ens.oof_predictions_.shape[1] == 1, (
@@ -261,7 +262,7 @@ def test_completeness_is_recorded_on_a_clean_run(tmp_path):
     """
     ens = _ensemble_with_one_exploding_model(tmp_path)
     ens.base_estimators.pop("doomed")
-    ens.fit(*_tiny_inputs())
+    ens.fit(*_tiny_inputs(), authorization=EPOCH1_TEST_FIT)
 
     c = ens.ensemble_completeness_
     assert c["complete"] is True
@@ -273,7 +274,7 @@ def test_completeness_is_recorded_on_a_clean_run(tmp_path):
 def test_completeness_records_the_loss_when_a_model_is_dropped(tmp_path):
     """And when the ensemble IS short, the artifact must say so -- with the cause."""
     ens = _ensemble_with_one_exploding_model(tmp_path, allow_base_model_dropout=True)
-    ens.fit(*_tiny_inputs())
+    ens.fit(*_tiny_inputs(), authorization=EPOCH1_TEST_FIT)
 
     c = ens.ensemble_completeness_
     assert c["complete"] is False, (
@@ -294,4 +295,4 @@ def test_total_failure_raises_a_comprehensible_error(tmp_path):
     }
 
     with pytest.raises(RuntimeError, match="EVERY base model failed"):
-        ens.fit(*_tiny_inputs())
+        ens.fit(*_tiny_inputs(), authorization=EPOCH1_TEST_FIT)

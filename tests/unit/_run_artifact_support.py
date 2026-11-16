@@ -24,6 +24,7 @@ from genomic_variant_classifier.evaluation.split_identity import (
     split_observations,
 )
 from genomic_variant_classifier.models.variant_ensemble import EnsembleConfig, VariantEnsemble
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 FAST_MEMBERS = ("logistic_regression", "xgboost")
 
@@ -67,7 +68,7 @@ def fit_fast(X: pd.DataFrame, y: pd.Series, meta: pd.DataFrame, model_dir: Optio
              gene_groups: bool = True, n_folds: int = 3) -> VariantEnsemble:
     ens = VariantEnsemble(EnsembleConfig(model_dir=model_dir, n_folds=n_folds))
     ens.base_estimators = fast_roster()
-    ens.fit(X, None, y, gene_symbol=meta["gene_symbol"] if gene_groups else None)
+    ens.fit(X, None, y, gene_symbol=meta["gene_symbol"] if gene_groups else None, authorization=EPOCH1_TEST_FIT)
     return ens
 
 

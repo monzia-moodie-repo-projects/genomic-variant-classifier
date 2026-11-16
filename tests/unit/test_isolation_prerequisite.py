@@ -19,6 +19,7 @@ import pytest
 from sklearn.base import clone
 
 from genomic_variant_classifier.models.variant_ensemble import EnsembleConfig, VariantEnsemble
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -65,7 +66,7 @@ class TestCheckpointDirectory:
         monkeypatch.chdir(tmp_path)
         X, y, g = _cohort()
         ens = _light()
-        ens.fit(X, None, y, gene_symbol=g)
+        ens.fit(X, None, y, gene_symbol=g, authorization=EPOCH1_TEST_FIT)
         assert _files(tmp_path) == []
         assert ens.checkpoint_status_ == {"logistic_regression": "disabled", "random_forest": "disabled"}
 
@@ -73,7 +74,7 @@ class TestCheckpointDirectory:
         monkeypatch.chdir(tmp_path)
         X, y, g = _cohort()
         ens = _light(model_dir=tmp_path / "ckpt")
-        ens.fit(X, None, y, gene_symbol=g)
+        ens.fit(X, None, y, gene_symbol=g, authorization=EPOCH1_TEST_FIT)
         assert set(ens.checkpoint_status_.values()) == {"saved"}
         written = {p.name for p in (tmp_path / "ckpt").iterdir()}
         assert {"logistic_regression.joblib", "random_forest.joblib"} <= written
@@ -84,14 +85,14 @@ class TestCheckpointDirectory:
         blocker.write_text("a file where the checkpoint directory should be")
         X, y, g = _cohort()
         ens = _light(model_dir=blocker)
-        ens.fit(X, None, y, gene_symbol=g)
+        ens.fit(X, None, y, gene_symbol=g, authorization=EPOCH1_TEST_FIT)
         assert all(v.startswith("failed: ") for v in ens.checkpoint_status_.values()), ens.checkpoint_status_
 
     def test_save_refuses_without_a_destination(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         X, y, g = _cohort()
         ens = _light()
-        ens.fit(X, None, y, gene_symbol=g)
+        ens.fit(X, None, y, gene_symbol=g, authorization=EPOCH1_TEST_FIT)
         with pytest.raises(ValueError, match="needs a destination"):
             ens.save()
         assert _files(tmp_path) == []

@@ -57,6 +57,7 @@ from genomic_variant_classifier.models.variant_ensemble import (
     EnsembleConfig,
     VariantEnsemble,
 )
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 # Fast tabular models only. cnn_1d is added per-test where the sequence branch is the subject.
 FAST = {"logistic_regression"}
@@ -216,7 +217,7 @@ def test_fit_refuses_before_training_anything(tmp_path):
     assert "cnn_1d" in ens.base_estimators, "fixture precondition: cnn_1d must be active"
 
     with pytest.raises(ValueError, match="cnn_1d"):
-        ens.fit(_tab(), None, _labels())
+        ens.fit(_tab(), None, _labels(), authorization=EPOCH1_TEST_FIT)
 
     assert not getattr(ens, "trained_models_", {}), (
         "the refusal fired only AFTER a model was trained; it must run before any fit"
@@ -234,7 +235,7 @@ def test_fit_accepts_none_for_a_tabular_only_roster(tmp_path):
     """
     ens = _ens(model_dir=tmp_path / "models")
     ens.base_estimators = {k: v for k, v in ens.base_estimators.items() if k in FAST}
-    ens.fit(_tab(n=60), None, _labels(n=60))
+    ens.fit(_tab(n=60), None, _labels(n=60), authorization=EPOCH1_TEST_FIT)
     assert ens.trained_models_, "a tabular-only roster with X_seq=None should train normally"
 
 

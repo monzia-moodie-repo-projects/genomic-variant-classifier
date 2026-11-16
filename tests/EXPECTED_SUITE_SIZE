@@ -8445,4 +8445,27 @@
 #   per registered gnomAD defect, each running the real builder or the current join). tests/unit/test_observation_columns.py:
 #   four tests rewritten to the new identity and derive signature, no test added or removed.
 #   tests/unit/test_admission_shadow.py: the shadow-mode lists extended, no test added or removed. (tests_drift/: unchanged, 22.)
-9336
+# 2026-11-16  PACKAGE 1D, STAGE 1D-1c.1C (set "au"; owner ruling aa999b96) -- feature-semantics epochs, the fitted member
+#   projection, the member adapter and the fit context. +104 / -4 by node identity (collected against main, 1fba4cb8). New
+#   files: +28 tests/unit/test_feature_semantics_1d1c1c.py (epoch 2 is epoch 1 with the rename in place; the census
+#   translation; mixed epochs refused; every projectable family is the registry's STRICT dependents of its root and each
+#   formula is identical to its registered implementation in syntax tree and bit for bit; malformed families refused; exact
+#   thresholds; NaN in all six; invalid values refused, never clipped; every non-AF feature equal to epoch 1; the builder's
+#   input refusals; the family closed under the registry; the AF-free arm); +27 tests/unit/test_member_projection_1d1c1c.py
+#   (the fold median of observed fit rows only; an imputed zero never an observed zero; no indicator; native NaN; observed
+#   values exact; the exact family check; undeclared and pending missingness refused; all-missing; the identity binding
+#   statistic, mode and code, surviving pickling, refusing tampering and a code change; clone; the blinded draw from
+#   observed values, batch-independent and coherent; row keys; fold-local out-of-fold medians); +15
+#   tests/unit/test_projected_member_1d1c1c.py (the capability census covers exactly the live roster and is re-measured; each
+#   protocol's mode assignment; the wrap rules; an unmeasured member, an anonymous array and a non-finite output refused;
+#   KAN-NONFINITE-MISSING-INPUT-1 witnessed and repaired; the draw schedules survive the adapter; legacy digests
+#   byte-identical; the input width read through the adapter); +16 tests/unit/test_execution_contract_1d1c1c.py (the
+#   regime vocabulary is admission's; the manifest has exactly its keys; named constructors only; no scientific context can
+#   exist; the light module imports no information source; launcher flags refuse before data is read); +9
+#   tests/unit/test_ensemble_projection_1d1c1c.py (fit requires a context; epochs never mixed; the legacy fit reproduced,
+#   including its measured refusal of missing gene constraint; capability-aware fits and serving execute exactly the members'
+#   projections; fold-local medians through VariantEnsemble.fit; the blinded predictor never served; save and load; the
+#   AF-free arm). tests/unit/test_roadmap_claims.py: +7 / -3 (the archive tests parametrized over both archives; the archive
+#   chain only grows). tests/unit/test_admission_shadow.py: +1 / -1 renamed (shadow mode ends for the regime vocabulary and
+#   the AF arms). tests/unit/test_registered_defect_witnesses.py: +1 (LOEUF-SENTINEL-1). (tests_drift/: unchanged, 22.)
+9436

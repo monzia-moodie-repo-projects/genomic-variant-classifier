@@ -197,3 +197,20 @@ def test_witness_gnomad_source_revised_after_run15_1(tmp_path):
     before = base.read_bytes()
     out = b.merge_into_gnomad(pd.DataFrame({"variant_id": ["gnomad:MT:1:A:G"], "allele_freq": [0.5]}), str(base), str(base))
     assert out == (1, 1, 2) and base.read_bytes() != before
+
+
+# --------------------------------------------------------------------------- stage 1D-1c.1C (set "au"): gene constraint
+def test_witness_loeuf_sentinel_1():
+    """LOEUF-SENTINEL-1: with no LOEUF the builder writes loeuf = 1.0 (tolerant) and gene_is_constrained = NaN (unknown)
+    -- in either epoch -- so the family's root is fabricated while its dependent is three-valued."""
+    _registered("LOEUF-SENTINEL-1")
+    import pandas as pd
+
+    from genomic_variant_classifier.models.feature_semantics import FeatureSemantics
+    from genomic_variant_classifier.models.variant_ensemble import engineer_features
+
+    raw = pd.DataFrame({"allele_freq": [0.1, float("nan")], "loeuf": [float("nan"), 0.2]})
+    for semantics in FeatureSemantics:
+        out = engineer_features(raw, semantics=semantics)
+        assert out.loc[0, "loeuf"] == 1.0 and np.isnan(out.loc[0, "gene_is_constrained"])
+        assert out.loc[1, "loeuf"] == 0.2 and out.loc[1, "gene_is_constrained"] == 1.0

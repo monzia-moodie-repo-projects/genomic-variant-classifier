@@ -62,7 +62,7 @@ import logging
 import functools
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Protocol, runtime_checkable
+from typing import Any, Optional, Protocol, Sequence, runtime_checkable
 
 import numpy as np
 import pandas as pd
@@ -86,6 +86,20 @@ import xgboost as xgb
 import lightgbm as lgb
 
 from genomic_variant_classifier.models.scalable_svm import ScalableSVM
+from genomic_variant_classifier.models.feature_semantics import (
+    AF_FAMILY,
+    FeatureSemantics,
+    derive_family,
+    infer_semantics,
+    tabular_features,
+)
+from genomic_variant_classifier.models.fit_context import FitContext
+from genomic_variant_classifier.models.member import (
+    ProjectionProtocol,
+    is_projected,
+    projected_member_of,
+    wrap_member,
+)
 from genomic_variant_classifier.containment import (
     ContainmentError,
     load_after_admission,
@@ -102,6 +116,7 @@ from genomic_variant_classifier.models.combiner import (
     exact_blend,
     member_artifact_sha256,
     member_draw_schedule,
+    member_execution_sha256,
     member_modalities,
     prediction_stage_sha256,
     require_supported_modalities,
@@ -115,6 +130,7 @@ from genomic_variant_classifier.prediction_contract import (
     ProbabilityBlock,
     ScientificScope,
     canonical_digest,
+    float_vector,
     model_call,
     positive_column,
     sklearn_binary_classes,
@@ -286,7 +302,7 @@ FEATURE_SOURCE = {
 }
 
 
-def feature_census(X_tab: "pd.DataFrame") -> dict:
+def feature_census(X_tab: "pd.DataFrame", features: "Optional[Sequence[str]]" = None) -> dict:
     """Which declared-real features actually carry information? Measured, not assumed.
 
     Returns {"live": [...], "dead": [...], "drift_blind": [...]}.
@@ -301,8 +317,12 @@ def feature_census(X_tab: "pd.DataFrame") -> dict:
 
     In Run 15 this returned 36 dead / 4 drift-blind / 38 live, out of 78. Nobody ran it,
     because it did not exist.
+
+    `features` is the roster to census (default TABULAR_FEATURES, the epoch-1 contract); an epoch-2 fit passes
+    feature_semantics.tabular_features(V2_OBSERVED_AF) so the renamed feature is censused too.
     """
-    declared = [c for c in TABULAR_FEATURES if c in X_tab.columns]
+    roster = list(TABULAR_FEATURES if features is None else features)
+    declared = [c for c in roster if c in X_tab.columns]
     dead: list[str] = []
     drift_blind: list[str] = []
     live: list[str] = []
@@ -322,7 +342,7 @@ def feature_census(X_tab: "pd.DataFrame") -> dict:
             live.append(col)
 
     return {"live": live, "dead": dead, "drift_blind": drift_blind,
-            "declared": declared, "missing": [c for c in TABULAR_FEATURES
+            "declared": declared, "missing": [c for c in roster
                                               if c not in X_tab.columns]}
 
 
@@ -753,8 +773,20 @@ def _suppress_fillna_downcast(_fn):
 
 
 @_suppress_fillna_downcast
-def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+def engineer_features(df: pd.DataFrame, *,
+                      semantics: FeatureSemantics = FeatureSemantics.V1_LEGACY) -> pd.DataFrame:
     """Derive the tabular feature matrix from a raw variant DataFrame.
+
+    FEATURE-SEMANTICS EPOCH (stage 1D-1c.1C, owner ruling aa999b96; models/feature_semantics.py). ``semantics`` selects
+    the epoch and is bound into every roster built from the result:
+
+    * ``FeatureSemantics.V1_LEGACY`` (the default, the historical builder, byte-for-byte unchanged): a missing
+      allele_freq is filled with 0.0 and ``af_is_absent`` is computed from the FILLED value.
+    * ``FeatureSemantics.V2_OBSERVED_AF``: the allele-frequency family is three-valued -- NaN in all six features where
+      the frequency was not observed -- computed by the registered derivations (columns.DERIVED_RULES), and
+      ``af_is_absent`` is named ``af_is_observed_zero``. The input must carry an ``allele_freq`` column (NaN where
+      unobserved): an absent column is not an observation. A non-numeric, infinite or out-of-[0, 1] value is refused,
+      never clipped. Every other feature is built exactly as in epoch 1.
 
     THE SINGLE SOURCE OF TRUTH for feature engineering (since 2026-07-11).
 
@@ -782,21 +814,43 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     Do not create a second feature builder. If you need a variant, parameterise this one.
     """
+    if not isinstance(semantics, FeatureSemantics):
+        raise TypeError(f"semantics must be a FeatureSemantics, got {type(semantics).__name__}")
     feats = pd.DataFrame(index=df.index)
 
     # Allele frequency (6)
-    af = (
-        df.get("allele_freq", pd.Series([0.0] * len(df), index=df.index))
-        .fillna(0.0)
-        .astype(float)
-        .clip(lower=0)
-    )
-    feats["af_raw"] = af
-    feats["af_log10"] = np.log10(af + 1e-8)
-    feats["af_is_absent"] = (af == 0).astype(int)
-    feats["af_is_ultra_rare"] = (af < 0.0001).astype(int)
-    feats["af_is_rare"] = ((af >= 0.0001) & (af < 0.001)).astype(int)
-    feats["af_is_common"] = (af >= 0.01).astype(int)
+    if semantics is FeatureSemantics.V2_OBSERVED_AF:
+        if "allele_freq" not in df.columns:
+            raise ValueError(
+                "epoch-2 feature engineering (gvc.features/2) requires an allele_freq column, NaN where the frequency "
+                "was not observed. An absent column is not an observation, and no value is assumed for it.")
+        _raw = df["allele_freq"]
+        if pd.api.types.is_bool_dtype(_raw.dtype):
+            raise TypeError("allele_freq is boolean; a frequency is a number")
+        if _raw.dtype == object:
+            # Only real numbers or a missing marker; a string (even "0.1") or a bool is refused, never converted.
+            _bad = [v for v in _raw.tolist() if not (v is None or (
+                isinstance(v, (int, float, np.integer, np.floating)) and not isinstance(v, (bool, np.bool_))))]
+            if _bad:
+                raise TypeError(f"allele_freq holds {len(_bad)} non-numeric value(s), e.g. {_bad[:3]!r}; refused")
+        elif not (pd.api.types.is_float_dtype(_raw.dtype) or pd.api.types.is_integer_dtype(_raw.dtype)):
+            raise TypeError(f"allele_freq has dtype {_raw.dtype}; a floating or integer column is required")
+        _family = derive_family(AF_FAMILY, _raw.to_numpy(dtype=np.float64, na_value=np.nan))
+        for _name in AF_FAMILY.members:
+            feats[_name] = _family[_name]
+    else:
+        af = (
+            df.get("allele_freq", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+            .clip(lower=0)
+        )
+        feats["af_raw"] = af
+        feats["af_log10"] = np.log10(af + 1e-8)
+        feats["af_is_absent"] = (af == 0).astype(int)
+        feats["af_is_ultra_rare"] = (af < 0.0001).astype(int)
+        feats["af_is_rare"] = ((af >= 0.0001) & (af < 0.001)).astype(int)
+        feats["af_is_common"] = (af >= 0.01).astype(int)
 
     # Variant type (7)
     ref = df.get("ref", pd.Series(["A"] * len(df), index=df.index)).fillna("A")
@@ -2607,7 +2661,9 @@ class VariantEnsemble:
                     "_require_x_seq should have refused in fit()."
                 )
                 Xtr_in, Xva_in = X_seq_fit.iloc[tr], X_seq_fit.iloc[va]
-            elif name == "catboost":
+            elif name == "catboost" or is_projected(model):
+                # A projected member is fitted on the CANONICAL named frame: clone() gives it a fresh
+                # MemberProjection, fitted below on this fold's training rows only (AF-OOF-PROJECTION-LEAKAGE-1).
                 Xtr_in, Xva_in = Xtr, Xva
             else:
                 Xtr_in, Xva_in = Xtr.values, Xva.values
@@ -2616,7 +2672,7 @@ class VariantEnsemble:
             oof[va] = m.predict_proba(Xva_in)[:, 1]
         return oof
 
-    def _assert_no_dead_features(self, X_tab: pd.DataFrame) -> None:
+    def _assert_no_dead_features(self, X_tab: pd.DataFrame, features: "Optional[Sequence[str]]" = None) -> None:
         """Every feature declared REAL must actually vary. Silent-zeros die here.
 
         A connector with a missing source file returns zeros rather than raising (omim.py:105
@@ -2637,7 +2693,7 @@ class VariantEnsemble:
         """
         # ONE definition of "dead", shared with scripts/run_phase2_eval.py's pre-flight census.
         # Two copies of this rule would disagree within a month -- root pattern (a).
-        census = feature_census(X_tab)
+        census = feature_census(X_tab, features)
         declared = census["declared"]
         dead = census["dead"]
         n_rows = len(X_tab)
@@ -2818,6 +2874,37 @@ class VariantEnsemble:
             )
         )
 
+    def _require_fit_context(self, authorization, X_tab: pd.DataFrame, X_tab_cal_ext) -> Any:
+        """The fit context, checked against the matrix BEFORE anything is fitted; wraps the tabular members when the
+        context prescribes a projection. Records what the fit is on the ensemble (fit_context_, feature_semantics_)."""
+        if type(authorization) is not FitContext:
+            raise ContractError(
+                "VariantEnsemble.fit requires authorization=FitContext.<constructor>(...) (stage 1D-1c.1C, owner ruling "
+                "aa999b96 decision B): historical_replay(reason) for reproduction, engineering_qualification(semantics, "
+                "projection, reason) for synthetic qualification; a scientific fit is refused until its readiness "
+                "gates certify (models.execution.scientific_fit_context). There is no default; got "
+                + type(authorization).__name__)
+        for label, frame in (("X_tab", X_tab), ("X_tab_cal_ext", X_tab_cal_ext)):
+            if frame is None:
+                continue
+            found = infer_semantics(str(c) for c in frame.columns)
+            if found is not None and found is not authorization.semantics:
+                raise ContractError(f"{label} is a {found.value} matrix but the fit context declares "
+                                    f"{authorization.semantics.value}; epochs are never mixed")
+        if X_tab_cal_ext is not None and tuple(X_tab_cal_ext.columns) != tuple(X_tab.columns):
+            raise ContractError("the external calibration partition's columns differ from the fitting matrix's")
+        if authorization.projection is not ProjectionProtocol.LEGACY_UNPROJECTED:
+            columns = tuple(str(c) for c in X_tab.columns)
+            self.base_estimators = {
+                name: wrap_member(name, est, protocol=authorization.projection, semantics=authorization.semantics,
+                                  feature_names=columns)
+                for name, est in self.base_estimators.items()}
+        self.fit_context_ = authorization.as_record()
+        self.feature_semantics_ = authorization.semantics.value
+        logger.info("Fit context: %s, %s, %s (%s).", authorization.protocol.value, authorization.semantics.value,
+                    authorization.projection.value, authorization.reason)
+        return authorization
+
     def _carve_calibration_fold(self, idx, y_arr, gene_symbol, test_size=0.15):
         """Choose the rows the post-hoc isotonic calibrator is fitted on.
 
@@ -2957,8 +3044,15 @@ class VariantEnsemble:
         X_seq_cal_ext: "pd.DataFrame | None" = None,
         y_cal_ext: "pd.Series | None" = None,
         gene_symbol_cal_ext: "pd.Series | None" = None,
+        *,
+        authorization: Any = None,
     ) -> "VariantEnsemble":
         """
+        authorization: a models.fit_context.FitContext (stage 1D-1c.1C, owner ruling aa999b96 decision B). REQUIRED: what
+               this fit is -- historical replay, engineering qualification, or (refused until its gates certify) a
+               scientific fit -- its feature-semantics epoch and its member-projection protocol. It is recorded on the
+               fitted ensemble (fit_context_) and in every artifact saved from it. There is no default.
+
         X_seq: A 2-COLUMN [fasta_seq_ref, fasta_seq_alt] DataFrame, row-aligned to X_tab.
                Build it with seq_window_join.attach_delta_windows(...).windows.
 
@@ -2991,6 +3085,9 @@ class VariantEnsemble:
         _require_tabular_admissible(X_tab, "fit X_tab")
         if X_tab_cal_ext is not None:
             _require_tabular_admissible(X_tab_cal_ext, "fit X_tab_cal_ext")
+        # THE FIT CONTEXT (stage 1D-1c.1C). Checked before anything is fitted; wraps the roster's tabular members in
+        # their fitted projections when the context's protocol prescribes it.
+        _context = self._require_fit_context(authorization, X_tab, X_tab_cal_ext)
         self.tabular_columns_ = tuple(X_tab.columns)
         from sklearn.model_selection import train_test_split as _tts
 
@@ -3005,7 +3102,8 @@ class VariantEnsemble:
         # This runs BEFORE any model is fitted, so a silent-zero costs a second, not eleven
         # hours of paid compute followed by a published algorithm comparison built on a
         # feature space that was partly imaginary.
-        self._assert_no_dead_features(X_tab)
+        self._assert_no_dead_features(
+            X_tab, None if _context.semantics is FeatureSemantics.V1_LEGACY else tabular_features(_context.semantics))
 
         # Refuse sequence this ensemble cannot vouch for, before a single estimator is
         # fitted. X_seq_cal_ext was declared and never checked between 2026-07-19 and
@@ -3125,6 +3223,11 @@ class VariantEnsemble:
             if name == "cnn_1d":
                 X_input_fit = X_seq_fit
                 X_input_cal = X_seq_cal
+            elif is_projected(model):
+                # The canonical named frame: the member's projection is fitted inside each clone on exactly the rows
+                # that clone is fitted on, and the calibrator reaches it through the frozen final projection.
+                X_input_fit = X_tab_fit
+                X_input_cal = X_tab_cal
             elif name == "catboost":
                 # Always pass DataFrame - CatBoost needs column names for
                 # categorical feature resolution. Handles numeric-only
@@ -3186,6 +3289,8 @@ class VariantEnsemble:
                 oof_preds[:, model_idx] = 0.5
                 continue
 
+            if is_projected(model):
+                float_vector(np.asarray(oof, dtype=np.float64))   # finite, in [0, 1]: or refused (never a fabricated column)
             oof_preds[:, model_idx] = oof
             model.fit(X_input_fit, y_fit)
 
@@ -3312,18 +3417,28 @@ class VariantEnsemble:
         )
 
         _fit_columns = list(X_tab_fit.columns)
-        _applicable = {
-            name: policy for name, policy in DECLARED_MISSINGNESS.items()
-            if name in _fit_columns
-        }
-        self.preprocessor_ = TabularModelPreprocessor(
-            feature_names=_fit_columns, policies=_applicable).fit(X_tab_fit)
-        logger.info(
-            "Missing-value policy fitted on the training fold: %d feature(s), "
-            "%d declared-missing, medians for %s.",
-            len(_fit_columns), len(_applicable),
-            sorted(getattr(self.preprocessor_, "medians_", {})) or "none",
-        )
+        if _context.projection is ProjectionProtocol.LEGACY_UNPROJECTED:
+            _applicable = {
+                name: policy for name, policy in DECLARED_MISSINGNESS.items()
+                if name in _fit_columns
+            }
+            self.preprocessor_ = TabularModelPreprocessor(
+                feature_names=_fit_columns, policies=_applicable).fit(X_tab_fit)
+            logger.info(
+                "Missing-value policy fitted on the training fold: %d feature(s), "
+                "%d declared-missing, medians for %s.",
+                len(_fit_columns), len(_applicable),
+                sorted(getattr(self.preprocessor_, "medians_", {})) or "none",
+            )
+            self.member_projections_ = {}
+        else:
+            # MEMBER-PROJECTION-SERVING-DRIFT-1: no global serving-time policy exists for a projected fit. Each member
+            # carries the projection it was fitted with; serving executes exactly that.
+            self.preprocessor_ = None
+            self.member_projections_ = {
+                name: projected_member_of(m).describe() for name, m in self.trained_models_.items() if is_projected(m)}
+            logger.info("Member projections fitted inside each member (%s): %s", _context.projection.value,
+                        {n: d["projection"]["mode"] for n, d in sorted(self.member_projections_.items())})
 
         # -------------------------------------------------------------------------------
         # ENSEMBLE COMPLETENESS -- recorded, not assumed. (2026-07-13)
@@ -3432,7 +3547,7 @@ class VariantEnsemble:
         for name, model in self.trained_models_.items():
             if name == "cnn_1d":
                 X_input = X_seq
-            elif name == "catboost":
+            elif name == "catboost" or is_projected(model):
                 X_input = X_tab
             else:
                 X_input = X_tab.values
@@ -3534,6 +3649,7 @@ class VariantEnsemble:
         for slot in spec.members:
             model = self.trained_models_[slot.name]
             rendering = ("sequence_windows_frame" if slot.name in SEQUENCE_MODELS
+                         else "member_projection_named_canonical_frame" if is_projected(model)
                          else "named_dataframe" if slot.name == "catboost" else "ndarray")
             bindings.append(Binding(
                 producer_sha256=slot.artifact_sha256,
@@ -3543,10 +3659,8 @@ class VariantEnsemble:
                 draw_schedule_sha256=canonical_digest("gvc.member-draw-schedule.v1", {
                     "member": slot.name, "schedule": member_draw_schedule(slot.name, model)}),
                 ordered_input_sha256=ordered_input,
-                execution_sha256=canonical_digest("gvc.member-execution.v1", {
-                    "adapter": "gvc.variant-ensemble.split-member-adapter.v1", "member": slot.name,
-                    "served_class": f"{type(model).__module__}.{type(model).__qualname__}",
-                    "rendering": rendering})))
+                execution_sha256=member_execution_sha256(
+                    "gvc.variant-ensemble.split-member-adapter.v1", slot.name, model, rendering)))
             draw_ids.append(f"{slot.name}:single_evaluation")
         slots = {m.name: m for m in spec.members}
         expected = dict(zip(spec.member_names, zip(bindings, draw_ids)))
@@ -3554,7 +3668,7 @@ class VariantEnsemble:
         def predict_member(name: str, model) -> tuple[MemberSlot, ProbabilityBlock]:
             if name in SEQUENCE_MODELS:
                 X_input = X_seq
-            elif name == "catboost":
+            elif name == "catboost" or is_projected(model):
                 X_input = X_tab
             else:
                 X_input = X_tab.values
@@ -3713,6 +3827,11 @@ class VariantEnsemble:
             "oof_fold_": getattr(self, "oof_fold_", None),
             "oof_cv_scheme_": getattr(self, "oof_cv_scheme_", None),
             "calibration_carve_used_": getattr(self, "calibration_carve_used_", None),
+            # Stage 1D-1c.1C: what the fit was (FitContext record), its semantic epoch and each member's fitted
+            # projection (as values). Absent (None) for orchestrators saved earlier: those are epoch-1 artifacts.
+            "fit_context_": getattr(self, "fit_context_", None),
+            "feature_semantics_": getattr(self, "feature_semantics_", None),
+            "member_projections_": getattr(self, "member_projections_", None),
         }
         joblib.dump(orchestrator, path)
         _write_model_manifest(path)
@@ -3810,6 +3929,9 @@ class VariantEnsemble:
         ens.oof_fold_ = obj.get("oof_fold_")
         ens.oof_cv_scheme_ = obj.get("oof_cv_scheme_")
         ens.calibration_carve_used_ = obj.get("calibration_carve_used_")
+        ens.fit_context_ = obj.get("fit_context_")
+        ens.feature_semantics_ = obj.get("feature_semantics_")
+        ens.member_projections_ = obj.get("member_projections_")
         ens.base_estimators = {}
         ens.trained_models_ = {}
         models_dir = path.parent / obj["models_dir_name"]

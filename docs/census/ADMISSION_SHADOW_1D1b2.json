@@ -1,7 +1,7 @@
 {
   "census": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "ledger_sha256": "ff5638d2d5e076eeade160c261d514f244fc1cc0b55cb262290915dc901cd888",
+    "ledger_sha256": "9908cc5a3d9b92b578cd2fa2a0848e1f5b105c0820758dbc0009cfb0bf562482",
     "path": "docs/census/FEATURE_CENSUS_1D1a.json",
     "schema": "gvc.feature-census.1d1a/2",
     "semantic_digest": "97f64bcb096eebea5bb532c00ba8b394a8946b67145ab11e980927e738b628a0"
@@ -1201,7 +1201,9 @@
       "kind": "feature",
       "name": "gene_is_constrained",
       "observation": "not_recorded_by_producer",
-      "registered_defects": []
+      "registered_defects": [
+        "LOEUF-SENTINEL-1"
+      ]
     },
     {
       "admission": {
@@ -2706,6 +2708,7 @@
       "name": "loeuf",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
+        "LOEUF-SENTINEL-1",
         "MISSINGNESS-SEMANTICS-1"
       ]
     },

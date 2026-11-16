@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from unittest.mock import MagicMock, patch
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 catboost = pytest.importorskip("catboost", reason="catboost not installed")
 
@@ -353,7 +354,7 @@ class TestEnsembleIntegration:
                 "fasta_seq_alt": ["ACGT" * 25 + "C"] * len(numeric_labels),
                 "ok": [True] * len(numeric_labels),
             }))
-            ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels))
+            ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels), authorization=EPOCH1_TEST_FIT)
         finally:
             CatBoostVariantClassifier.fit = orig_fit
 
@@ -376,7 +377,7 @@ class TestEnsembleIntegration:
             "fasta_seq_alt": ["ACGT" * 25 + "C"] * len(numeric_labels),
             "ok": [True] * len(numeric_labels),
         }))
-        ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels))
+        ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels), authorization=EPOCH1_TEST_FIT)
         proba = ensemble.predict_proba(numeric_variant_df, seq)
         assert proba.shape == (len(numeric_labels), 2)
         np.testing.assert_allclose(proba.sum(axis=1), 1.0, atol=1e-4)

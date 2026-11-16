@@ -20,6 +20,7 @@ from genomic_variant_classifier.data.seq_window_join import (
 from genomic_variant_classifier.models.variant_ensemble import (
     EnsembleConfig, SequenceWindows, VariantEnsemble, SEQUENCE_MODELS,
 )
+from tests.unit._fit_contexts import EPOCH1_TEST_FIT
 
 
 def _frame(n: int, ok=True) -> pd.DataFrame:
@@ -175,7 +176,7 @@ def test_fit_does_not_demand_a_calibration_sequence_when_there_is_no_partition()
                            if k not in SEQUENCE_MODELS}
     tab = pd.DataFrame(np.random.default_rng(0).random((40, 3)), columns=list("abc"))
     try:
-        ens.fit(tab, None, pd.Series([0, 1] * 20))
+        ens.fit(tab, None, pd.Series([0, 1] * 20), authorization=EPOCH1_TEST_FIT)
     except Exception as exc:                                   # noqa: BLE001
         assert "X_seq_cal_ext" not in str(exc), (
             "fit() refused a missing calibration sequence when no calibration partition was "
