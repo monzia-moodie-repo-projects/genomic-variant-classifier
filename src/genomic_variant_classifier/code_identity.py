@@ -8,6 +8,10 @@ static import closure. census.py reaches consumers.py and lineage.py, and throug
 from models/ put 48 modules into the API image (tests/unit/test_docker_image_covers_the_api.py). This module imports the
 standard library only.
 
+Set "au.1" (owner ruling ff77015c, section 6) split ``symbol_closure_digest`` into the file read and
+``closure_digest_of_text`` so a caller can hash the bytes it read and compute the closure from exactly those bytes; every
+digest is unchanged (tests/unit/test_corrections_1d1c1c_r1.py compares them for every symbol a committed record binds).
+
 Author: Monzia Moodie
 """
 from __future__ import annotations
@@ -24,7 +28,8 @@ from typing import Any, Sequence
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["canonical_bytes", "parse_symbol", "sha256_bytes", "symbol_closure_digest"]
+__all__ = ["canonical_bytes", "closure_digest_of_text", "parse_symbol", "sha256_bytes", "source_text",
+           "symbol_closure_digest"]
 
 
 def sha256_bytes(raw: bytes) -> str:
@@ -107,13 +112,26 @@ def parse_symbol(symbol: str) -> tuple[str, str]:
     return rel, qual
 
 
+def source_text(raw: bytes) -> str:
+    """Source bytes decoded exactly as ``Path.read_text(encoding="utf-8")`` decodes them (universal newlines), so a
+    digest computed from bytes already read equals the digest ``symbol_closure_digest`` computes from the file."""
+    return io.TextIOWrapper(io.BytesIO(raw), encoding="utf-8", newline=None).read()
+
+
 def symbol_closure_digest(repo: Path, symbol: str) -> str:
     """Digest of a function or class plus every module-level binding it transitively references (comment-insensitive)."""
-    rel, qual = parse_symbol(symbol)
+    rel, _qual = parse_symbol(symbol)
     path = repo / rel
     if not path.is_file():
         raise ValueError(f"symbol {symbol!r}: file is missing")
-    text = path.read_text(encoding="utf-8")
+    return closure_digest_of_text(symbol, path.read_text(encoding="utf-8"))
+
+
+def closure_digest_of_text(symbol: str, text: str) -> str:
+    """``symbol_closure_digest`` of ``symbol`` computed from ``text``, the source of its file (stage 1D-1c.1C set
+    "au.1"): a caller that has read and hashed the bytes itself computes the closure from those same bytes, so the
+    digest it binds cannot describe a file other than the one it hashed."""
+    rel, qual = parse_symbol(symbol)
     tree = ast.parse(text, filename=rel)
     table = _module_table(tree)
     root = _resolve(tree, qual)

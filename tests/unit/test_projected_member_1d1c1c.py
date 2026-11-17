@@ -115,7 +115,7 @@ def test_kan_with_nan_returns_non_finite_probabilities_and_the_projection_repair
     (PP.CAPABILITY_AWARE, {"random_forest": PM.NATIVE_NAN, "catboost": PM.NATIVE_NAN, "svm": PM.FOLD_MEDIAN,
                            "kan": PM.FOLD_MEDIAN, "mc_dropout": PM.FOLD_MEDIAN, "cnn_1d": None}),
     (PP.COMMON_FOLD_MEDIAN, {"random_forest": PM.FOLD_MEDIAN, "svm": PM.FOLD_MEDIAN, "cnn_1d": None}),
-    (PP.AVAILABILITY_BLINDED, {"xgboost": PM.AVAILABILITY_BLINDED_DRAW, "tabular_nn": PM.AVAILABILITY_BLINDED_DRAW,
+    (PP.MARGINAL_RESAMPLING, {"xgboost": PM.MARGINAL_RESAMPLING_DRAW, "tabular_nn": PM.MARGINAL_RESAMPLING_DRAW,
                                "cnn_1d": None}),
     (PP.LEGACY_UNPROJECTED, {"random_forest": None, "svm": None, "cnn_1d": None}),
 ])

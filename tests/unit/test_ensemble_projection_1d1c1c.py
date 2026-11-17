@@ -150,11 +150,11 @@ def test_an_epoch_one_pipeline_cannot_render_epoch_two_input_and_keeps_its_ident
         ens.predict_proba(v1)                                  # the epoch-1 roster is not the fitted roster
 
 
-def test_an_availability_blinded_predictor_is_never_served():
+def test_a_marginal_resampling_predictor_is_never_served():
     raw, y, genes = _raw(seed=6)
     X = engineer_features(raw, semantics=FS.V2_OBSERVED_AF)
-    ens = _fit(_ens(["logistic_regression"]), X, y, genes, epoch2_test_fit(PP.AVAILABILITY_BLINDED))
-    assert ens.member_projections_["logistic_regression"]["projection"]["mode"] == "availability_blinded_draw"
+    ens = _fit(_ens(["logistic_regression"]), X, y, genes, epoch2_test_fit(PP.MARGINAL_RESAMPLING))
+    assert ens.member_projections_["logistic_regression"]["projection"]["mode"] == "marginal_resampling_draw"
     with pytest.raises(ContractError, match="research only"):
         InferencePipeline.from_variant_ensemble(ens)
 

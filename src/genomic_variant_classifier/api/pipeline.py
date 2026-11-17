@@ -475,8 +475,10 @@ class InferencePipeline:
 
     def _require_servable_projection(self) -> None:
         """A projected pipeline serves exactly its members' fitted projections (MEMBER-PROJECTION-SERVING-DRIFT-1):
-        epoch 2, no global serving policy, and a servable protocol. The availability-blinded research protocol is
-        refused: its surrogate for an unobserved frequency is a draw, not an estimate."""
+        epoch 2, no global serving policy, and a servable protocol. The marginal-resampling research protocol (B1) is
+        refused: its surrogate for an unobserved frequency is a draw, not an estimate. A servable projection protocol
+        is necessary, never sufficient: whether the FIT may be deployed is the admission decision's (load() calls
+        model_admission.require_admitted_fit; owner ruling ff77015c section 9)."""
         projected = self._projected_members()
         context = getattr(self, "fit_context", None) or {}
         protocol = context.get("projection")
@@ -784,7 +786,7 @@ class InferencePipeline:
             roster_alignment,
             served_model_roster,
         )
-        from genomic_variant_classifier.model_admission import DEFAULT_AUTHORITY, admit_artifact
+        from genomic_variant_classifier.model_admission import DEFAULT_AUTHORITY, admit_artifact, require_admitted_fit
 
         path = Path(path)
         admission = admit_artifact(path, consumer=consumer, registry_path=registry_path,
@@ -794,6 +796,9 @@ class InferencePipeline:
                                    deserialize=joblib.load)
         if not isinstance(obj, cls):
             raise TypeError(f"Expected InferencePipeline, got {type(obj)}")
+        # Set "au.1" (owner ruling ff77015c section 9): a servable projection is not a deployable fit; the decision
+        # must admit the fit protocol the predictor records (a scientific fit only, unless it names others).
+        require_admitted_fit(admission, getattr(obj, "fit_context", None))
         obj._require_admissible()
         obj._require_combiner()
         obj._require_servable_projection()

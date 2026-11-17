@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from genomic_variant_classifier.model_admission import Decision, Outcome
+from genomic_variant_classifier.model_admission import UNRECORDED_FIT, Decision, Outcome
+
+ENGINEERING_QUALIFICATION = "engineering_qualification"
 from genomic_variant_classifier.monitoring.model_registry import (
     EvaluationEvidence,
     EvaluationProtocol,
@@ -19,12 +21,18 @@ from genomic_variant_classifier.monitoring.model_registry import (
 )
 
 
+#: The fit protocols synthetic test artifacts record: engineering qualification (every unit-test fit) and unrecorded
+#: (a pipeline a test assembles without a fit). Named explicitly, because a decision admits a scientific fit only unless
+#: it says otherwise (set "au.1", owner ruling ff77015c section 9).
+SYNTHETIC_FIT_PROTOCOLS = frozenset({ENGINEERING_QUALIFICATION, UNRECORDED_FIT})
+
+
 class AllowForTests:
     """An explicit ALLOW for synthetic artifacts, bound exactly as admission requires."""
 
     def decide(self, record, *, consumer, policy_sha256):
         return Decision(record.artifact.sha256, consumer, policy_sha256, Outcome.ALLOW,
-                        "synthetic artifact created by this test")
+                        "synthetic artifact created by this test", fit_protocols=SYNTHETIC_FIT_PROTOCOLS)
 
 
 def register(registry_path: Path, artifact: Path, *, feature_names, roster, version: str = "synthetic-v1",

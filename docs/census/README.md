@@ -168,3 +168,14 @@ semantic digest is unchanged (97f64bcb) and admission is unchanged (strict 55 / 
   The models layer binds its fitted projections to code closures through it without importing the census.
 - `FEATURE_CENSUS_1D1a.json`, `SOURCE_ABSENCE_1D1b2.json` and `ADMISSION_SHADOW_1D1b2.json` are re-derived: the recorded file
   digest, the surface anchors' lines, the builder's closure digest and the ledger digest each record cites.
+
+## Stage 1D-1c.1C (set "au.1"): the corrective revision
+
+Owner ruling ff77015c (2026-11-16), audited in AUDIT_OF_RULING_ff77015c_2026-11-16.md. No record changes its meaning: the
+semantic digest is unchanged (97f64bcb) and admission is unchanged (strict 55 / 47, conditional 65 / 37).
+
+- `FEATURE_CENSUS_1D1a.json` is re-derived for one field, the authority's capture digest of `models/variant_ensemble.py`
+  (`VariantEnsemble.load` now asks the admission decision to admit the recorded fit protocol). `SOURCE_ABSENCE_1D1b2.json` and
+  `ADMISSION_SHADOW_1D1b2.json` are re-derived for the ledger digest they cite, nothing else.
+- `code_identity.closure_digest_of_text` computes a closure from source text already read; `symbol_closure_digest` reads the file
+  and calls it, so every digest any record binds is unchanged (`tests/unit/test_corrections_1d1c1c_r1.py` compares them all).
