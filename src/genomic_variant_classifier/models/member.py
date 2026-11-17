@@ -14,7 +14,8 @@ fit, fitted on the final rows, calibrated, saved, loaded, evaluated and served.
 * ``ESTIMATOR_CAPABILITIES`` -- the measured missing-value capability of every roster member (the small-fit census of
   2026-11-16, re-measured by tests/unit/test_member_projection_1d1c1c.py on every run). A member not listed is refused.
 * ``ProjectionProtocol`` -> per-member ``ProjectionMode``: P (capability-aware, the primary predictive benchmark), C
-  (common fold median, the controlled comparison), B (availability-blinded draw, research only, never servable).
+  (common fold median, the controlled comparison), B1 (marginal-resampling draw, a research sensitivity experiment,
+  never servable; owner ruling ff77015c withdrew the earlier 'availability-blinded' claim: it is a marginal diagnostic).
 
 The composition of a calibrated member is ``_IsotonicCalibrator(ProjectedMember(projection, estimator))``: the calibrator
 stays outermost, so its stage stays detectable and calibration consumes canonical rows through the frozen projection.
@@ -76,7 +77,7 @@ class ProjectionProtocol(str, Enum):
     LEGACY_UNPROJECTED = "legacy_unprojected"                      # historical epoch 1: no member projection
     CAPABILITY_AWARE = "capability_aware_p"                        # P: native NaN where qualified, fold median otherwise
     COMMON_FOLD_MEDIAN = "common_fold_median_c"                    # C: the fold median for every tabular member
-    AVAILABILITY_BLINDED = "availability_blinded_b"                # B: research only; never servable
+    MARGINAL_RESAMPLING = "marginal_resampling_b1"                 # B1: research only; never servable
 
 
 #: The protocols that wrap members, and whether an artifact fitted under each may be served.
@@ -96,8 +97,8 @@ def member_projection_mode(name: str, protocol: ProjectionProtocol) -> Projectio
         return None
     if protocol is ProjectionProtocol.COMMON_FOLD_MEDIAN:
         return ProjectionMode.FOLD_MEDIAN
-    if protocol is ProjectionProtocol.AVAILABILITY_BLINDED:
-        return ProjectionMode.AVAILABILITY_BLINDED_DRAW
+    if protocol is ProjectionProtocol.MARGINAL_RESAMPLING:
+        return ProjectionMode.MARGINAL_RESAMPLING_DRAW
     return (ProjectionMode.NATIVE_NAN if capability is EstimatorCapability.NATIVE_NAN else ProjectionMode.FOLD_MEDIAN)
 
 

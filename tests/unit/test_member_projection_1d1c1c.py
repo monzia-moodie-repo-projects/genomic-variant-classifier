@@ -20,7 +20,7 @@ from genomic_variant_classifier.models.model_preprocessing import (
     MemberProjection,
     ProjectionMode as PM,
     UndeclaredMissingnessError,
-    blinded_surrogates,
+    marginal_resampling_surrogates,
     row_content_keys,
 )
 
@@ -142,7 +142,7 @@ def test_declared_gene_constraint_oe_is_a_fold_median_for_finite_members_and_nan
 
 def test_gene_is_constrained_missingness_is_refused_for_finite_members_until_ruled():
     X = canonical([0.1, 0.2, np.nan], gene_is_constrained=[1.0, np.nan, 0.0])
-    for mode in (PM.FOLD_MEDIAN, PM.AVAILABILITY_BLINDED_DRAW):
+    for mode in (PM.FOLD_MEDIAN, PM.MARGINAL_RESAMPLING_DRAW):
         with pytest.raises(UndeclaredMissingnessError, match="no finite policy"):
             proj(X, mode).fit(X)
     assert np.isnan(proj(X, PM.NATIVE_NAN).fit(X).transform(X).loc[1, "gene_is_constrained"])
@@ -150,7 +150,7 @@ def test_gene_is_constrained_missingness_is_refused_for_finite_members_until_rul
 
 def test_an_all_missing_root_is_refused_for_a_finite_mode_and_accepted_natively():
     X = canonical([np.nan, np.nan])
-    for mode in (PM.FOLD_MEDIAN, PM.AVAILABILITY_BLINDED_DRAW):
+    for mode in (PM.FOLD_MEDIAN, PM.MARGINAL_RESAMPLING_DRAW):
         with pytest.raises(UndeclaredMissingnessError, match="entirely unobserved"):
             proj(X, mode).fit(X)
     assert proj(X, PM.NATIVE_NAN).fit(X).transform(X)[list(MODEL.values())].isna().all().all()
@@ -199,13 +199,13 @@ def test_clone_gives_an_unfitted_projection_with_the_same_parameters():
     assert q.get_params() == p.get_params() and not hasattr(q, "identity_")
 
 
-# ------------------------------------------------------------------ the availability-blinded draw (audit R1)
-def test_blinded_draws_come_from_the_observed_values_and_are_batch_independent():
+# ------------------------------------------------------------------ the marginal-resampling draw (B1; audit R1, ruling ff77015c)
+def test_marginal_resampling_draws_come_from_the_observed_values_and_are_batch_independent():
     rng = np.random.default_rng(11)
     n = 4000
     af = np.where(rng.random(n) < 0.3, np.nan, rng.beta(0.3, 30, n))
     X = canonical(af, other=rng.normal(size=n), other2=rng.integers(0, 50, n))
-    p = proj(X, PM.AVAILABILITY_BLINDED_DRAW).fit(X)
+    p = proj(X, PM.MARGINAL_RESAMPLING_DRAW).fit(X)
     out = p.transform(X)
     miss = np.isnan(af)
     assert np.isin(out["af_model_raw"].to_numpy()[miss], af[~miss]).all()
@@ -216,10 +216,10 @@ def test_blinded_draws_come_from_the_observed_values_and_are_batch_independent()
     # no point mass: the most frequent surrogate value is a small share of the unobserved rows
     _, counts = np.unique(out["af_model_raw"].to_numpy()[miss], return_counts=True)
     assert counts.max() / miss.sum() < 0.01
-    assert p.blinded_distinct_key_fraction_ > 0.99
+    assert p.resampling_distinct_key_fraction_ > 0.99
 
 
-def test_blinded_draws_are_coherent_and_a_median_creates_the_point_mass_they_remove():
+def test_marginal_resampling_draws_are_coherent_and_a_median_creates_the_point_mass_they_remove():
     rng = np.random.default_rng(12)
     n = 3000
     af = np.where(rng.random(n) < 0.3, np.nan, rng.beta(0.3, 30, n))
@@ -227,16 +227,16 @@ def test_blinded_draws_are_coherent_and_a_median_creates_the_point_mass_they_rem
     med = proj(X, PM.FOLD_MEDIAN).fit(X).transform(X)["af_model_raw"].to_numpy()
     m = np.median(af[~np.isnan(af)])
     assert ((med == m) == np.isnan(af)).mean() > 0.999          # the median IS the missingness indicator here
-    blind = proj(X, PM.AVAILABILITY_BLINDED_DRAW).fit(X).transform(X)
+    blind = proj(X, PM.MARGINAL_RESAMPLING_DRAW).fit(X).transform(X)
     fam = derive_family(AF_FAMILY, blind["af_model_raw"].to_numpy())
     for c, mname in MODEL.items():
         np.testing.assert_array_equal(blind[mname].to_numpy(), fam[c])
 
 
-def test_the_blinded_draw_needs_a_non_family_feature_to_key_rows():
+def test_the_marginal_resampling_draw_needs_a_non_family_feature_to_key_rows():
     X = canonical([0.1, np.nan]).drop(columns="other")
     with pytest.raises(ValueError, match="non-family"):
-        proj(X, PM.AVAILABILITY_BLINDED_DRAW).fit(X)
+        proj(X, PM.MARGINAL_RESAMPLING_DRAW).fit(X)
 
 
 def test_row_keys_canonicalise_negative_zero_and_nan():
@@ -245,7 +245,7 @@ def test_row_keys_canonicalise_negative_zero_and_nan():
     assert a.tolist() == b.tolist()
     assert row_content_keys(np.array([[1.0, 2.0]]), 7).tolist() != row_content_keys(np.array([[1.0, 2.0]]), 8).tolist()
     sorted_obs = np.array([0.1, 0.2, 0.3])
-    assert set(blinded_surrogates(sorted_obs, row_content_keys(np.arange(30.0).reshape(-1, 1), 1)).tolist()) <= {0.1, 0.2, 0.3}
+    assert set(marginal_resampling_surrogates(sorted_obs, row_content_keys(np.arange(30.0).reshape(-1, 1), 1)).tolist()) <= {0.1, 0.2, 0.3}
 
 
 # ------------------------------------------------------------------ fold-local OOF, exactly (AF-OOF-PROJECTION-LEAKAGE-1)

@@ -1,7 +1,7 @@
 {
   "authority": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "file_sha256_at_capture": "7e8540864a80594af6b63dab80b74bfcd5ea7b16973eeb322ff4fd5a8ab8ea28",
+    "file_sha256_at_capture": "3d83db879c283ed97bd664b587e1c2012a511ad513b6d85054acdb9160503551",
     "path": "src/genomic_variant_classifier/models/variant_ensemble.py"
   },
   "consumer_sites": {

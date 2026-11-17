@@ -42,8 +42,9 @@ from genomic_variant_classifier.monitoring.model_registry import (
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "Admission", "C10NotImplemented", "CutoverAuthority", "DEFAULT_AUTHORITY", "Decision", "Outcome",
-    "admit_artifact", "quarantine_policy_sha256", "repository_registry_path",
+    "Admission", "C10NotImplemented", "CutoverAuthority", "DEFAULT_AUTHORITY", "Decision", "FIT_PROTOCOLS", "Outcome",
+    "SCIENTIFIC_ONLY", "UNRECORDED_FIT", "admit_artifact", "quarantine_policy_sha256", "repository_registry_path",
+    "require_admitted_fit",
 ]
 
 
@@ -52,15 +53,30 @@ class Outcome(str, Enum):
     DENY = "deny"
 
 
+#: The fit protocols a loaded predictor can record (models.fit_context.ExecutionProtocol's values; a test proves the two
+#: equal), plus UNRECORDED for an artifact fitted before fit contexts existed (stage 1D-1c.1C). Strings, not the enum:
+#: this module stays outside the model stack.
+FIT_PROTOCOLS: tuple[str, ...] = ("historical_replay", "engineering_qualification", "scientific")
+UNRECORDED_FIT = "unrecorded"
+#: What a decision admits when it names nothing: a scientific fit only (owner ruling ff77015c section 9).
+SCIENTIFIC_ONLY: frozenset = frozenset({"scientific"})
+
+
 @dataclass(frozen=True)
 class Decision:
-    """An authorization decision BOUND to one artifact, one consumer and one policy."""
+    """An authorization decision BOUND to one artifact, one consumer and one policy, naming the fit protocols it admits.
+
+    ``fit_protocols`` (set "au.1", owner ruling ff77015c section 9): a projection protocol that can be served does not
+    make an engineering-qualification or historical-replay fit a deployable scientific predictor. The authority names,
+    as a typed set, which recorded fit protocols it admits; the default is a scientific fit only. A test authority that
+    loads synthetic engineering fits must say so explicitly."""
 
     artifact_sha256: str
     consumer: str
     policy_sha256: str
     outcome: Outcome
     reason: str
+    fit_protocols: frozenset = SCIENTIFIC_ONLY
 
 
 class CutoverAuthority(Protocol):
@@ -133,7 +149,40 @@ def admit_artifact(path: str | Path, *, consumer: str, registry_path: str | Path
     if not (decision.artifact_sha256 == record.artifact.sha256 and decision.consumer == consumer
             and decision.policy_sha256 == policy and type(decision.reason) is str and decision.reason.strip()):
         raise ContainmentError("the decision is not bound to this artifact, consumer and current policy")
+    if (type(decision.fit_protocols) is not frozenset or not decision.fit_protocols
+            or not decision.fit_protocols <= frozenset(FIT_PROTOCOLS) | {UNRECORDED_FIT}):
+        raise ContainmentError("the decision must name, as a non-empty frozenset, the recorded fit protocols it admits "
+                               f"(from {list(FIT_PROTOCOLS) + [UNRECORDED_FIT]}); got {decision.fit_protocols!r}")
     if decision.outcome is not Outcome.ALLOW:
         raise ContainmentError(f"{consumer} may not load {record.record_id}: {decision.reason}")
     logger.info("admitted %s for %s (record %s)", path.name, consumer, record.record_id)
     return Admission(record=record, decision=decision)
+
+
+def require_admitted_fit(admission: Admission, fit_context: object) -> str:
+    """After deserialization: the loaded predictor's recorded fit protocol must be one the decision admits. Returns it.
+
+    ``fit_context`` is the record a fitted ensemble keeps (FitContext.as_record(): its fields and their digest), or None
+    for an artifact fitted before fit contexts existed (UNRECORDED_FIT). The record's digest is recomputed, so an edited
+    protocol field is refused rather than believed."""
+    from genomic_variant_classifier.prediction_contract import canonical_digest
+
+    if type(admission) is not Admission:
+        raise ContainmentError("a fit is admitted only through an Admission from admit_artifact")
+    if fit_context is None:
+        protocol = UNRECORDED_FIT
+    else:
+        if not isinstance(fit_context, dict) or "digest" not in fit_context or "protocol" not in fit_context:
+            raise ContainmentError("the loaded predictor's fit-context record is malformed")
+        body = {k: v for k, v in fit_context.items() if k != "digest"}
+        if canonical_digest("gvc.fit-context.v1", body) != fit_context["digest"]:
+            raise ContainmentError("the loaded predictor's fit-context record does not reproduce its digest")
+        protocol = fit_context["protocol"]
+        if protocol not in FIT_PROTOCOLS:
+            raise ContainmentError(f"the loaded predictor records an unknown fit protocol {protocol!r}")
+    if protocol not in admission.decision.fit_protocols:
+        raise ContainmentError(
+            f"the loaded predictor was fitted under the {protocol} protocol, which this decision does not admit "
+            f"(it admits {sorted(admission.decision.fit_protocols)}): an engineering or historical fit is not a "
+            "deployable scientific predictor, whatever its projection protocol")
+    return protocol

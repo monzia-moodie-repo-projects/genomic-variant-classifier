@@ -94,7 +94,6 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
-import functools as _functools
 import hashlib
 import logging
 from dataclasses import dataclass
@@ -105,7 +104,7 @@ from typing import Mapping
 import numpy as np
 import pandas as pd
 
-from genomic_variant_classifier.code_identity import symbol_closure_digest
+from genomic_variant_classifier.code_identity import closure_digest_of_text, parse_symbol, source_text
 from genomic_variant_classifier.models.feature_semantics import (
     PROJECTABLE_FAMILIES,
     FeatureSemantics,
@@ -359,9 +358,17 @@ class TabularModelPreprocessor:
 # * No availability indicator is ever emitted (strict regime; ruling aa999b96 decision A).
 # * Missingness outside a family is refused unless declared below (fail closed, as version 1).
 # * Three modes: NATIVE_NAN (the estimator receives NaN), FOLD_MEDIAN (the fold-fitted median of the observed root),
-#   AVAILABILITY_BLINDED_DRAW (a research projection: the surrogate is drawn from the fold's observed root values, keyed
-#   by the row's own content, so the imputed column cannot reveal which rows were unobserved; audit R1 measured the
-#   median exposing availability at AUROC 0.99983 and the draw at 0.50487). A blinded artifact is never servable.
+#   MARGINAL_RESAMPLING_DRAW (research protocol B1, never servable): the surrogate is drawn from the fold's observed
+#   root values, keyed deterministically by the row's NON-FAMILY feature contents. What that establishes, and what it
+#   does not (owner ruling ff77015c, sections 8 and 4 of the further ruling):
+#     - it removes the point mass a median creates: in one experiment on the Run 15 training split (audit R1),
+#       missingness was recovered from the projected AF ALONE at AUROC 0.99983 under the median and 0.50487 under the
+#       draw -- a marginal diagnostic of that one evaluation, its uncertainty not qualified;
+#     - it does NOT establish that missingness is unrecoverable from the projected AF TOGETHER WITH the other features
+#       (P(M | A', Z)); tests/unit/test_corrections_1d1c1c_r1.py holds an exact witness;
+#     - the surrogate is a function of the other features, so a perturbation of an unrelated feature can change it;
+#     - a protocol P minus protocol B1 difference compares two declared pipelines; it is not a causal estimate of
+#       ascertainment. The sample the draws come from is verified against its recorded digest at every transform.
 
 PROJECTION_SCHEMA = "gvc.member-projection/2"
 _THIS_FILE = "src/genomic_variant_classifier/models/model_preprocessing.py"
@@ -371,11 +378,11 @@ _SEMANTICS_FILE = "src/genomic_variant_classifier/models/feature_semantics.py"
 class ProjectionMode(str, Enum):
     NATIVE_NAN = "native_nan"
     FOLD_MEDIAN = "fold_median"
-    AVAILABILITY_BLINDED_DRAW = "availability_blinded_draw"
+    MARGINAL_RESAMPLING_DRAW = "marginal_resampling_draw"
 
 
 #: Modes whose output must be finite everywhere.
-FINITE_MODES: frozenset = frozenset({ProjectionMode.FOLD_MEDIAN, ProjectionMode.AVAILABILITY_BLINDED_DRAW})
+FINITE_MODES: frozenset = frozenset({ProjectionMode.FOLD_MEDIAN, ProjectionMode.MARGINAL_RESAMPLING_DRAW})
 
 
 class SingleFeatureTreatment(str, Enum):
@@ -398,8 +405,10 @@ DECLARED_MISSINGNESS_V2: Mapping[str, DeclaredMissingnessV2] = {
     "gene_is_constrained": DeclaredMissingnessV2(
         SingleFeatureTreatment.NATIVE_ONLY_PENDING_RULING,
         "a STRICT function of loeuf, whose model feature is filled with 1.0 (LOEUF-SENTINEL-1), so the family cannot be "
-        "projected jointly; a structural zero without its mask would assert 'not constrained'. Refused for a "
-        "finite-requiring member until the owner rules (AUDIT_OF_RULING_1D1c1C_2026-11-16, section 6)."),
+        "projected jointly; a structural zero would assert 'not constrained' and an indicator would expose annotation "
+        "availability. Owner ruling ff77015c (2026-11-16): the refusal for a finite-requiring member is kept until the "
+        "constraint-source stage qualifies LOEUF; the first strict baseline then admits a qualified LOEUF family or "
+        "compiles a versioned roster withholding loeuf and its whole dependent closure from every estimator alike."),
 }
 
 
@@ -407,16 +416,35 @@ def _repo_root() -> _Path:
     return _Path(__file__).resolve().parents[3]
 
 
-@_functools.lru_cache(maxsize=None)
+#: (symbol, SHA-256 of the exact source bytes read) -> its closure digest. Keyed by CONTENT: until set "au.1" the cache
+#: was keyed by the symbol alone (functools.lru_cache), so after the first call an edited source file kept returning the
+#: digest of the code it no longer held (CODE-IDENTITY-STALE-CACHE-1, owner ruling ff77015c section 6).
+_CLOSURE_BY_CONTENT: dict = {}
+
+
 def _closure(symbol: str) -> str:
-    return symbol_closure_digest(_repo_root(), symbol)
+    """The closure digest of ``symbol`` in the source file as it is NOW: the bytes are read and hashed on every call, the
+    closure is computed from exactly those bytes, and the parse is reused only while the bytes are unchanged."""
+    rel, _qual = parse_symbol(symbol)
+    path = _repo_root() / rel
+    if not path.is_file():
+        raise ValueError(f"symbol {symbol!r}: file is missing")
+    raw = path.read_bytes()
+    key = (symbol, hashlib.sha256(raw).hexdigest())
+    digest = _CLOSURE_BY_CONTENT.get(key)
+    if digest is None:
+        digest = closure_digest_of_text(symbol, source_text(raw))
+        _CLOSURE_BY_CONTENT[key] = digest
+    return digest
 
 
 def projection_code_identity(families: tuple) -> dict:
     """Symbol-closure digests of the code a fitted projection executes: the projection, the family derivation and every
     formula its families call (``derive_family`` reaches the formulas through the family, not by name, so each is bound
-    explicitly). A code change is a different projection. Computed from the source files at fit and again at every
-    transform, so an image or installation without the source refuses to serve, loudly, rather than serving unbound."""
+    explicitly). A code change is a different projection. Computed from the source files as they are at fit and again at
+    every transform (``_closure`` re-reads and re-hashes the bytes each time), so an edited file is a different
+    projection and an image or installation without the source refuses to serve, loudly, rather than serving unbound.
+    The digest is SEMANTIC (comment-insensitive): it identifies the derivation, not the installation's bytes."""
     symbols = [f"{_THIS_FILE}::MemberProjection", f"{_SEMANTICS_FILE}::derive_family",
                f"{_SEMANTICS_FILE}::DerivationFamily"]
     for family in families:
@@ -450,11 +478,23 @@ def row_content_keys(values: np.ndarray, seed: int) -> np.ndarray:
     return h
 
 
-def blinded_surrogates(sorted_observed: np.ndarray, keys: np.ndarray) -> np.ndarray:
+def marginal_resampling_surrogates(sorted_observed: np.ndarray, keys: np.ndarray) -> np.ndarray:
     """Draws from the empirical distribution ``sorted_observed``, one per key (uniform on [0, 1) from the top 53 bits)."""
     n = len(sorted_observed)
     u = (keys >> np.uint64(11)).astype(np.float64) * (2.0 ** -53)
     return sorted_observed[np.minimum((u * n).astype(np.int64), n - 1)]
+
+
+def empirical_sample_sha256(sample: np.ndarray) -> str:
+    """SHA-256 of a sample's exact binary64 values in order, little-endian (the digest the fitted identity records)."""
+    return hashlib.sha256(np.ascontiguousarray(sample, dtype="<f8").tobytes()).hexdigest()
+
+
+def _immutable_sample(values: np.ndarray) -> np.ndarray:
+    """A copy backed by an immutable ``bytes`` object: NumPy refuses to make it writeable again. In-process objects are
+    not a security boundary -- the digest check at every transform is the guarantee; this removes the accidental path."""
+    raw = np.ascontiguousarray(values, dtype="<f8").tobytes()
+    return np.frombuffer(raw, dtype="<f8")
 
 
 class MemberProjection:
@@ -561,16 +601,14 @@ class MemberProjection:
                     "(feature_semantics.roster_without_family).")
             if mode is ProjectionMode.FOLD_MEDIAN:
                 stats[family.family_id] = {"median_binary64_hex": float(np.median(obs)).hex()}
-            elif mode is ProjectionMode.AVAILABILITY_BLINDED_DRAW:
-                sorted_obs = np.sort(obs)
-                sorted_obs.setflags(write=False)
+            elif mode is ProjectionMode.MARGINAL_RESAMPLING_DRAW:
+                sorted_obs = _immutable_sample(np.sort(obs))
                 self._sorted_observed_[family.family_id] = sorted_obs
-                stats[family.family_id] = {
-                    "observed_sorted_float64_sha256": hashlib.sha256(sorted_obs.astype("<f8").tobytes()).hexdigest(),
-                    "n_observed": int(obs.size)}
+                stats[family.family_id] = {"observed_sorted_float64_sha256": empirical_sample_sha256(sorted_obs),
+                                           "n_observed": int(obs.size)}
         in_family = {m for f in families for m in f.members}
-        if mode is ProjectionMode.AVAILABILITY_BLINDED_DRAW and families and len(names) == len(in_family):
-            raise ValueError("an availability-blinded draw keys each row by its non-family features; there are none")
+        if mode is ProjectionMode.MARGINAL_RESAMPLING_DRAW and families and len(names) == len(in_family):
+            raise ValueError("a marginal-resampling draw keys each row by its non-family features; there are none")
         single: dict = {}
         if mode in FINITE_MODES:
             for c, policy in sorted(DECLARED_MISSINGNESS_V2.items()):
@@ -597,15 +635,37 @@ class MemberProjection:
             "statistics": stats, "single_feature_medians_hex": single, "fit_rows": self.n_fit_rows_,
             "observed": observed_counts})
         self.draw_seed_ = int(pre[:16], 16)
-        if mode is ProjectionMode.AVAILABILITY_BLINDED_DRAW:
+        if mode is ProjectionMode.MARGINAL_RESAMPLING_DRAW:
             other = [index[n] for n in names if n not in in_family]
             unobserved = np.zeros(len(values), dtype=bool)
             for family in families:
                 unobserved |= np.isnan(values[:, index[family.root]])
             keys = row_content_keys(values[unobserved][:, other], self.draw_seed_)
-            self.blinded_distinct_key_fraction_ = (float(len(np.unique(keys)) / len(keys)) if len(keys) else None)
+            self.resampling_distinct_key_fraction_ = (float(len(np.unique(keys)) / len(keys)) if len(keys) else None)
         self.identity_ = self._identity()
         return self
+
+    def _verified_sample(self, family_id: str) -> np.ndarray:
+        """The fitted empirical sample of ``family_id``, re-verified against the fitted record before it is used
+        (MARGINAL-RESAMPLING-SAMPLE-UNBOUND-1, owner ruling ff77015c section 7): the recorded families exactly, its
+        digest, its count, finite values in the family domain, in non-decreasing order. Refused otherwise."""
+        samples = getattr(self, "_sorted_observed_", None)
+        expected = {f.family_id for f in self.families_}
+        if not isinstance(samples, dict) or set(samples) != expected:
+            raise RuntimeError("the fitted empirical samples are not the fitted families' samples")
+        sample = samples[family_id]
+        if not isinstance(sample, np.ndarray) or sample.ndim != 1:
+            raise RuntimeError(f"{family_id}: the fitted empirical sample is not a one-dimensional array")
+        record = self.statistics_[family_id]
+        family = next(f for f in self.families_ if f.family_id == family_id)
+        lo, hi = family.domain
+        if (len(sample) != record["n_observed"] or len(sample) == 0 or not np.isfinite(sample).all()
+                or (sample < lo).any() or (sample > hi).any() or (np.diff(sample) < 0).any()):
+            raise RuntimeError(f"{family_id}: the fitted empirical sample violates its recorded count, domain or order")
+        if empirical_sample_sha256(sample) != record["observed_sorted_float64_sha256"]:
+            raise RuntimeError(f"{family_id}: the fitted empirical sample changed after fitting (its digest differs "
+                               "from the one the projection's identity binds)")
+        return sample
 
     def _identity(self) -> str:
         return canonical_digest("gvc.member-projection-identity.v1", {
@@ -622,6 +682,8 @@ class MemberProjection:
             raise RuntimeError("the member projection has not been fitted")
         if self._identity() != self.identity_:
             raise RuntimeError("the fitted projection's state no longer matches its recorded identity")
+        samples = ({f.family_id: self._verified_sample(f.family_id) for f in self.families_}
+                   if self.mode_ is ProjectionMode.MARGINAL_RESAMPLING_DRAW else {})
         values, families = self._validate(X)
         if tuple(f.family_id for f in families) != tuple(f.family_id for f in self.families_):
             raise ValueError("the families present differ from the fitted ones")
@@ -630,7 +692,7 @@ class MemberProjection:
         in_family = {m for f in families for m in f.members}
         out = values
         if self.mode_ is not ProjectionMode.NATIVE_NAN:
-            canonical = values.copy() if self.mode_ is ProjectionMode.AVAILABILITY_BLINDED_DRAW else None
+            canonical = values.copy() if self.mode_ is ProjectionMode.MARGINAL_RESAMPLING_DRAW else None
             for family in families:
                 j = index[family.root]
                 root = values[:, j].copy()
@@ -641,7 +703,7 @@ class MemberProjection:
                     else:
                         other = [index[n] for n in names if n not in in_family]
                         keys = row_content_keys(canonical[missing][:, other], self.draw_seed_)
-                        root[missing] = blinded_surrogates(self._sorted_observed_[family.family_id], keys)
+                        root[missing] = marginal_resampling_surrogates(samples[family.family_id], keys)
                 derived = derive_family(family, root)
                 for m in family.members:
                     out[:, index[m]] = derived[m]

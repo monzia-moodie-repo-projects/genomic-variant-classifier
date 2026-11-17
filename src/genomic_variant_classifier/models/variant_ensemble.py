@@ -3867,7 +3867,7 @@ class VariantEnsemble:
         """
         import joblib
 
-        from genomic_variant_classifier.model_admission import DEFAULT_AUTHORITY, admit_artifact
+        from genomic_variant_classifier.model_admission import DEFAULT_AUTHORITY, admit_artifact, require_admitted_fit
 
         path = Path(path)
         admission = admit_artifact(path, consumer=consumer, registry_path=registry_path,
@@ -3879,6 +3879,9 @@ class VariantEnsemble:
             raise ContainmentError(
                 f"{path.name} records no per-member digests (a legacy ensemble format), so its members are "
                 "unbound and cannot be admitted")
+        # Set "au.1" (owner ruling ff77015c section 9): the decision must admit the recorded fit protocol, checked
+        # before any member is deserialized.
+        require_admitted_fit(admission, obj.get("fit_context_"))
         paths, digests = obj["saved_model_paths"], obj["saved_model_sha256"]
         members = tuple(paths)
         if not members or set(paths) != set(digests):

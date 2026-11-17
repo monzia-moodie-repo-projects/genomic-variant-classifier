@@ -1,3 +1,46 @@
+## 2026-11-16 (package 1D, stage 1D-1c.1C, set "au.1") -- the corrective revision of set "au"
+
+Owner ruling ff77015c (an audit of set "au" with an independent audit archive, 4a6ce62c, and a further integrated
+ruling), audited in AUDIT_OF_RULING_ff77015c_2026-11-16.md. Set "au" was already merged (pull request #78, main e176fb6d),
+so the correction is its own set on main. No model is fitted on real data; no scientific fit is reachable.
+
+- CODE-IDENTITY-STALE-CACHE-1 (repaired). The projection's code identity was read through a cache keyed by the symbol
+  alone (functools.lru_cache), so after the first call an edited source file kept its old digest; the docstring's claim of
+  a recheck at every transform did not hold (the archive's witness reproduced it). Now every call reads and hashes the
+  bytes, and the closure is computed from exactly those bytes (code_identity.closure_digest_of_text), reusing the parse
+  only while the bytes are unchanged: 0.48 ms per identity measured. The identity stays semantic (comment-insensitive).
+  Every closure digest any committed record binds is unchanged (tested).
+- MARGINAL-RESAMPLING-SAMPLE-UNBOUND-1 (repaired). Protocol B's fitted empirical sample was outside the identity check: an
+  owning read-only array could be made writable and changed, changing the model input under the same identity. The sample
+  is now backed by immutable bytes and re-verified at every transform: the fitted families exactly, its digest, count,
+  family domain and order.
+- PROTOCOL-B-CONDITIONAL-BLINDING-CLAIM-1 (claim withdrawn). Protocol B is renamed B1, marginal resampling
+  (marginal_resampling_b1; mode marginal_resampling_draw), because "availability-blinded" stated the withdrawn claim.
+  The 0.50487 of set "au" is a marginal diagnostic of one evaluation. Witnessed on the real projection: missingness
+  recovered from the projected AF alone at AUROC 0.5009, and from the projected AF with the covariate that determines the
+  observed AF at 0.7568. The surrogate moves with unrelated features (a stated property). A protocol P minus B1 difference
+  compares two declared pipelines; it is not a causal estimate of ascertainment.
+- ENGINEERING-FIT-DEPLOYABLE-1 (repaired). A servable projection protocol is not a deployable fit. model_admission.Decision
+  names the recorded fit protocols it admits (a scientific fit only by default); InferencePipeline.load and
+  VariantEnsemble.load call require_admitted_fit after deserialization (the ensemble before any member is read), recompute
+  the fit-context record's digest, and refuse any protocol the decision does not name, an artifact without a fit context
+  included ("unrecorded"). The exporter loads through VariantEnsemble.load, so it is bound by the same decision. The test
+  authority names engineering_qualification and unrecorded explicitly.
+- LOEUF (ruled): the refusal of an unknown gene_is_constrained for a finite-requiring member is kept until the
+  constraint-source stage; the rationale now records the ruling.
+- Registered, each with an executable witness (tests/unit/test_open_serving_defects_1d1c1c_r1.py), P0 before deployment:
+  RUNTIME-SERVING-IMAGE-1 (the API image is Python 3.11 against the 3.12 fitting locks; the shared model libraries are
+  pinned identically, but torch and imodelsx are absent, so tabular_nn, kan, mc_dropout and deep_ensemble cannot be
+  deserialized there: measured by unpickling each fitted member with both blocked), DOCKER-RUNTIME-BASE-UNPINNED-1 (the
+  runtime stage's base image is a tag), SERVING-LEGACY-ROSTER-1 (a projected pipeline declares the 91-name contract, not
+  its members' fitted roster: an 85-feature AF-free fit is refused at serving).
+- Records: the census re-derived (its authority's file digest of variant_ensemble.py), and with it the admission and
+  absence records (their ledger digest only). The set "au" handoff stated the new roadmap as 14,157 bytes; it was 14,235
+  (blob 3d9d8675), as the owner measured.
+- Tests: 9,436 -> 9,464 collected (+33 / -5 by node identity: two new files, 28 tests; five nodes renamed to the B1
+  vocabulary, four test functions and one parametrized case whose identity carries the protocol value). (tests_drift/:
+  unchanged, 22.)
+
 ## 2026-11-16 (package 1D, stage 1D-1c.1C, set "au") -- the fitted member owns its projection; the roadmap's second succession
 
 Owner ruling aa999b96 (both parts; the revised ruling governs where they differ), audited with measurements on the code and

@@ -8468,4 +8468,18 @@
 #   AF-free arm). tests/unit/test_roadmap_claims.py: +7 / -3 (the archive tests parametrized over both archives; the archive
 #   chain only grows). tests/unit/test_admission_shadow.py: +1 / -1 renamed (shadow mode ends for the regime vocabulary and
 #   the AF arms). tests/unit/test_registered_defect_witnesses.py: +1 (LOEUF-SENTINEL-1). (tests_drift/: unchanged, 22.)
-9436
+# 2026-11-16  PACKAGE 1D, STAGE 1D-1c.1C, SET "au.1" (owner ruling ff77015c) -- the corrective revision of set "au".
+#   +33 / -5 by node identity (collected against main, e176fb6d). New files: +25 tests/unit/test_corrections_1d1c1c_r1.py
+#   (the closure from bytes equals the closure from the file for every symbol a committed record binds; source_text decodes
+#   as read_text; an actual source edit changes the code identity after the first lookup and a fitted projection then
+#   refuses to transform, while a comment edit does not; the B1 sample is immutable-bytes-backed and a changed sample,
+#   count, order, domain, shape or family set is refused at transform, also after pickling; the conditional-recovery
+#   witness on the real projection; the surrogate moves with an unrelated feature; the admission vocabulary is the fit
+#   context's; an engineering fit, an unrecorded fit and an edited fit-context record are refused unless admitted; the
+#   ensemble refused before any member is read; a malformed protocol set refused); +3
+#   tests/unit/test_open_serving_defects_1d1c1c_r1.py (RUNTIME-SERVING-IMAGE-1, DOCKER-RUNTIME-BASE-UNPINNED-1,
+#   SERVING-LEGACY-ROSTER-1, each present and registered). Renamed to the B1 vocabulary, no test added or removed: three in
+#   tests/unit/test_member_projection_1d1c1c.py, one in tests/unit/test_ensemble_projection_1d1c1c.py, and one parametrized
+#   case of tests/unit/test_projected_member_1d1c1c.py whose identity carries the protocol value. (tests_drift/: unchanged,
+#   22.)
+9464
