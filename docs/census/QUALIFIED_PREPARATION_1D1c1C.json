@@ -1,0 +1,546 @@
+{
+  "af_family": {
+    "af_is_common": {
+      "missing": 461790,
+      "missing_equals_unselected": true,
+      "ones": 72000
+    },
+    "af_is_observed_zero": {
+      "missing": 461790,
+      "missing_equals_unselected": true,
+      "ones": 42571
+    },
+    "af_is_rare": {
+      "missing": 461790,
+      "missing_equals_unselected": true,
+      "ones": 96231
+    },
+    "af_is_ultra_rare": {
+      "missing": 461790,
+      "missing_equals_unselected": true,
+      "ones": 799358
+    },
+    "af_log10": {
+      "missing": 461790,
+      "missing_equals_unselected": true,
+      "ones": null
+    },
+    "af_raw": {
+      "missing": 461790,
+      "missing_equals_unselected": true,
+      "ones": null
+    }
+  },
+  "canonical_matrix": {
+    "exact_columns": {
+      "af_1kg_afr": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "af_1kg_amr": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "af_1kg_eas": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "af_1kg_eur": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "af_1kg_sas": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "af_is_common": "40205b6bc4d86bad7a84ac15f7d8bc16fa44bea8f9e62952f56f90700d68b938",
+      "af_is_observed_zero": "a5f6f8a0b3962cc9999f7150f816ce3fb9c6448a47ecaa47255b7390f15a2f02",
+      "af_is_rare": "60d84f0b9dc9b7a9ff3bd1591e5d0e86204b2c33924608019405283a814d45c2",
+      "af_is_ultra_rare": "171f7c4a15c96bc2cea75e6cbfbdb277777ddf7e535d36308fafe13af88a97ca",
+      "af_raw": "93998a713aea659ce41317362778ad1a7c3fff9b1babde314b7d4336906536b5",
+      "alphamissense_score": "4e2f97a165596cb644b72b201953106cfb5a9275b21dbac1c4fcbebc933b14bb",
+      "alt_len": "7239b66b0b850f37f586c0355f616574ed2609b42a6ac4f252409d90c3102e13",
+      "cadd_high": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "cadd_phred": "0e3ef681da74b0146dcabe04ee3a26ea63f5466970fab3b8e9edb29d1b20ef2d",
+      "clingen_validity_score": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "codon_position": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "consequence_severity": "42c0ec942834551efa87b9605b0acc136adf7b90395a25a4d3326c7edb06ee16",
+      "cosmic_recurrence": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "cosmic_sig_tier": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "dbsnp_af": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "dist_to_splice_site": "476ac31eb18049c212e3007db06dc997db35013e9a3bcfd93d9dc55a7112e254",
+      "esm2_delta_norm": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "esm2_llr": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "eve_score": "4e2f97a165596cb644b72b201953106cfb5a9275b21dbac1c4fcbebc933b14bb",
+      "exon_number": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "finngen_af_fin": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "finngen_af_nfsee": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "finngen_enrichment": "4858f897761341ba8fb84bf74a72eeafe273b8f7969484fe6d657f52795d96aa",
+      "finngen_r13_af_fin": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "finngen_r13_af_nfsee": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "finngen_r13_enrichment": "4858f897761341ba8fb84bf74a72eeafe273b8f7969484fe6d657f52795d96aa",
+      "gene_constraint_oe": "bb895a4e33e0b51836220b60a5a19d85991dfcdb5ca8d3fe3f9fd6c2eba99a4e",
+      "gene_is_constrained": "bb895a4e33e0b51836220b60a5a19d85991dfcdb5ca8d3fe3f9fd6c2eba99a4e",
+      "genomiclm_delta_norm": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "genomiclm_llr": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "gerp_score": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "gnn_score": "4e2f97a165596cb644b72b201953106cfb5a9275b21dbac1c4fcbebc933b14bb",
+      "gtex_is_eqtl": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "gtex_max_abs_effect": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "gtex_max_tpm": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "gtex_min_eqtl_pval": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "gtex_n_tissues_expressed": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "gtex_tissue_specificity": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "has_uniprot_annotation": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "hetero_gnn_score": "4e2f97a165596cb644b72b201953106cfb5a9275b21dbac1c4fcbebc933b14bb",
+      "in_coding": "3918b0614a690597954a6efb308063bdd4455068154a8d713b250f589987b424",
+      "is_autosome": "d14e438fac9dae1ecadfa8539e067ad8b28e0fc53b202b9d4b9f1dd95a13fc62",
+      "is_canonical_splice": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "is_deletion": "772a506d629faed418470ed3f2c8a1efd7ddecba7cb25d4c8cd581034aed3df4",
+      "is_indel": "a8b99282d340a44cd6ed31f7dfe7dbcb1a376f43f627f08c963f8017243b16b5",
+      "is_insertion": "ffc304d2e0ea9635a8823f921e257877326b9252f378f4bf252e3114bed0bad2",
+      "is_loss_of_function": "954e1cc59fed5a806554bcc64bb9a8406d67ea27448b2c2a766f8cbf437376ed",
+      "is_missense": "6022aa77eb63c5ed535943127e1a0dc7f55833d7acbe19705e172363ca3b5e7d",
+      "is_mitochondrial": "6acfd020dc36a7afede51874c47409dabc678a16f6d25b8bc3e3f91d94f033b4",
+      "is_sex_chrom": "b3cad3aaaf1c06e90e2a81e9ba34c341d7e6b8e62820fe19a77d10254f2e24b3",
+      "is_snv": "e9e2117b806a5459b799ed229216509232fe8e4ac81935a7b36d85803f76218f",
+      "is_splice": "f29668c0b1b67a79bbbe2599e084d1a5181d3c913debc515d9543e6a73003f3c",
+      "is_synonymous": "9cb9aacf7a45d0e35ea67c1895ae124e5388a2a5e0848d0de3c3a76e59782869",
+      "kegg_disease_pathway_flag": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "kegg_pathway_count": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "len_diff": "b5d2b86cca82aee57653ab0876cd53df5c0bc65137a03c20a9658a5d687a0983",
+      "loeuf": "4858f897761341ba8fb84bf74a72eeafe273b8f7969484fe6d657f52795d96aa",
+      "lovd_variant_class": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "maxentscan_delta": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "maxentscan_score": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "mis_z": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "n_known_pathogenic_protein_variants": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "n_tools_pathogenic": "4858f897761341ba8fb84bf74a72eeafe273b8f7969484fe6d657f52795d96aa",
+      "omim_is_autosomal_dominant": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "omim_n_diseases": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "omim_n_diseases_molecular": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "phylop_score": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "pli_score": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "polyphen2_score": "4e2f97a165596cb644b72b201953106cfb5a9275b21dbac1c4fcbebc933b14bb",
+      "polyphen_probably_damaging": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "reactome_pathway_count": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "ref_len": "40add8bc4b7d7ed32c3b380cbe545e38935bceb70fb7facde43dac87d8fdbb8b",
+      "revel_pathogenic": "4858f897761341ba8fb84bf74a72eeafe273b8f7969484fe6d657f52795d96aa",
+      "revel_score": "4e2f97a165596cb644b72b201953106cfb5a9275b21dbac1c4fcbebc933b14bb",
+      "rnaseq_de_neglog10p": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "rnaseq_detection_rate": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "rnaseq_log2_cv": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "rnaseq_log2fc": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "rnaseq_mean_log_tpm": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "sift_deleterious": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "sift_score": "4e2f97a165596cb644b72b201953106cfb5a9275b21dbac1c4fcbebc933b14bb",
+      "splice_ai_score": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b",
+      "syn_z": "c4aaf717cdfa25b83e52c94f15085e6cfaf3de2c37a4faa7858752be4cd0bf1b"
+    },
+    "identity": "9619b172f02e5e1f746f5db67e56c458567d0d9244cc1d06131c3927f6301faa",
+    "receipt": {
+      "allele_frequency": {
+        "bytes": 39477981,
+        "columns": {
+          "af_hom_mt_api": {
+            "column_sha256": "099b4bf4d39d8c8b8a62771453fc1f57d146ab6355089196ec752bff256f373f",
+            "detail_counts": {
+              "not_in_source": {
+                "no_row_in_api_extract": 58
+              },
+              "observed": {
+                "": 1563,
+                "zero_ac_hom_or_missing_ac_hom": 111
+              },
+              "unsupported_variant": {
+                "chromosome_outside_extract_scope": 1488282
+              }
+            },
+            "logical_source": "dataset:gnomad_ymt_api",
+            "state_counts": {
+              "bad_mapping": 0,
+              "computation_failed": 0,
+              "input_unobserved": 0,
+              "not_in_source": 58,
+              "observed": 1674,
+              "source_absent": 0,
+              "unsupported_variant": 1488282
+            }
+          },
+          "af_raw": {
+            "column_sha256": "baf1438b3e62f905149fcd6ba8d0d215e50d3b1df509529168333c8935f767c6",
+            "detail_counts": {
+              "not_in_source": {
+                "no_row_in_extracted_table": 458158,
+                "record_without_value": 1354
+              },
+              "observed": {
+                "": 985653,
+                "reported_zero_filter_unknown": 42571
+              },
+              "unsupported_variant": {
+                "allele_sequence_incomplete": 500,
+                "chromosome_outside_extract_scope": 1778
+              }
+            },
+            "logical_source": "dataset:gnomad_af",
+            "state_counts": {
+              "bad_mapping": 0,
+              "computation_failed": 0,
+              "input_unobserved": 0,
+              "not_in_source": 459512,
+              "observed": 1028224,
+              "source_absent": 0,
+              "unsupported_variant": 2278
+            }
+          },
+          "af_y_api": {
+            "column_sha256": "52a177ece7a9ab59e61255d54d001d8c2942c10feaf705af88d0084c8e2435cf",
+            "detail_counts": {
+              "not_in_source": {
+                "no_row_in_api_extract": 26
+              },
+              "observed": {
+                "": 20
+              },
+              "unsupported_variant": {
+                "chromosome_outside_extract_scope": 1489968
+              }
+            },
+            "logical_source": "dataset:gnomad_ymt_api",
+            "state_counts": {
+              "bad_mapping": 0,
+              "computation_failed": 0,
+              "input_unobserved": 0,
+              "not_in_source": 26,
+              "observed": 20,
+              "source_absent": 0,
+              "unsupported_variant": 1489968
+            }
+          }
+        },
+        "content_sha256": "d4c604277c2848e0a15d78810343219a2eab0088e627386c36b2a1281d3c6310",
+        "n_population": 1490014,
+        "parser": {
+          "closure_sha256": "f8c4c579132fff0bf4c59a2f538f781d20d0788d9f1d323bb3f7209c6cb72bb8",
+          "symbol": "src/genomic_variant_classifier/information_sources/allele_frequency.py::materialize_allele_frequency"
+        },
+        "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+        "population_identity_schema": "gvc.population-order/2",
+        "population_sha256": "5f58c0349413aa4ce83c6a873e0938992b26ae701dbec0d4699bf238d7284dce",
+        "schema": "gvc.materialization-receipt.1d1c1/2",
+        "source_records": {
+          "dataset:gnomad_af": 2947370,
+          "dataset:gnomad_ymt_api": 3778
+        },
+        "source_records_requested_by_population": {
+          "dataset:gnomad_af": 1029578,
+          "dataset:gnomad_ymt_api": 1694
+        }
+      },
+      "claim_codes_sha256": "76c005fd4e718c0138157314c594fb974e128488f3dd6beb12c4b7227cb60129",
+      "environment_dependent": {
+        "af_log10": {
+          "certificate": {
+            "bound_basis": "the project's registered permissible error for epoch 2 (owner ruling 6fa240c0), not a guarantee of numpy's for every platform and input",
+            "bound_ulp": 4.0,
+            "reference": "log10 to 113 bits (mpmath)"
+          },
+          "formula": "feature_semantics.formula_af_log10: numpy log10(af_raw + 1e-8) on observed rows",
+          "input": "af_raw, sealed bit for bit with the exact columns",
+          "missing": "exactly where af_raw is missing"
+        }
+      },
+      "exact_columns_sha256": "024b46970323e4f5f19496b3048940a4e71cfff248a230d9157ed4127006e51b",
+      "excluded": {
+        "reason": "label-derived; materialised per split (train-only) by the split protocol",
+        "split_dependent": [
+          "n_pathogenic_in_gene",
+          "gene_has_known_disease"
+        ]
+      },
+      "mode": "qualified",
+      "population": {
+        "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+        "rows": 1490014,
+        "sha256": "5f58c0349413aa4ce83c6a873e0938992b26ae701dbec0d4699bf238d7284dce"
+      },
+      "procedure": {
+        "src/genomic_variant_classifier/information_sources/allele_frequency.py::materialize_allele_frequency": "f8c4c579132fff0bf4c59a2f538f781d20d0788d9f1d323bb3f7209c6cb72bb8",
+        "src/genomic_variant_classifier/information_sources/allele_frequency.py::select_strict": "66a7fd8065d7bbfa76d380d6403b9d40c5aca31563b408f124313ca0067b4580",
+        "src/genomic_variant_classifier/information_sources/qualified_preparation.py::prepare_qualified": "845d13efe84d51ef8613ab6b298ebb7aa2ed6c275f97f87da1112d3347ab4569",
+        "src/genomic_variant_classifier/information_sources/reference_status.py::materialize_reference_status": "5edf609369045051f27b2f07e2bacd300746bf98598254766087f326b4278813",
+        "src/genomic_variant_classifier/models/feature_semantics.py::derive_family": "e532907a20946c05d8350a154a23bd3bdc590e39ce907162fba592c7f5537eee",
+        "src/genomic_variant_classifier/models/feature_semantics.py::formula_af_log10": "84a0249d6507a27574331ac7fe9a8e3fef99645efa178c13ed434104355f320d",
+        "src/genomic_variant_classifier/models/variant_ensemble.py::engineer_features": "8ec7841073291a68be9b103808997d3c9aa90920bfb3aac2ee36bfd4fdb466cc"
+      },
+      "reference_status": {
+        "identity": "dd5eb9091c4fa0d1e6b6f7a404f3a097a1deeb445aff73c3ea0df057093e6bd5",
+        "reference_assembly": {
+          "assembly": "GRCh38",
+          "description": "Homo_sapiens.GRCh38.dna.primary_assembly.fa (194 sequences; release not recorded in the file)",
+          "fai_sha256": "1411003e3a78242551943185c3a4158920270c7564fae336200384e9e411e813",
+          "fasta_bytes": 3151425851,
+          "fasta_sha256": "1e74081a49ceb9739cc14c812fbb8b3db978eb80ba8e5350beb80d8ad8dfef3b",
+          "window_manifest_signature": "234a0a170c3089b931aa6b462daa8fdc76774095b951c68ef1b7f911e74b91d6"
+        },
+        "reference_pin_sha256": "a33677f8f9ea2e9478e323bd50b35c72802fe032e2b1fd573099a623db923144",
+        "result_sha256": "a97e9b23e891b8bfe2b54f72d869283a6fbc57117b33f4e355e962f71c83d074",
+        "rule": {
+          "builder_version": "delta_window_builder/2026-07-10-stepB",
+          "convention": "contig_as_is;pos_1based;ins_mnv_off0;del_off-1_then_0;window101",
+          "implementation": "src/genomic_variant_classifier/data/delta_window_builder.py::build_window",
+          "implementation_closure_sha256": "c4f307a8856e75fcc417068b6d08903ccae933f76c55ca09ded13f23cedb3c59",
+          "normalization": "not_established: the window rule checks coordinates and REF only; normalization is the stage 1D-1d identity authority's",
+          "rule_id": "grch38_window_reference_match/1",
+          "verdict": "src/genomic_variant_classifier/information_sources/reference_status.py::verdict_of",
+          "verdict_closure_sha256": "c3426cecb04960403bf9e3aa8d4b31451c572883322283de53ab4a668b81d9ee",
+          "window": 101
+        }
+      },
+      "roster": [
+        "af_raw",
+        "af_log10",
+        "af_is_observed_zero",
+        "af_is_ultra_rare",
+        "af_is_rare",
+        "af_is_common",
+        "ref_len",
+        "alt_len",
+        "len_diff",
+        "is_snv",
+        "is_insertion",
+        "is_deletion",
+        "is_indel",
+        "consequence_severity",
+        "is_loss_of_function",
+        "is_missense",
+        "is_synonymous",
+        "is_splice",
+        "in_coding",
+        "cadd_phred",
+        "sift_score",
+        "polyphen2_score",
+        "revel_score",
+        "phylop_score",
+        "gerp_score",
+        "alphamissense_score",
+        "splice_ai_score",
+        "eve_score",
+        "cadd_high",
+        "sift_deleterious",
+        "polyphen_probably_damaging",
+        "revel_pathogenic",
+        "n_tools_pathogenic",
+        "gene_constraint_oe",
+        "gene_is_constrained",
+        "has_uniprot_annotation",
+        "n_known_pathogenic_protein_variants",
+        "gtex_max_tpm",
+        "gtex_n_tissues_expressed",
+        "gtex_tissue_specificity",
+        "gtex_is_eqtl",
+        "gtex_min_eqtl_pval",
+        "gtex_max_abs_effect",
+        "codon_position",
+        "dbsnp_af",
+        "omim_n_diseases",
+        "omim_n_diseases_molecular",
+        "omim_is_autosomal_dominant",
+        "clingen_validity_score",
+        "lovd_variant_class",
+        "is_autosome",
+        "is_sex_chrom",
+        "is_mitochondrial",
+        "gnn_score",
+        "hetero_gnn_score",
+        "maxentscan_score",
+        "maxentscan_delta",
+        "dist_to_splice_site",
+        "exon_number",
+        "is_canonical_splice",
+        "af_1kg_afr",
+        "af_1kg_eur",
+        "af_1kg_eas",
+        "af_1kg_sas",
+        "af_1kg_amr",
+        "finngen_af_fin",
+        "finngen_af_nfsee",
+        "finngen_enrichment",
+        "finngen_r13_af_fin",
+        "finngen_r13_af_nfsee",
+        "finngen_r13_enrichment",
+        "esm2_delta_norm",
+        "esm2_llr",
+        "genomiclm_delta_norm",
+        "genomiclm_llr",
+        "cosmic_recurrence",
+        "cosmic_sig_tier",
+        "kegg_pathway_count",
+        "kegg_disease_pathway_flag",
+        "pli_score",
+        "loeuf",
+        "syn_z",
+        "mis_z",
+        "reactome_pathway_count",
+        "rnaseq_mean_log_tpm",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_de_neglog10p"
+      ],
+      "schema": "gvc.canonical-matrix-receipt.1d1c1c/3",
+      "scope": "allele-frequency family only (QUALIFIED-FRAME-PROVENANCE-1): af_raw and its family come from the verified, declared gnomAD bytes through the registered strict policy; every other column is the single builder's value from the caller's frame, whose derivation from the declared cohort bytes is the caller's and is not re-established here -- not a source-qualified biological feature matrix",
+      "selection": {
+        "census": {
+          "eligible_unselected": 459512,
+          "full": 1490014,
+          "outside_domain": 1778,
+          "primary_domain": 1488236,
+          "selected": 1028224,
+          "selected_reported_zero": 42571,
+          "sequence_resolved_primary": 1487736,
+          "unknown_base": 500
+        },
+        "identity": "c7b5f3ae238d5015d8e23490887359868f7153770ce2fb1592a0e1dbafae82eb",
+        "policy": {
+          "arm": "retain_reported_zeros",
+          "policy_id": "strict_primary_exome_autosomes_x_v2",
+          "primary_domain": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "19",
+            "20",
+            "21",
+            "22",
+            "X"
+          ],
+          "statistic": "gnomad_preprocessed_mixed_af_unfiltered_v1",
+          "unknown_base_treatment": "exclude_from_sequence_resolved_primary"
+        }
+      },
+      "selection_codes_sha256": "1a8ec4ed3bc925c96d105afede93f391c1102a78bb8df5bd6513940fa8036161",
+      "semantics": "gvc.features/2",
+      "sources": {
+        "dataset:clinvar_cohort": "8d8747eb741cecd960ae3118d2b0b844a1cf55662ab617a1fd2b5dfc4f6e2c2c",
+        "dataset:gnomad_af": "d4c604277c2848e0a15d78810343219a2eab0088e627386c36b2a1281d3c6310",
+        "dataset:grch38_reference_check": "27ce4f69d10962b2da1fd7d348288354b0d4e77b9d22fbc43883c9a212016517"
+      },
+      "training": "refused: no scientific fit context can be constructed until the readiness gates are certified (models/fit_context.py; execution.scientific_fit_context names them)"
+    }
+  },
+  "chunking": {
+    "compared_with_one_call": {
+      "columns": 89,
+      "identical": true,
+      "rows": 300000
+    },
+    "row_local_proof_sha256": "0be0fff2df752b6cd835773eb469aa5a35adb99dc8f162970bbf0477dad19a3b",
+    "rows_per_chunk": 262144
+  },
+  "inputs": {
+    "cohort": {
+      "allele_freq_non_missing_in_population": 0,
+      "bytes": 142269185,
+      "logical_source": "dataset:clinvar_cohort",
+      "sha256": "8d8747eb741cecd960ae3118d2b0b844a1cf55662ab617a1fd2b5dfc4f6e2c2c"
+    },
+    "declared_by": {
+      "record": "docs/census/AF_REPAIR_1D1c1.json",
+      "sha256": "96409709fbd445d33be4b6d22931c4bcd4a312b00f115985e26c30d6300ca83a"
+    },
+    "gnomad": {
+      "bytes": 39477981,
+      "logical_source": "dataset:gnomad_af",
+      "sha256": "d4c604277c2848e0a15d78810343219a2eab0088e627386c36b2a1281d3c6310"
+    },
+    "reference_evidence": {
+      "bytes": 560606657,
+      "logical_source": "dataset:grch38_reference_check",
+      "sha256": "27ce4f69d10962b2da1fd7d348288354b0d4e77b9d22fbc43883c9a212016517"
+    }
+  },
+  "population": {
+    "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+    "rows": 1490014,
+    "sha256_v1": "d4085699adaf257ad032da6eb1284d5ea8d05d220defd7dc7144bfa2485d79f5",
+    "sha256_v2": "5f58c0349413aa4ce83c6a873e0938992b26ae701dbec0d4699bf238d7284dce"
+  },
+  "procedure": {
+    "scripts/measure_qualified_preparation_1d1c1c.py::measure": "e78be2f377253827a6299ceb961cff984a17470ebba034f5c1fb6469c9dfe216"
+  },
+  "reconciliation": {
+    "census": {
+      "eligible_unselected": 459512,
+      "full": 1490014,
+      "outside_domain": 1778,
+      "primary_domain": 1488236,
+      "selected": 1028224,
+      "selected_reported_zero": 42571,
+      "sequence_resolved_primary": 1487736,
+      "unknown_base": 500
+    },
+    "expected": {
+      "eligible_unselected": 459512,
+      "full": 1490014,
+      "outside_domain": 1778,
+      "primary_domain": 1488236,
+      "selected": 1028224,
+      "selected_reported_zero": 42571,
+      "sequence_resolved_primary": 1487736,
+      "unknown_base": 500
+    },
+    "reference_digest_equals_af_ledger": true,
+    "selection_identity_equals_af_ledger": true
+  },
+  "reference_status": {
+    "identity": "dd5eb9091c4fa0d1e6b6f7a404f3a097a1deeb445aff73c3ea0df057093e6bd5",
+    "payload": {
+      "prediction_units": {
+        "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+        "population_sha256": "5f58c0349413aa4ce83c6a873e0938992b26ae701dbec0d4699bf238d7284dce",
+        "rows": 1490014
+      },
+      "reference_assembly": {
+        "assembly": "GRCh38",
+        "description": "Homo_sapiens.GRCh38.dna.primary_assembly.fa (194 sequences; release not recorded in the file)",
+        "fai_sha256": "1411003e3a78242551943185c3a4158920270c7564fae336200384e9e411e813",
+        "fasta_bytes": 3151425851,
+        "fasta_sha256": "1e74081a49ceb9739cc14c812fbb8b3db978eb80ba8e5350beb80d8ad8dfef3b",
+        "window_manifest_signature": "234a0a170c3089b931aa6b462daa8fdc76774095b951c68ef1b7f911e74b91d6"
+      },
+      "reference_source": {
+        "content_sha256": "27ce4f69d10962b2da1fd7d348288354b0d4e77b9d22fbc43883c9a212016517",
+        "logical_source": "dataset:grch38_reference_check"
+      },
+      "row_alignment": {
+        "evidence_row_positions_sha256": "b3e1e07c2174696d71fd3f6402719a20afe4dfff8fcda8db1da618157629800b",
+        "key": "variant_id",
+        "match": "exact, each population row to one evidence row",
+        "population_sha256": "5f58c0349413aa4ce83c6a873e0938992b26ae701dbec0d4699bf238d7284dce"
+      },
+      "schema": "gvc.reference-status.1d1c1c/1",
+      "validation_result": {
+        "rows_sha256": "a97e9b23e891b8bfe2b54f72d869283a6fbc57117b33f4e355e962f71c83d074",
+        "verdicts": {
+          "False:non_acgt_allele": 500,
+          "True:": 1489514
+        }
+      },
+      "validation_rule": {
+        "builder_version": "delta_window_builder/2026-07-10-stepB",
+        "convention": "contig_as_is;pos_1based;ins_mnv_off0;del_off-1_then_0;window101",
+        "implementation": "src/genomic_variant_classifier/data/delta_window_builder.py::build_window",
+        "implementation_closure_sha256": "c4f307a8856e75fcc417068b6d08903ccae933f76c55ca09ded13f23cedb3c59",
+        "normalization": "not_established: the window rule checks coordinates and REF only; normalization is the stage 1D-1d identity authority's",
+        "rule_id": "grch38_window_reference_match/1",
+        "verdict": "src/genomic_variant_classifier/information_sources/reference_status.py::verdict_of",
+        "verdict_closure_sha256": "c3426cecb04960403bf9e3aa8d4b31451c572883322283de53ab4a668b81d9ee",
+        "window": 101
+      }
+    }
+  },
+  "schema": "gvc.qualified-preparation-record.1d1c1c/1",
+  "scope": "allele-frequency stage only: no annotation source is read, so every other feature is the builder's default; no model is fitted; scientific training is refused"
+}

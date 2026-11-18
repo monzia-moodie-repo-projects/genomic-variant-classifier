@@ -1,7 +1,7 @@
 {
   "authority": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "file_sha256_at_capture": "3d83db879c283ed97bd664b587e1c2012a511ad513b6d85054acdb9160503551",
+    "file_sha256_at_capture": "5f32f758c23d62a1b0ce4989010bef67d2e5bf32795325eb9eb01701b3ff3c3f",
     "path": "src/genomic_variant_classifier/models/variant_ensemble.py"
   },
   "consumer_sites": {
@@ -53,6 +53,15 @@
       "reason": "stage 1D-1b.3 measurement: builds the legacy StringDBGraph from the same files to compare it with the source-bound graphs and to show its cache key; no model is fitted",
       "symbols": [
         "StringDBGraph"
+      ]
+    },
+    "scripts/measure_qualified_preparation_1d1c1c.py": {
+      "classes": [
+        "diagnostic"
+      ],
+      "reason": "set \"av\" measurement: the qualified preparation on the real files, compared with one builder call on the first rows; fits nothing",
+      "symbols": [
+        "engineer_features"
       ]
     },
     "scripts/preflight_run16_inputs.py": {
@@ -167,6 +176,15 @@
         "diagnostic"
       ],
       "reason": "this census's measurement",
+      "symbols": [
+        "engineer_features"
+      ]
+    },
+    "src/genomic_variant_classifier/information_sources/qualified_preparation.py": {
+      "classes": [
+        "surface:feature_engineering"
+      ],
+      "reason": "set \"av\": the qualified preparation builds the canonical epoch-2 matrix through the single builder (engineer_features); it fits nothing, and training from it is refused",
       "symbols": [
         "engineer_features"
       ]

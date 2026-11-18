@@ -1,3 +1,79 @@
+## 2026-11-17 (package 1D, stage 1D-1c.1C, set "av" revision c) -- the qualified data preparation and the reference-identity authority
+
+Owner rulings aa999b96 (sections 13-15, revised sections 10 and 15) and ff77015c (sections 8, 11-13, the consolidated
+LOEUF ruling); audit AUDIT_OF_RULING_ff77015c_2026-11-16.md. Built on main 0f4326b0 (set "au.1", pull request #79). No
+model is fitted on real data; scientific training stays refused.
+
+- information_sources/qualified_preparation.py (new). The preparation mode is explicit (PreparationMode.QUALIFIED; the
+  historical route is DataPrepPipeline.run / run_v2, unchanged). Every source is read through read_verified_bytes and
+  DECLARED by digest; another file is refused by name. The typed AF materializer and the strict policy produce the model
+  value (NaN wherever nothing was selected); the full population is kept and sequence-resolved eligibility is a recorded
+  projection. The selected value is fed to the single builder (gvc.features/2), and the AF family is checked bit for bit
+  against feature_semantics.derive_family. Refused: a non-missing incoming allele_freq (the cohort's own column is all
+  missing, measured), the legacy join's 1000 Genomes and FinnGen columns, a reference status for another population or
+  rule, a census differing from a declared expectation. The label-derived n_pathogenic_in_gene and
+  gene_has_known_disease are not in the label-blind canonical matrix (89 columns).
+- Memory, measured on the real cohort: one builder call over 1,490,014 rows peaks about 4.5 GB above its input (the
+  6 GB sandbox killed it). The builder now receives only the columns it can read (builder_input_names, an AST bound over
+  its running source) and runs in chunks (build_in_chunks), proven row-local over its source and derive_family's
+  (row_local_proof), tested bit-identical to one call, and compared with one call on the first 300,000 real rows. Peak
+  resident memory 3.77 GB, 82 seconds, measured without the store write.
+- The canonical matrix is content-addressed (write_canonical / load_canonical): its identity binds the mode, semantics,
+  population, sources, reference status, policy and selection identity, census, roster, exact-column digest and the code
+  closures; reuse re-verifies all of them, and changed code refuses it.
+- CANONICAL-IDENTITY-ENVIRONMENT-1, found by the installer's first run on the owner's machine (the record's digest
+  differed): numpy's log10 bits depend on its processor dispatch and the platform's math library. Measured on the real
+  1,028,224 observed values: 27,950 differ between the AVX-512 (Advanced Vector Extensions, 512-bit) and baseline paths,
+  at most 2 ULP (units in the last place); every other column is bit-identical. The identity now seals every column bit for
+  bit except the columns environment_dependent_columns proves transcendental (exactly af_log10, an abstract-syntax-tree
+  proof over the builder and the AF formulas), and certify_log10 bounds af_log10 within 4 ULP (the project's registered
+  permissible error, owner ruling 6fa240c0: a policy bound whose scale numpy's stated SVML worst case informed, not a numpy
+  guarantee) of log10 computed to 113 bits (mpmath), at preparation and at every reuse; measured 0.575
+  ULP (AVX-512) and 1.552 ULP (baseline). The record reproduces byte for byte on both paths; a difference is now named
+  field by field and the measured record kept (--measured-out).
+- information_sources/reference_status.py (new). One validation rule (the window build's reference check, its identity
+  measured from the code), one pinned GRCh38 reference (FASTA and index SHA-256, size, the window manifest signature), the
+  cached cohort result aligned and stored content-addressed, reused only by exact source, rule, reference and population.
+  A novel variant is validated against the pinned sequence by the same rule, never by table membership. Normalization is
+  stated as not established by this rule (stage 1D-1d).
+- admission.compiled_roster (new): the roster a regime admits, with withheld roots treated as not admitted under the same
+  least fixed point. Measured: strict 55 and conditional 61 tabular names (equal to the shadow record); withholding loeuf
+  removes loeuf and gene_is_constrained -- its other dependents, gnn_score and hetero_gnn_score, are already not admitted.
+- A fitted ensemble records its source binding (VariantEnsemble.save / load, source_binding_); score_canonical refuses any
+  other canonical matrix. The fresh-process proof (ruling aa999b96 revised section 15): fitted on the compiled strict
+  roster under an engineering-qualification context, saved, loaded in a new process through the admission route, and the
+  predictions reproduced bit for bit; another policy refused there too.
+- docs/census/QUALIFIED_PREPARATION_1D1c1C.json (new, re-measured by -Validate): the sources declared by the AF ledger;
+  1,028,224 + 459,512 + 500 + 1,778 = 1,490,014, 1,487,736 sequence-resolved; the selection identity and reference digest
+  equal to the AF ledger's; the AF family missing on exactly the 461,790 unselected rows.
+- Records: the census re-derived (two new consumer sites, the authority's file digest of variant_ensemble.py), and with it
+  the admission and absence records (their ledger digest only); the semantic digest is unchanged (97f64bcb).
+- REVISION C (owner ruling 6fa240c0; audit AUDIT_OF_RULING_6fa240c0_2026-11-17.md). Every claim was first reproduced on
+  the candidate's own code (a witness script, no stubs), then repaired in the existing authorities:
+  - REFERENCE-VERDICT-ZIP-TRUNCATION-1: result_digest refuses verdicts and reasons of different lengths (zip strict); the
+    digest of well-formed verdicts is unchanged. ReferenceStatus is valid by construction (one bool verdict and one str
+    reason per population row, consistent, aligned to its population, a well-formed pin, a reproducing digest), its
+    verdicts bytes-backed and its mappings read-only.
+  - The reference pin is a required, declared argument of prepare_qualified and is compared with the status's reference;
+    the receipt records its digest.
+  - integrity.py (new): require_verified_bytes hashes a Parsed wrapper's bytes where they are consumed (the gnomAD bytes
+    in prepare_qualified, the evidence bytes in materialize_reference_status); a two-level content-addressed store,
+    <logical>/<payload SHA-256>.parquet with its record, published exclusively and atomically (a unique temporary file,
+    fsync, os.link), a record accepted only with its payload present and intact, a hard-link-less file system refused.
+  - CanonicalMatrix is valid by construction and immutable: receipt canonical bytes, roster, population, exact-column
+    digest, code digests and the af_log10 certificate verified against bytes-backed arrays; features is a fresh zero-copy
+    read-only view and receipt a fresh copy; verify() re-measures at bind_fit, score_canonical and write_canonical
+    (1.1-1.4 s on the real matrix). Its representation (every column's exact bits and the codes) is bound by bind_fit
+    (binding schema /2, scope exact_replay); a numerically equivalent but different representation is refused for replay.
+  - write_canonical returns (identity, payload SHA-256); load_canonical takes both and re-certifies the payload;
+    payload_for selects the payload whose representation a binding names. Receipt schema /3 adds the qualification scope
+    (QUALIFIED-FRAME-PROVENANCE-1: allele-frequency family only) and the bound's basis; store schema /2.
+  - Measured on the real files: the record (sha256 f0cba175; canonical identity 9619b172) reproduces byte for byte on the
+    default and the baseline dispatch paths (80-88 seconds each, the store write included; peak resident memory at most
+    3.87 GB); one logical identity holds both paths' payloads (66ce8bdf, 0.575 ULP; 57714a09, 1.552 ULP), each reloaded and
+    re-certified in about 10 seconds and selected by its representation.
+- Tests: 9,464 -> 9,555 collected (+91 / -0). (tests_drift/: unchanged, 22.)
+
 ## 2026-11-16 (package 1D, stage 1D-1c.1C, set "au.1") -- the corrective revision of set "au"
 
 Owner ruling ff77015c (an audit of set "au" with an independent audit archive, 4a6ce62c, and a further integrated

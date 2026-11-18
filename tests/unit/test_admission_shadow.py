@@ -236,10 +236,11 @@ def _imports(path: Path) -> set[str]:
 
 
 NEW_MODULES = ("admission", "observation", "lineage", "columns", "materialization", "absence_census", "graph_identity",
-               "labels", "population", "claims", "allele_frequency")
+               "labels", "population", "claims", "allele_frequency", "reference_status", "qualified_preparation")
 #: Measurement scripts that may import the shadow modules: they fit no model and write no production artefact.
 DIAGNOSTIC_IMPORTERS = {"scripts/measure_1d1b2_pilots.py", "scripts/measure_1d1b3_graph_identity.py",
-                        "scripts/measure_1d1b4_population.py", "scripts/measure_af_repair_1d1c1.py"}
+                        "scripts/measure_1d1b4_population.py", "scripts/measure_af_repair_1d1c1.py",
+                        "scripts/measure_qualified_preparation_1d1c1c.py"}
 #: Stage 1D-1c.1C (owner ruling aa999b96) ends shadow mode for exactly two authorities, imported by exactly one
 #: production module: the regime vocabulary and the AF arms (the experiment declaration reuses them rather than
 #: restating them). models/execution.py is a launcher module, outside the inference service's import closure; the
@@ -270,7 +271,7 @@ def test_only_the_absence_census_consumes_the_feature_contract_and_it_is_classif
     sites = K.discover_sites(REPO)
     base = "src/genomic_variant_classifier/information_sources/"
     for name in ("admission", "observation", "lineage", "columns", "materialization", "graph_identity", "labels",
-                 "population", "claims", "allele_frequency"):
+                 "population", "claims", "allele_frequency", "reference_status"):
         assert f"{base}{name}.py" not in sites
     for site in (f"{base}absence_census.py", "scripts/measure_1d1b2_pilots.py"):
         assert ledger["consumer_sites"][site]["classes"] == ["diagnostic"], site

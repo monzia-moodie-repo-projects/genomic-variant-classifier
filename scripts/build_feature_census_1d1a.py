@@ -607,6 +607,9 @@ SITES = {
     "scripts/measure_1d1b3_graph_identity.py": (["diagnostic"], "stage 1D-1b.3 measurement: builds the legacy "
                                                 "StringDBGraph from the same files to compare it with the source-bound "
                                                 "graphs and to show its cache key; no model is fitted"),
+    "scripts/measure_qualified_preparation_1d1c1c.py": (["diagnostic"], "set \"av\" measurement: the qualified "
+                                                        "preparation on the real files, compared with one builder call "
+                                                        "on the first rows; fits nothing"),
     "scripts/preflight_run16_inputs.py": (["diagnostic"], "pre-flight input check"),
     "scripts/prove_engineer_features_equivalence.py": (["diagnostic"], "historical equivalence proof"),
     "scripts/run_benchmark.py": (["surface:evaluation"], "benchmarks learners on the contract's columns"),
@@ -624,6 +627,9 @@ SITES = {
                                                                              "source-absence census: executes the builder "
                                                                              "on absent, NaN and varied frames"),
     "src/genomic_variant_classifier/information_sources/consumers.py": (["diagnostic"], "this census's measurement"),
+    "src/genomic_variant_classifier/information_sources/qualified_preparation.py": (
+        ["surface:feature_engineering"], "set \"av\": the qualified preparation builds the canonical epoch-2 matrix "
+        "through the single builder (engineer_features); it fits nothing, and training from it is refused"),
     "src/genomic_variant_classifier/models/feature_semantics.py": (["definition"], "defines the feature-semantics "
                                                                    "epochs from the contract (epoch 2 is epoch 1 with the "
                                                                    "registered rename); fits and serves nothing itself"),

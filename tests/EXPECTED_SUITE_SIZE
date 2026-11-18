@@ -8482,4 +8482,36 @@
 #   tests/unit/test_member_projection_1d1c1c.py, one in tests/unit/test_ensemble_projection_1d1c1c.py, and one parametrized
 #   case of tests/unit/test_projected_member_1d1c1c.py whose identity carries the protocol value. (tests_drift/: unchanged,
 #   22.)
-9464
+# 2026-11-17  PACKAGE 1D, STAGE 1D-1c.1C, SET "av" REVISION C (owner rulings aa999b96, ff77015c and 6fa240c0) -- the
+#   qualified preparation. +91 / -0 by node identity (collected against main, 0f4326b0). New files: +23
+#   tests/unit/test_artifact_integrity_1d1c1c.py (revision c: REFERENCE-VERDICT-ZIP-TRUNCATION-1 refused by the digest; a
+#   reference status valid by construction; a status under another pin refused; a Parsed wrapper whose bytes are not its
+#   digest refused where it is consumed; the live matrix uneditable and a copy changing nothing; a forged matrix refused at
+#   bind, score and write (exact columns, codes and af_log10's bits, each layer alone: 6); a code change refused at every consumer; a matrix contradicting
+#   its receipt unconstructible; two certified representations of one identity stored apart and selected by
+#   representation; replay exact; a record naming another representation or certificate refused; an existing record
+#   succeeding only with its payload intact (canonical, reference: 2); a payload without its record completed only with
+#   identical bytes; concurrent writers never colliding; a racing writer refused with no record published; a file system
+#   without hard links refused; the receipt's scope and the bound's basis stated); +42 tests/unit/test_qualified_preparation_1d1c1c.py
+#   (the explicit mode; the three AF states kept apart; the AF family bit for bit; the full population kept and eligibility
+#   recorded; a declared census reconciled exactly; an undeclared source, another population or rule, an incoming
+#   allele_freq and the legacy join's columns refused; label- and audit-blind; the label-derived columns excluded; the
+#   receipt's bindings; content-addressed persistence, tampering and stale code refused; the builder's input bound and its
+#   row-local proof, each refusing a builder outside it; chunked building bit-identical to one call; the compiled rosters
+#   equal the shadow record, the loeuf withholding and the transitive closure, inert, unknown and malformed withholdings
+#   and a cycle refused; fit rosters in epoch-2 names; CANONICAL-IDENTITY-ENVIRONMENT-1: the environment-dependent columns
+#   proven to be exactly af_log10, a transcendental operation in another column named or refused (3 shapes), the identity
+#   independent of log10's last bits, a log10 beyond the 4-ULP certificate or missing elsewhere refused, the certificate's
+#   ULP measurement checked, reuse re-certifying af_log10 and resealing the exact columns, the preparation refusing a proof
+#   that names another column); +12 tests/unit/test_reference_status_1d1c1c.py (the evidence
+#   registered; the result digest is the AF ledger's formula; aligned and reproduced; missing, duplicated and inconsistent
+#   evidence refused; content-addressed reuse and its refusals; the pinned fetch equals a slice; a novel variant validated
+#   by the training rule; a changed FASTA and an unverified reference refused; the GRCh38 pin); +7
+#   tests/unit/test_qualified_end_to_end_1d1c1c.py (fitted projections consume the canonical matrix; a fresh process
+#   reproduces the predictions bit for bit and refuses another policy; a missing, edited or replaced binding refused; an
+#   audit-only change leaves matrix and predictions unchanged; a fresh process on numpy's baseline paths prepares the same
+#   identity; scientific training refused); +7 tests/unit/test_qualified_preparation_record.py (the real-data record:
+#   canonical, the AF ledger's sources and population, the exact reconciliation, the AF family's missingness, its
+#   identities, its code bindings, and its exact-column digests reproducing the receipt with af_log10 certified).
+#   (tests_drift/: unchanged, 22.)
+9555

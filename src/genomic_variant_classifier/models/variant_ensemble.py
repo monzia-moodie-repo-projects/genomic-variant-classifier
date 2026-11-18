@@ -3832,6 +3832,10 @@ class VariantEnsemble:
             "fit_context_": getattr(self, "fit_context_", None),
             "feature_semantics_": getattr(self, "feature_semantics_", None),
             "member_projections_": getattr(self, "member_projections_", None),
+            # Set "av": the qualified canonical matrix this ensemble was fitted on (information_sources/
+            # qualified_preparation.bind_fit); None for every ensemble not fitted on one. Serving a canonical matrix
+            # verifies it (qualified_preparation.require_source_binding).
+            "source_binding_": getattr(self, "source_binding_", None),
         }
         joblib.dump(orchestrator, path)
         _write_model_manifest(path)
@@ -3935,6 +3939,7 @@ class VariantEnsemble:
         ens.fit_context_ = obj.get("fit_context_")
         ens.feature_semantics_ = obj.get("feature_semantics_")
         ens.member_projections_ = obj.get("member_projections_")
+        ens.source_binding_ = obj.get("source_binding_")
         ens.base_estimators = {}
         ens.trained_models_ = {}
         models_dir = path.parent / obj["models_dir_name"]

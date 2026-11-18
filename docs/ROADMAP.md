@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-16 (v5: set "au" merged; corrective set "au.1")  |  Owner: Monzia Moodie**
+**Version: 2026-11-17 (v6: set "au.1" merged; data-facing set "av")  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -78,7 +78,7 @@ frozen: `tests/unit/test_roadmap_claims.py` and `tests/unit/test_roadmap_counter
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,464 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,555 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 | Feature-semantics epochs | 2 | `models/feature_semantics.py`: `gvc.features/1` (historical) and `gvc.features/2` (three-valued AF) |
 | Strict admission | 55 features admitted, 47 entries not | `docs/census/ADMISSION_SHADOW_1D1b2.json` (36 features + 11 non-tabular information sources: 6 graph relations, 3 edge attributes, 2 supervision labels) |
 
@@ -105,8 +105,8 @@ mixed, unfiltered, ClinVar-ascertained extract; strict admission does not certif
 |---|---|
 | 1D-1c.1 A, B -- column identity, typed AF evidence | MERGED 2026-11-16 (pull request #77) |
 | 1D-1c.1C set "au" -- model-facing core: semantic epochs, fitted member projections (P capability-aware, C common fold median, B research arm), the member adapter, the fit context, serving through member projections | MERGED 2026-11-16 (pull request #78) |
-| 1D-1c.1C set "au.1" -- corrective revision (owner ruling ff77015c): content-keyed code identity, the B1 sample verified at every transform and its claim corrected, deployment admitted per recorded fit protocol | THIS DELIVERY |
-| 1D-1c.1C set "av" -- data-facing: the qualified AF preparation path, the content-addressed reference-status receipt, the fresh-process end-to-end proof (ruling aa999b96 revised section 15) | NEXT |
+| 1D-1c.1C set "au.1" -- corrective revision (owner ruling ff77015c): content-keyed code identity, the B1 sample verified at every transform and its claim corrected, deployment admitted per recorded fit protocol | MERGED 2026-11-17 (pull request #79) |
+| 1D-1c.1C set "av" -- data-facing: the explicit qualified preparation (verified, declared sources; the strict AF selection fed to the single builder; the canonical epoch-2 matrix, content-addressed), the GRCh38 reference-status authority (content-addressed reuse; novel variants validated against the pinned sequence), rosters compiled by the admission authority, the source binding of a fitted ensemble, the fresh-process end-to-end proof (ruling aa999b96 revised section 15), the real-data record `docs/census/QUALIFIED_PREPARATION_1D1c1C.json`; REVISION C (owner ruling 6fa240c0): trust boundaries made exact -- the matrix and the reference status valid by construction and immutable, three identities (logical, representation, payload) and a two-level store with exclusive publication, source bytes re-hashed at consumption, the reference pin declared, exact replay labelled | THIS DELIVERY |
 | 1D-1c.2 REVEL and predictor applicability; 1D-1c.3 EVE identity and the 310-row population reconciliation; 1D-1c.4 enforced admission; 1D-1c.5 train-serve certification | AFTER |
 | 1D-1d canonical leakage-disjoint evaluation (components on the full identity graph before any eligibility projection) | AFTER 1D-1c |
 | 1D-2 the corrected strict baseline and the controlled comparisons (P, C, B, AF-free; source-shift; rare benign) | AFTER 1D-1d |
@@ -117,7 +117,12 @@ only by default (`require_admitted_fit`, set "au.1"). No scientific `FitContext`
 `models/execution.py` `scientific_fit_context(intent)` refuses, naming the five readiness gates that have no certifying
 authority yet (`READINESS_GATES`); the launchers require `--execution-protocol` and refuse a scientific run before
 reading data. Historical replay of the epoch-1 pipeline is named as such and is never a
-scientific artifact.
+scientific artifact. The qualified preparation (`information_sources/qualified_preparation.py`, set "av") is explicit
+(`PreparationMode.QUALIFIED`; nothing inferred), refuses an undeclared source, a non-missing incoming `allele_freq` and the
+legacy join's 1000 Genomes and FinnGen columns, and records that training is refused. Its matrix is qualified for the
+allele-frequency family ONLY (QUALIFIED-FRAME-PROVENANCE-1, stated in every receipt's `scope`): every other column is the
+builder's value from the caller's frame, so it is not a source-qualified biological feature matrix, and its source
+binding licenses exact replay only (`BINDING_SCOPE`; general inference on a new population is stage 1D-1c.5).
 
 **Standing preconditions for any run** (unchanged): zero known defects before launch, an all-models smoke test with no skip
 flags, a freshly generated preflight, and the wall-clock estimate stated and accepted before any command expected to exceed
@@ -131,8 +136,11 @@ Present-state items, by identifier; each is recorded in full where it was filed.
 - **Ruled 2026-11-16 (ff77015c), LOEUF.** An unknown `gene_is_constrained` stays refused for a finite-requiring member
   until the constraint-source stage qualifies LOEUF (observed versus unobserved from upstream provenance, gene and
   transcript identity, release; label-blind). At the first strict baseline: admit a qualified LOEUF family, or compile a
-  versioned roster withholding `loeuf` and its whole dependent closure (measured: `gene_is_constrained`, `gnn_score`,
-  `hetero_gnn_score`) from every estimator alike, through admission's least fixed point. No structural zero with an
+  versioned roster withholding `loeuf` and its whole dependent closure from every estimator alike, through admission's
+  least fixed point (`admission.compiled_roster`, set "av"). Measured: `loeuf` has three dependents (`gene_is_constrained`,
+  `gnn_score`, `hetero_gnn_score`), but the GNN scores are already not admitted under either regime (they depend on the
+  retired `n_pathogenic_in_gene`), so the closure that drops out today is `loeuf` and `gene_is_constrained` (strict roster
+  55 -> 53 names). No structural zero with an
   indicator, no threshold of an imputed LOEUF. Continuous LOEUF is the preferred candidate; thresholds 0.35 (historical)
   and 0.45 (gnomAD v4.1.1) are separate identities.
 - **Open, P0 before any deployment (executable witnesses, tests/unit/test_open_serving_defects_1d1c1c_r1.py).**
@@ -201,3 +209,29 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   marginal resampling, and its fitted sample is re-verified (digest, count, domain, order) at every transform; its claim
   is corrected. A load is admitted only for the fit protocols the decision names. Three serving defects registered.
   9,436 -> 9,464 collected (+33 / -5 by node identity; the 5 are renamed).
+- **2026-11-17 -- SET "av": the data-facing stage 1D-1c.1C (owner rulings aa999b96 sections 13-15 and revised sections 10
+  and 15, ff77015c sections 11-13).** The qualified preparation feeds the strict AF selection to the single builder and
+  persists the label-blind canonical epoch-2 matrix (89 columns: the contract without the two label-derived columns),
+  content-addressed and bound to its sources, policy, population and code; built in chunks of a row-local builder (an
+  executable proof over the builder's source, and bit-identical to one call). The GRCh38 reference status is reused only
+  by exact source, rule, reference and population; a novel variant is validated against the pinned sequence by the same
+  rule. Rosters are compiled by the admission authority; a fitted ensemble is bound to its canonical matrix and refuses
+  any other, also in a fresh process. On the real files: 1,028,224 + 459,512 + 500 + 1,778 = 1,490,014 and 1,487,736
+  sequence-resolved, the selection and reference digests equal to the allele-frequency ledger's. The first owner run found
+  CANONICAL-IDENTITY-ENVIRONMENT-1 (the record's digest differed on Windows): numpy's log10 bits depend on processor
+  dispatch and the platform's math library (measured: 27,950 of 1,028,224 real rows, at most 2 ULP), so the identity seals
+  every column but af_log10, which is certified within 4 ULP of a 113-bit reference at preparation and at every reuse.
+  REVISION C (owner ruling 6fa240c0; audit AUDIT_OF_RULING_6fa240c0_2026-11-17.md), every defect reproduced against the
+  candidate's code first: REFERENCE-VERDICT-ZIP-TRUNCATION-1 (a reference digest covered only the first rows; the
+  preparation accepted 1 reason for 320 verdicts) -- the digest refuses unequal lengths and a `ReferenceStatus` is valid by
+  construction; a reference status under another pin was accepted -- the pin is declared and compared; a `Parsed`
+  wrapper's digest was trusted -- its bytes are hashed again where consumed (integrity.require_verified_bytes); an
+  in-place edit of the live matrix changed predictions under an unchanged identity, and a matrix contradicting its receipt
+  could be constructed -- `CanonicalMatrix` is valid by construction, bytes-backed and re-verified at bind, score and
+  write; one logical identity could not hold a second certified `af_log10` representation, success was reported over a
+  missing or corrupt payload, and a fixed temporary name let one writer publish another's bytes -- three identities
+  (logical, representation, payload), `<logical>/<payload>.parquet` with its record, exclusive publication by a unique
+  temporary file and a hard link, and a record without its intact payload refused. Measured on the real files: one
+  identity (9619b172) holds the AVX-512 payload (0.575 ULP) and the baseline payload (1.552 ULP) side by side; the record
+  reproduces byte for byte on both paths. The 4-ULP bound is the project's registered permissible error, not a numpy
+  guarantee. 9,464 -> 9,555 collected (+91 / -0).

@@ -1,7 +1,7 @@
 {
   "census": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "ledger_sha256": "ea38f648cfc3519d80474ce776e612615ee35cf478f7fa62e1c188a4952b78c0",
+    "ledger_sha256": "fd5f43cea0ec0fd209d0448800510eb1fbbea044fb38ee49361016ff398db5e6",
     "path": "docs/census/FEATURE_CENSUS_1D1a.json",
     "schema": "gvc.feature-census.1d1a/2",
     "semantic_digest": "97f64bcb096eebea5bb532c00ba8b394a8946b67145ab11e980927e738b628a0"
