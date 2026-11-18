@@ -179,3 +179,29 @@ semantic digest is unchanged (97f64bcb) and admission is unchanged (strict 55 / 
   `ADMISSION_SHADOW_1D1b2.json` are re-derived for the ledger digest they cite, nothing else.
 - `code_identity.closure_digest_of_text` computes a closure from source text already read; `symbol_closure_digest` reads the file
   and calls it, so every digest any record binds is unchanged (`tests/unit/test_corrections_1d1c1c_r1.py` compares them all).
+
+## Stage 1D-1c.1C (set "av"): the qualified preparation and the reference-identity authority
+
+Owner rulings aa999b96 and ff77015c. No record changes its meaning: the semantic digest is unchanged (97f64bcb) and admission
+is unchanged (strict 55 / 47, conditional 65 / 37).
+
+- `QUALIFIED_PREPARATION_1D1c1C.json` (new) records the qualified preparation on the real files: the three sources declared by
+  `AF_REPAIR_1D1c1.json`'s inputs and verified by digest; the pilot population; the reference status (identity and verdicts:
+  1,489,514 `True`, 500 `non_acgt_allele`); the canonical matrix's receipt and identity; the exact reconciliation
+  (1,028,224 + 459,512 + 500 + 1,778 = 1,490,014; 1,487,736 sequence-resolved), equal to the AF ledger's census, selection
+  identity and reference digest; the AF family missing on exactly the 461,790 unselected rows; and the chunked build compared
+  with one builder call on the first 300,000 rows. No annotation source is read, so every non-AF feature is the builder's
+  default: the record's subject is the AF stage. `scripts/measure_qualified_preparation_1d1c1c.py --check` re-measures it.
+  It holds no machine-dependent bits (CANONICAL-IDENTITY-ENVIRONMENT-1): the per-column digests of the 88 exact columns
+  reproduce the receipt's `exact_columns_sha256`, and `af_log10` (whose bits depend on numpy's processor dispatch and the
+  platform's math library) is certified within 4 ULP of log10 computed to 113 bits -- the project's registered permissible
+  error, not a numpy guarantee -- not sealed. The machine-dependent representation (every column's exact bits) is printed
+  by the script and bound by a fit, never recorded here. Revision c (owner ruling 6fa240c0): the receipt (schema /3) states
+  its qualification scope (allele-frequency family only, QUALIFIED-FRAME-PROVENANCE-1), the declared reference pin's digest
+  and the bound's basis; the reference status's identity and result digest are unchanged.
+- `FEATURE_CENSUS_1D1a.json` is re-derived: two consumer sites are classified (`information_sources/qualified_preparation.py`,
+  `surface:feature_engineering`; `scripts/measure_qualified_preparation_1d1c1c.py`, `diagnostic`), and the authority's capture
+  digest of `models/variant_ensemble.py` changes (`source_binding_` is saved and restored). `SOURCE_ABSENCE_1D1b2.json` and
+  `ADMISSION_SHADOW_1D1b2.json` are re-derived for the ledger digest they cite, nothing else.
+- `admission.compiled_roster` compiles a regime's tabular roster with withheld roots, through `effective_admission`; it equals
+  this record's admitted features for both regimes (tested).

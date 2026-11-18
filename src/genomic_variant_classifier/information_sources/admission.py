@@ -136,6 +136,56 @@ def effective_admission(dispositions: Mapping[str, D], depends_on: Mapping[str, 
     return {n: tuple(sorted(d for d in deps[n] if not ok[d])) for n in dispositions}
 
 
+ROSTER_SCHEMA = "gvc.compiled-roster.1d1c1c/1"
+
+
+def compiled_roster(ledger: Mapping[str, Any], *, ledger_sha256: str, regime: str,
+                    withheld: frozenset[str] = frozenset()) -> dict[str, Any]:
+    """The tabular roster ``regime`` admits, compiled by this authority alone (stage 1D-1c.1C, set "av"; owner ruling
+    ff77015c section 3 and its consolidated LOEUF ruling; audit refinement C1).
+
+    A WITHHELD root is treated as not admitted and the same least fixed point as ``effective_admission`` runs, so every
+    transitive dependent of a withheld root drops out with it (the census lineage measures three dependents of loeuf:
+    gene_is_constrained, gnn_score and hetero_gnn_score). There is no second closure algorithm and no second acyclicity
+    check. ``withheld`` must name census entries the regime would otherwise admit: withholding a name the regime already
+    refuses is refused, as a declaration that changes nothing. Names are census identities, in ledger (contract) order;
+    the record's identity binds the ledger digest, the regime, the withheld roots and the names. The ledger must be one
+    the census gate verified (``build`` does that for the shadow report)."""
+    if regime not in REGIMES:
+        raise ValueError(f"unknown regime {regime!r}; the regimes are {sorted(REGIMES)}")
+    if type(ledger_sha256) is not str or not _census.HEX64.match(ledger_sha256):
+        raise ValueError("the ledger identity must be a SHA-256 digest")
+    if not isinstance(withheld, frozenset) or any(type(w) is not str for w in withheld):
+        raise TypeError("withheld is a frozenset of census names")
+    records = [*ledger["entries"], *ledger["information_sources"]]
+    dispositions: dict[str, D] = {}
+    for r in records:
+        if r["name"] in dispositions:
+            raise ValueError(f"{r['name']}: named twice in the census")
+        dispositions[r["name"]] = D(r["disposition"])
+    depends_on = {r["name"]: tuple(r.get("depends_on", ())) for r in records}
+    unknown = sorted(withheld - set(dispositions))
+    if unknown:
+        raise ValueError(f"withheld names are not census entries: {unknown}")
+    admitted = REGIMES[regime]
+
+    def admitted_names(roots: frozenset[str]) -> set[str]:
+        disp = {n: (D.WITHHOLD_PENDING_EVIDENCE if n in roots else d) for n, d in dispositions.items()}
+        blocking = effective_admission(disp, depends_on, admitted)
+        return {n for n in disp if disp[n] in admitted and not blocking[n]}
+
+    before = admitted_names(frozenset())
+    inert = sorted(withheld - before)
+    if inert:
+        raise ValueError(f"withholding {inert} changes nothing: the {regime} regime does not admit them already")
+    after = admitted_names(withheld)
+    tabular = [e["name"] for e in ledger["entries"]]
+    body = {"schema": ROSTER_SCHEMA, "census_ledger_sha256": ledger_sha256, "regime": regime,
+            "withheld": sorted(withheld), "names": [n for n in tabular if n in after]}
+    return {**body, "withheld_closure": [n for n in tabular if n in before and n not in after],
+            "identity": _census.sha256_bytes(_census.canonical_bytes(body))}
+
+
 def lineage_summary(records: Sequence[Mapping[str, Any]], datasets: Sequence[str]) -> dict[str, Any]:
     """The lineage graph's structural facts; refuses a cycle or an ungrounded leaf (ADMISSION-CYCLIC-LINEAGE-1)."""
     deps = {r["name"]: tuple(r.get("depends_on", ())) for r in records}
