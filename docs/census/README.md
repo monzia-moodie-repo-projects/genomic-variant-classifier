@@ -205,3 +205,27 @@ is unchanged (strict 55 / 47, conditional 65 / 37).
   `ADMISSION_SHADOW_1D1b2.json` are re-derived for the ledger digest they cite, nothing else.
 - `admission.compiled_roster` compiles a regime's tabular roster with withheld roots, through `effective_admission`; it equals
   this record's admitted features for both regimes (tested).
+
+## Stage 1D-1c.2A (set "aw"): the computational-predictor source audit
+
+Owner ruling e755519d (2026-11-17/18), audited in AUDIT_OF_RULING_e755519d_2026-11-18.md. Nothing in production changes and
+nothing is fitted. The semantic digest changes (97f64bcb -> c19eb103) only through the reasons of four strict entries:
+`sift_score`, `sift_deleterious`, `cadd_phred` and `cadd_high` are strict in principle but withheld until their source is
+qualified. No disposition changes; admission is unchanged (strict 55 / 47, conditional 65 / 37).
+
+| File | What it is |
+|---|---|
+| `PREDICTOR_SOURCES_1D1c2.json` (new) | Measured on the real files: the full dbNSFP index (85,299,339 rows, every predictor's default counted exactly against its neighbouring values), the pilot population's join through the current connector, GENCODE v50's MANE Select transcripts, the publisher's REVEL v1.3 archive (Zenodo 10.5281/zenodo.7072866, MD5 as published, SHA-256 measured; all 82,100,677 rows validated) and ClinVar's variant_summary. It corrects ABSENCE-AS-EVIDENCE-1 with three quantities derived from one partition (revision c, owner ruling ace92e09): 1,299,101 rows carry `revel_pathogenic = 1` from no index score or an unmatched 0.5; 1,242,065 of them have no publisher score in the GRCh38 view (by domain and with the GRCh37 rows the publisher left unresolved) and 57,036 have one. It compares the historical index with the publisher at every allele and measures two label-blind CANDIDATE selections (ClinVar's preferred name by allele and amino-acid pair: 191,427 missense rows; the MANE Select transcript of the cohort's gene_symbol: 160,973; the locus-resolved MANE coding sequences measure that gene's dependence on ClinVar). Labels are only counted after each selection. `scripts/measure_predictor_sources_1d1c2.py` writes five parts and `collect --check` reproduces the record byte for byte. |
+| `../../scripts/measure_predictor_sources_1d1c2.py` | `index-defaults` (numpy and pyarrow only), `pilot`, `mane`, `revel` (a vectorised, refusing scan), `collect`. Parts hold no time, memory or environment value, so they are byte-reproducible; the console reports those. Each part is written as bytes of one canonical serialisation, so its bytes are the same on every platform, and a reader refuses any other bytes (revision b: text-mode writing gave CR LF line ends on Windows, which changed the part digests the record binds). |
+
+- Three datasets are registered: `revel_v1_3` (the publisher's transcript-aware release; no producer consumes it yet), `gencode_v50`
+  and `clinvar_variant_summary`. 32 datasets.
+- Four defects are registered with executable witnesses: DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1,
+  DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1 and COHORT-TRANSCRIPT-UNDECLARED-1; ABSENCE-AS-EVIDENCE-1's statement is corrected.
+  38 registered defects. `tests/unit/test_predictor_sources_record.py` refuses a record whose bound code changed and checks that
+  the statements quote it.
+- `observation.ObservationState` gains SOURCE_ROW_WITHOUT_VALUE, appended (code 7; codes 0-6 unchanged), with a required digest.
+  Counts name an appended state only where it occurs (`columns.COUNTED_STATES`), so no record sealed before the append
+  changes (the allele-frequency ledger and the qualified-preparation record re-measure byte for byte).
+  REVEL v1.3 itself has no row without a score (measured); the state is for per-transcript sources such as dbNSFP v5.
+- `FEATURE_CENSUS_1D1a.json`, `SOURCE_ABSENCE_1D1b2.json` and `ADMISSION_SHADOW_1D1b2.json` are re-derived in the documented order.

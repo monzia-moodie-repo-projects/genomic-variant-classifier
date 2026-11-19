@@ -1,3 +1,49 @@
+## 2026-11-18 (package 1D, stage 1D-1c.2A, set "aw") -- the computational-predictor source audit
+
+Owner ruling e755519d (2026-11-17, refined 2026-11-18); audit AUDIT_OF_RULING_e755519d_2026-11-18.md. Built on main
+e15190f1 (set "av", pull request #80). Nothing in production changes; no model is fitted; scientific training stays refused.
+
+- The publisher's REVEL v1.3 (Zenodo 10.5281/zenodo.7072866) is copied from the project's Drive (set "aw" block 1) and
+  verified: MD5 3ea2bc33... equal to Zenodo's, SHA-256 815801d8... measured, one member `revel_with_transcript_ids`
+  (6,496,023,640 bytes). Its licence: the publisher states free non-commercial use; Zenodo labels the record ODbL 1.0; the
+  stricter term is applied and nothing is redistributed.
+- scripts/measure_predictor_sources_1d1c2.py (new) writes docs/census/PREDICTOR_SOURCES_1D1c2.json (new) from five
+  byte-reproducible parts (`collect --check`): the full dbNSFP index (85,299,339 rows; each predictor's default counted
+  exactly against its neighbours), the pilot population's join, GENCODE v50 MANE Select, the publisher's archive (every row
+  validated by a vectorised scan that refuses any deviation) and ClinVar's variant_summary. Labels are counted only after
+  each selection.
+- Measured: the index fabricates REVEL 0.5 on about 15.46 M rows; at the pilot's alleles the fabricated value encodes
+  nonsense and canonical-splice variants (49.6% of pathogenic against 2.0% of benign rows; AUROC 0.738 over all rows),
+  SIFT and PolyPhen-2 alike. The cohort declares no transcript; ClinVar's Name does.
+- Revision c (owner ruling ace92e09; audit AUDIT_OF_RULING_ace92e09_2026-11-19.md): the claims carry exactly the meaning
+  their computation supports. 1,299,101 rows carry `revel_pathogenic = 1` from no index score or an index 0.5 without a
+  publisher 0.5 at the allele -- NOT the number without a publisher score: 1,242,065 have none in the GRCh38 view
+  (1,238,371 of them outside REVEL's domain by the cohort's own fields; 352 with a scored publisher row at the ClinVar
+  GRCh37 allele whose GRCh38 position is unresolved) and 57,036 have one. The two selections are CANDIDATES (ClinVar's
+  preferred name by allele and amino-acid pair only, 191,427; the MANE Select transcript of the cohort's gene_symbol,
+  160,973); the MANE policy reads a ClinVar-derived gene (at 848 missense positions the one MANE coding sequence is another
+  gene's); the 163 rows where both select different scores are policy disagreements (all with another amino-acid change),
+  not source conflicts. The fabricated value's label association is between consequence classes (AUROC within missense
+  0.489, within nonsense 0.500). The census statements, the `revel_v1_3` licence (research, non-commercial) and the docs
+  are corrected; the ledger's semantic digest and admission are unchanged.
+- Registered with executable witnesses: DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1,
+  DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1, COHORT-TRANSCRIPT-UNDECLARED-1. Datasets `revel_v1_3`, `gencode_v50`,
+  `clinvar_variant_summary`. SIFT and CADD stay strict in principle, withheld until qualified (reasons only; admission
+  unchanged, strict 55 / 47).
+- information_sources/observation.py: SOURCE_ROW_WITHOUT_VALUE appended (code 7; codes 0-6 unchanged; digest required).
+  columns.ObservationColumn.counts names an appended state only where it occurs (`COUNTED_STATES`, codes 0-6): measured,
+  counting every state gave the re-measured AF_REPAIR_1D1c1.json and QUALIFIED_PREPARATION_1D1c1C.json a zero count and
+  changed the canonical identity 9619b172; with the rule both re-measure byte for byte.
+- The census ledger, the source-absence census and the admission report are re-derived. Docs: README badge, ROADMAP,
+  docs/census/README.md.
+- Revision b (after the owner's V1 of 2026-11-18): the record's re-measurement on Windows reproduced every value and differed
+  only in the parts' line ends -- each part was written in text mode (CR LF on Windows), and the record binds each part's
+  SHA-256. Parts are now written as bytes of one canonical serialisation (`_canonical`), and every reader of a part
+  (`_read_part`: the later steps and `collect`) refuses other bytes, naming the carriage returns. Re-collected from the
+  measured parts, the record differs only in six procedure digests. Measured in the sandbox under a Windows newline
+  emulation of the installer's processes: the delivered script reproduced the owner's five parts and record digest byte for
+  byte; the corrected one is IDENTICAL. Tests +38 / -0 (revision c: +3); suite 9,555 -> 9,593.
+
 ## 2026-11-17 (package 1D, stage 1D-1c.1C, set "av" revision c) -- the qualified data preparation and the reference-identity authority
 
 Owner rulings aa999b96 (sections 13-15, revised sections 10 and 15) and ff77015c (sections 8, 11-13, the consolidated

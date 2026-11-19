@@ -8514,4 +8514,22 @@
 #   canonical, the AF ledger's sources and population, the exact reconciliation, the AF family's missingness, its
 #   identities, its code bindings, and its exact-column digests reproducing the receipt with af_log10 certified).
 #   (tests_drift/: unchanged, 22.)
-9555
+# 2026-11-18  PACKAGE 1D, STAGE 1D-1c.2A (set "aw"; owner ruling e755519d) -- the computational-predictor source audit.
+#   +38 / -0 by node identity (collected against main, e15190f1). New files: +28 tests/unit/test_predictor_sources_1d1c2.py
+#   (the appended observation state: codes 0-6 unchanged and the new code 7, the digest required, no value, never derived, a
+#   column reconciling with it and a derived flag unknown, never positive, where its root is unobserved; the publisher scan:
+#   a genuine 0.5 and a missing score kept apart, exact tokens and row numbers kept, an unresolved GRCh38 row never matched,
+#   thirteen deviations each refused, a changed header, a missing member and a ragged row refused; the declared selection
+#   never a maximum or a first row, conflicts and rows without value named; ClinVar's declared substitution parsed from the
+#   Name of the one GRCh38 record; revision b: a part written with Windows text-mode line ends is the same bytes on every
+#   platform, and a part that is not its canonical serialisation -- CR LF, another indent, unsorted keys, no final newline --
+#   refused by collect and by the later steps; revision c: the ClinVar-name selection matches the allele and the amino-acid
+#   pair only, the MANE gene resolved from the locus with overlapping genes kept, and the absence quantities derived from
+#   the partition and refused when they do not reconcile); +6 tests/unit/test_predictor_sources_record.py (the real-data record: canonical,
+#   each part bound by the digest of its canonical bytes, bound to the code that measured it, the pilot's inputs and the
+#   declared sources, its reconciliations, its agreement with the pilot record it corrects, the census statements quoting
+#   it); +4 tests/unit/test_registered_defect_witnesses.py
+#   (DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1, DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1 and
+#   COHORT-TRANSCRIPT-UNDECLARED-1, each executing the current connector). tests/unit/test_admission_shadow.py: two lists
+#   extended, no test added or removed. (tests_drift/: unchanged, 22.)
+9593

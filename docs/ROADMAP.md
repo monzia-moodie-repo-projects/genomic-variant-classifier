@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-17 (v6: set "au.1" merged; data-facing set "av")  |  Owner: Monzia Moodie**
+**Version: 2026-11-18 (v7: set "av" merged; predictor source audit set "aw")  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -78,7 +78,7 @@ frozen: `tests/unit/test_roadmap_claims.py` and `tests/unit/test_roadmap_counter
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,555 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,593 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 | Feature-semantics epochs | 2 | `models/feature_semantics.py`: `gvc.features/1` (historical) and `gvc.features/2` (three-valued AF) |
 | Strict admission | 55 features admitted, 47 entries not | `docs/census/ADMISSION_SHADOW_1D1b2.json` (36 features + 11 non-tabular information sources: 6 graph relations, 3 edge attributes, 2 supervision labels) |
 
@@ -93,6 +93,17 @@ populated, or partial: ESM-2, PhyloP, GTEx, 1000 Genomes, dbSNP, OMIM, ClinGen, 
 EVE, LOVD (tiny coverage). Quarantined: AlphaFold structure. Blocked: HGMD (paid; label leakage). The per-source history and
 the candidate verdicts are in the archives.
 
+The computational predictors (stage 1D-1c.2A, docs/census/PREDICTOR_SOURCES_1D1c2.json) are read from a dbNSFP index that
+filled every absent SIFT, PolyPhen-2, REVEL and CADD score with its default before caching and reduced each transcript list
+to an extreme (DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1). The raw dbNSFP 5.4a academic release
+(CC BY-NC-ND 4.0, under the owner's licence) was acquired on 2026-11-18 and is held outside the checkout: the GRCh38 table's
+MD5 equals the publisher's (d2ad53e1; SHA-256 90d57358); it is not yet qualified or consumed. The publisher's transcript-aware REVEL v1.3 (Zenodo 10.5281/zenodo.7072866, verified) is acquired and registered
+(`revel_v1_3`), not yet consumed. The cohort declares no transcript; ClinVar's own Name does (COHORT-TRANSCRIPT-UNDECLARED-1).
+dbNSFP 5.4a's table (508 columns, read on the owner's machine) carries per transcript the protein position (`aapos`), the
+VEP consequence (`HGVSp_VEP`, Ensembl 116 = GENCODE v50), a `MANE` flag and the predictor scores, as aligned lists; it also
+carries ClinVar's own annotation (nine `clinvar_*` columns, `clinvar_clnsig` the classification among them), which no
+feature may read.
+
 The allele-frequency source is typed in `information_sources/allele_frequency.py` (two logical sources in one file; the
 strict selection, claim eligibility and arms A/B/C separate; docs/census/AF_REPAIR_1D1c1.json). Its primary statistic is a
 mixed, unfiltered, ClinVar-ascertained extract; strict admission does not certify FILTER or denominator quality.
@@ -106,8 +117,9 @@ mixed, unfiltered, ClinVar-ascertained extract; strict admission does not certif
 | 1D-1c.1 A, B -- column identity, typed AF evidence | MERGED 2026-11-16 (pull request #77) |
 | 1D-1c.1C set "au" -- model-facing core: semantic epochs, fitted member projections (P capability-aware, C common fold median, B research arm), the member adapter, the fit context, serving through member projections | MERGED 2026-11-16 (pull request #78) |
 | 1D-1c.1C set "au.1" -- corrective revision (owner ruling ff77015c): content-keyed code identity, the B1 sample verified at every transform and its claim corrected, deployment admitted per recorded fit protocol | MERGED 2026-11-17 (pull request #79) |
-| 1D-1c.1C set "av" -- data-facing: the explicit qualified preparation (verified, declared sources; the strict AF selection fed to the single builder; the canonical epoch-2 matrix, content-addressed), the GRCh38 reference-status authority (content-addressed reuse; novel variants validated against the pinned sequence), rosters compiled by the admission authority, the source binding of a fitted ensemble, the fresh-process end-to-end proof (ruling aa999b96 revised section 15), the real-data record `docs/census/QUALIFIED_PREPARATION_1D1c1C.json`; REVISION C (owner ruling 6fa240c0): trust boundaries made exact -- the matrix and the reference status valid by construction and immutable, three identities (logical, representation, payload) and a two-level store with exclusive publication, source bytes re-hashed at consumption, the reference pin declared, exact replay labelled | THIS DELIVERY |
-| 1D-1c.2 REVEL and predictor applicability; 1D-1c.3 EVE identity and the 310-row population reconciliation; 1D-1c.4 enforced admission; 1D-1c.5 train-serve certification | AFTER |
+| 1D-1c.1C set "av" -- data-facing: the explicit qualified preparation (verified, declared sources; the strict AF selection fed to the single builder; the canonical epoch-2 matrix, content-addressed), the GRCh38 reference-status authority (content-addressed reuse; novel variants validated against the pinned sequence), rosters compiled by the admission authority, the source binding of a fitted ensemble, the fresh-process end-to-end proof (ruling aa999b96 revised section 15), the real-data record `docs/census/QUALIFIED_PREPARATION_1D1c1C.json`; REVISION C (owner ruling 6fa240c0): trust boundaries made exact -- the matrix and the reference status valid by construction and immutable, three identities (logical, representation, payload) and a two-level store with exclusive publication, source bytes re-hashed at consumption, the reference pin declared, exact replay labelled | MERGED 2026-11-18 (pull request #80) |
+| 1D-1c.2A set "aw" -- the computational-predictor source audit (owner ruling e755519d): the publisher's REVEL v1.3 acquired and verified (MD5 as published, SHA-256 measured), the full dbNSFP index and the pilot's join measured, ABSENCE-AS-EVIDENCE-1 corrected (revision c, owner ruling ace92e09: 1,299,101 positives from no index score or an unmatched 0.5, of which 1,242,065 have no publisher score in the GRCh38 view -- 1,238,371 of those outside REVEL's domain -- and 57,036 have one), four defects registered with witnesses, three datasets registered, two label-blind CANDIDATE selections measured (ClinVar's preferred name by allele and amino-acid pair, 191,427 missense rows; the MANE Select transcript of the cohort's gene, 160,973; the 163 differing rows are policy disagreements, all with another amino-acid change), the append-only state SOURCE_ROW_WITHOUT_VALUE (counted only where it occurs, so no sealed record changes); the record `docs/census/PREDICTOR_SOURCES_1D1c2.json` | THIS DELIVERY |
+| 1D-1c.2B the allele -> transcript -> protein-consequence qualification and transcript-aware REVEL (owner ruling ace92e09: a clinical-context arm from ClinVar's preferred name and a prespecified arm from the GRCh38 locus, candidates kept apart from qualified contexts, agreement a sensitivity cohort); 2C SIFT, PolyPhen-2 and CADD source qualification (from dbNSFP 5.4a, acquired 2026-11-18); 2D derived-feature semantics (epoch `gvc.features/3`); 2E qualification. 1D-1c.3 EVE identity and the 310-row population reconciliation; 1D-1c.4 enforced admission; 1D-1c.5 train-serve certification | AFTER |
 | 1D-1d canonical leakage-disjoint evaluation (components on the full identity graph before any eligibility projection) | AFTER 1D-1c |
 | 1D-2 the corrected strict baseline and the controlled comparisons (P, C, B, AF-free; source-shift; rare benign) | AFTER 1D-1d |
 
@@ -133,6 +145,16 @@ fifteen minutes.
 Present-state items, by identifier; each is recorded in full where it was filed.
 
 - **Open owner decisions.** DECISION-POLICY-OVERLAP-1 (the threshold partition rule).
+- **Decided 2026-11-18 (owner rulings e755519d, ace92e09).** SIFT, PolyPhen-2 and CADD come from dbNSFP under the owner's
+  academic licence (5.4a, acquired); the project is strictly research and non-commercial. Stage 2B keeps two transcript
+  policies with separate identities (clinical-context reconstruction from ClinVar's preferred name; a prespecified policy
+  resolved from the GRCh38 locus as the primary prospective candidate) and their agreement as a sensitivity cohort; a
+  different score under the two is a policy disagreement, not a source conflict. If LOEUF, SIFT and CADD are still
+  unqualified at the first strict fit, `admission.compiled_roster` gives 49 features (measured: loeuf, gene_is_constrained,
+  sift_score, sift_deleterious, cadd_phred and cadd_high withheld).
+- **Registered at stage 1D-1c.2A (executable witnesses).** DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1,
+  DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1, COHORT-TRANSCRIPT-UNDECLARED-1; ABSENCE-AS-EVIDENCE-1 corrected. SIFT and CADD stay
+  strict in principle and are withheld from a scientific fit until qualified.
 - **Ruled 2026-11-16 (ff77015c), LOEUF.** An unknown `gene_is_constrained` stays refused for a finite-requiring member
   until the constraint-source stage qualifies LOEUF (observed versus unobserved from upstream provenance, gene and
   transcript identity, release; label-blind). At the first strict baseline: admit a qualified LOEUF family, or compile a
@@ -234,4 +256,16 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   temporary file and a hard link, and a record without its intact payload refused. Measured on the real files: one
   identity (9619b172) holds the AVX-512 payload (0.575 ULP) and the baseline payload (1.552 ULP) side by side; the record
   reproduces byte for byte on both paths. The 4-ULP bound is the project's registered permissible error, not a numpy
-  guarantee. 9,464 -> 9,555 collected (+91 / -0).
+  guarantee. 9,464 -> 9,555 collected (+91 / -0). Merged 2026-11-18 (pull request #80, main e15190f1).
+- **2026-11-18 -- SET "aw": stage 1D-1c.2A, the computational-predictor source audit (owner ruling e755519d; audit
+  AUDIT_OF_RULING_e755519d_2026-11-18.md).** The publisher's REVEL v1.3 copied from the project's Drive and verified (MD5
+  equal to Zenodo's; SHA-256 815801d8); all 82,100,677 rows validated (no row without a score; 509,942 without a GRCh38
+  position; every transcript identifier unversioned). The full dbNSFP index holds each predictor's default exactly on
+  15.5 M (REVEL), 16.4 M (SIFT), 18.8 M (PolyPhen-2) and 44,611 (CADD) rows against neighbouring counts of about 44,000,
+  17,400, 13,000 and 19,000; at the pilot's alleles the fabricated 0.5 encodes nonsense and canonical-splice variants
+  (AUROC 0.738 for the label over all rows, but 0.489 within missense and 0.500 within nonsense) and the publisher has a 0.5
+  at 66 of 129,779 (transcript unverified). Two label-blind candidate selections are measured; the record reproduces byte
+  for byte. Nothing in production changes; no model is fitted. Revision b: the record's parts are written as canonical
+  bytes on every platform (the owner's V1 differed only in their Windows line ends). Revision c (owner ruling ace92e09):
+  the absence count and the selections carry exactly the meaning their computation supports, with the domain, GRCh37 and
+  locus measurements behind them. 9,555 -> 9,593 collected (+38 / -0).

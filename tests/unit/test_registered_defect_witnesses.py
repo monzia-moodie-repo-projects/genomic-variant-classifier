@@ -214,3 +214,85 @@ def test_witness_loeuf_sentinel_1():
         out = engineer_features(raw, semantics=semantics)
         assert out.loc[0, "loeuf"] == 1.0 and np.isnan(out.loc[0, "gene_is_constrained"])
         assert out.loc[1, "loeuf"] == 0.2 and out.loc[1, "gene_is_constrained"] == 1.0
+
+
+# ------------------------------------------------------------- stage 1D-1c.2A (set "aw"): computational-predictor sources
+_DBNSFP_HEADER = ("#chr", "pos(1-based)", "ref", "alt", "SIFT_score", "Polyphen2_HDIV_score", "REVEL_score", "CADD_phred",
+                  "phyloP100way_vertebrate", "GERP++_RS")
+
+
+def _dbnsfp_cache(tmp_path, rows, header=_DBNSFP_HEADER):
+    """The CURRENT connector's raw parse of a small dbNSFP file, and the parquet cache it writes."""
+    import pandas as pd
+
+    from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
+
+    raw = tmp_path / "dbNSFP_test_variant.tsv"
+    raw.write_text("\t".join(header) + "\n" + "".join("\t".join(r) + "\n" for r in rows), encoding="ascii",
+                   newline="\n")
+    index = DbNSFPConnector(dbnsfp_file=raw, cache_dir=tmp_path)._load_index()
+    cache = tmp_path / "dbnsfp_clinvar_index.parquet"
+    return index, (pd.read_parquet(cache) if cache.exists() else None)
+
+
+def test_witness_dbnsfp_index_default_baked_1(tmp_path):
+    """DBNSFP-INDEX-DEFAULT-BAKED-1: the raw parse fills an absent SIFT, PolyPhen-2, REVEL or CADD with the connector
+    default BEFORE the cache is written, so the cached index has no missing value and a score of exactly 0.5 (or 15.0)
+    and an absent score are the same stored value."""
+    _registered("DBNSFP-INDEX-DEFAULT-BAKED-1")
+    _, cache = _dbnsfp_cache(tmp_path, [("1", "100", "A", "G", ".", ".", ".", ".", "1.0", "2.0"),
+                                        ("1", "101", "A", "G", "0.5", "0.5", "0.5", "15.0", "1.0", "2.0")])
+    assert not cache[["sift_score", "polyphen2_score", "revel_score", "cadd_phred"]].isna().to_numpy().any()
+    absent, genuine = cache.iloc[0], cache.iloc[1]
+    for col in ("sift_score", "polyphen2_score", "revel_score", "cadd_phred"):
+        assert absent[col] == genuine[col]                    # indistinguishable once cached
+
+
+def test_witness_predictor_transcript_collapse_1(tmp_path):
+    """PREDICTOR-TRANSCRIPT-COLLAPSE-1: a transcript list becomes one number (SIFT its minimum, PolyPhen-2 and REVEL their
+    maximum), and of two records of one allele the index keeps the first -- which transcript and protein context the
+    stored value describes is lost."""
+    _registered("PREDICTOR-TRANSCRIPT-COLLAPSE-1")
+    _, cache = _dbnsfp_cache(tmp_path, [("1", "100", "A", "G", "0.3;0.01", "0.2;0.9", "0.2;0.8", "20", "1", "2"),
+                                        ("1", "200", "C", "T", "0.4", "0.4", "0.1", "20", "1", "2"),
+                                        ("1", "200", "C", "T", "0.4", "0.4", "0.9", "20", "1", "2")])
+    row = cache.set_index("pos")
+    assert row.loc[100, "sift_score"] == 0.01 and row.loc[100, "polyphen2_score"] == 0.9
+    assert row.loc[100, "revel_score"] == 0.8
+    assert len(cache) == 2 and row.loc[200, "revel_score"] == 0.1      # the first record wins
+
+
+def test_witness_dbnsfp_parse_failure_silent_defaults_1(tmp_path):
+    """DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1: a raw file the parse cannot read is logged and replaced by an EMPTY index,
+    and annotate_dataframe then writes every default to every row: a failed source becomes plausible scores."""
+    _registered("DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1")
+    import pandas as pd
+
+    from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
+
+    bad = tuple("chr" if h == "#chr" else h for h in _DBNSFP_HEADER)        # a renamed coordinate column
+    index, cache = _dbnsfp_cache(tmp_path, [("1", "100", "A", "G", "0.01", "0.99", "0.95", "30", "1", "2")], header=bad)
+    assert index.empty and cache is None
+    raw = tmp_path / "dbNSFP_test_variant.tsv"
+    out = DbNSFPConnector(dbnsfp_file=raw, cache_dir=tmp_path).annotate_dataframe(
+        pd.DataFrame({"chrom": ["1"], "pos": [100], "ref": ["A"], "alt": ["G"]}))
+    assert out.loc[0, "revel_score"] == 0.5 and out.loc[0, "sift_score"] == 0.5 and out.loc[0, "cadd_phred"] == 15.0
+
+
+def test_witness_cohort_transcript_undeclared_1(tmp_path):
+    """COHORT-TRANSCRIPT-UNDECLARED-1: ClinVar's own Name declares the transcript and the protein change
+    (NM_...(GENE):c... (p....)), but the ClinVar connector writes transcript_id = None and keeps no Name, so no prediction
+    unit of the cohort declares a transcript."""
+    _registered("COHORT-TRANSCRIPT-UNDECLARED-1")
+    from genomic_variant_classifier.data.database_connectors import ClinVarConnector, FetchConfig
+
+    header = ["#AlleleID", "Type", "Name", "GeneSymbol", "ClinicalSignificance", "RS# (dbSNP)", "Assembly", "Chromosome",
+              "Start", "ReferenceAllele", "AlternateAllele", "ReviewStatus", "VariationID"]
+    row = ["1", "single nucleotide variant", "NM_014630.3(ZNF592):c.3136G>A (p.Gly1046Arg)", "ZNF592",
+           "Uncertain significance", "150829393", "GRCh38", "15", "84799209", "G", "A",
+           "no assertion criteria provided", "4"]
+    src = tmp_path / "variant_summary.txt"
+    src.write_text("\t".join(header) + "\n" + "\t".join(row) + "\n", encoding="ascii", newline="\n")
+    out = ClinVarConnector(FetchConfig(cache_dir=tmp_path / "cache")).fetch(local_path=str(src), force_refresh=True)
+    assert len(out) == 1 and out.loc[0, "transcript_id"] is None and out.loc[0, "protein_change"] is None
+    assert "Name" not in out.columns

@@ -1,0 +1,796 @@
+{
+  "index_defaults": {
+    "input": {
+      "bytes": 939295297,
+      "file": "dbnsfp_full_index.parquet",
+      "rows": 85299339,
+      "sha256": "9c7da19b867a6a94bf55863e56d305896380b11f9dc11cabf2ebfbe9399e7046"
+    },
+    "joint": {
+      "all_four_default": 18706,
+      "polyphen2_default_revel_not": 5491879,
+      "revel_default_sift_and_polyphen2_not": 308674,
+      "revel_sift_polyphen2_all_default": 12828878,
+      "rows": 85299339,
+      "sift_default_revel_not": 1683670
+    },
+    "per_predictor": {
+      "cadd_phred": {
+        "exactly_default": 44611,
+        "excess_over_neighbour_mean": 25615.7,
+        "neighbour_mean": 18995.3,
+        "neighbours": {
+          "14.970": 18733,
+          "14.980": 18862,
+          "14.990": 19492,
+          "15.010": 18876,
+          "15.020": 19200,
+          "15.030": 18809
+        },
+        "null": 0,
+        "rows": 85299339
+      },
+      "polyphen2_score": {
+        "exactly_default": 18787223,
+        "excess_over_neighbour_mean": 18774228.8,
+        "neighbour_mean": 12994.2,
+        "neighbours": {
+          "0.497": 10631,
+          "0.498": 17224,
+          "0.499": 8161,
+          "0.501": 25218,
+          "0.502": 7121,
+          "0.503": 9610
+        },
+        "null": 0,
+        "rows": 85299339
+      },
+      "revel_score": {
+        "exactly_default": 15505294,
+        "excess_over_neighbour_mean": 15461329.2,
+        "neighbour_mean": 43964.8,
+        "neighbours": {
+          "0.497": 44062,
+          "0.498": 44160,
+          "0.499": 43747,
+          "0.501": 43891,
+          "0.502": 44033,
+          "0.503": 43896
+        },
+        "null": 0,
+        "rows": 85299339
+      },
+      "sift_score": {
+        "exactly_default": 16413824,
+        "excess_over_neighbour_mean": 16396385.0,
+        "neighbour_mean": 17439.0,
+        "neighbours": {
+          "0.497": 16992,
+          "0.498": 17036,
+          "0.499": 17636,
+          "0.501": 18112,
+          "0.502": 17501,
+          "0.503": 17357
+        },
+        "null": 0,
+        "rows": 85299339
+      }
+    }
+  },
+  "mane": {
+    "cohort_protein_change_null_rows": 1490014,
+    "cohort_transcript_id_null_rows": 1490014,
+    "gencode": {
+      "genes_with_mane_select": 19299,
+      "genes_with_several_mane_select": 0,
+      "mane_select_transcripts": 19299,
+      "mane_select_transcripts_with_coding_sequence": 19229,
+      "mane_select_versioned": true,
+      "sequences": [
+        "chr1",
+        "chr10",
+        "chr11",
+        "chr12",
+        "chr13",
+        "chr14",
+        "chr15",
+        "chr16",
+        "chr17",
+        "chr18",
+        "chr19",
+        "chr2",
+        "chr20",
+        "chr21",
+        "chr22",
+        "chr3",
+        "chr4",
+        "chr5",
+        "chr6",
+        "chr7",
+        "chr8",
+        "chr9",
+        "chrM",
+        "chrX",
+        "chrY"
+      ]
+    },
+    "inputs": {
+      "cohort": {
+        "bytes": 142269185,
+        "file": "clinvar_grch38_clean.parquet",
+        "sha256": "8d8747eb741cecd960ae3118d2b0b844a1cf55662ab617a1fd2b5dfc4f6e2c2c"
+      },
+      "dbnsfp_clinvar_index": {
+        "bytes": 36247405,
+        "file": "dbnsfp_clinvar_index.parquet",
+        "sha256": "3cf75aa174bb519fd7401740df06688cb94bf11d339ece6d198a7819e32ab044"
+      },
+      "gencode_v50_gtf": {
+        "bytes": 124527720,
+        "file": "gencode.v50.annotation.gtf.gz",
+        "sha256": "83fba3e9b03f0b8c958f3595c6c350adc55f468abf8b0e47b6d5284cfe13a453"
+      },
+      "pilot_frame": {
+        "file": "pilot_frame.parquet",
+        "sha256": "8073c499c4d1f2d039ba93945191446aa7297a4d254515f865fb4116d705801c"
+      }
+    },
+    "pilot_missense_rows": 201130,
+    "pilot_missense_rows_by_gene_resolution": {
+      "no_mane_select": 453,
+      "one_mane_select": 199948,
+      "several_symbols": 412,
+      "symbol_names_several_gencode_genes": 139,
+      "symbol_not_in_gencode_v50": 178
+    },
+    "pilot_missense_snv_rows_by_locus_mane": {
+      "no_mane_coding_sequence_covers_the_position": 3839,
+      "one_mane_coding_sequence_of_another_gene": 848,
+      "one_mane_coding_sequence_of_the_cohort_gene": 195197,
+      "several_mane_coding_sequences_cohort_gene_among_them": 71,
+      "several_mane_coding_sequences_cohort_gene_not_among_them": 4
+    },
+    "population_sha256_v1": "d4085699adaf257ad032da6eb1284d5ea8d05d220defd7dc7144bfa2485d79f5"
+  },
+  "mode": "shadow: measured on the real source files; nothing in production changed; nothing fitted",
+  "parts": {
+    "index-defaults": {
+      "file": "index_defaults.json",
+      "sha256": "7e5f9ade474e1064dc9dda9aa5a41a1ac8301e810ed80d6af69fa40fb574b043"
+    },
+    "mane": {
+      "file": "mane.json",
+      "sha256": "eab989d4d0b674db502ae8316b1298e5c7af1ddbfe12495c0d3f7864d66d1fbb"
+    },
+    "pilot": {
+      "file": "pilot.json",
+      "sha256": "e176d214cc9b5818bbb6610e5908ee6dbea796269dba5cf6a9ab81095ac62644"
+    },
+    "revel": {
+      "file": "revel.json",
+      "sha256": "5b93e772598c8a5e9181f58fb3c97f77a5bb171d26f114bc22819d6fce829355"
+    }
+  },
+  "pilot": {
+    "frame": {
+      "bytes": 42384169,
+      "columns": [
+        "variant_id",
+        "source_id",
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "gene_symbol",
+        "consequence",
+        "label",
+        "transcript_id",
+        "protein_change",
+        "joined_revel_score",
+        "joined_sift_score",
+        "joined_polyphen2_score",
+        "joined_cadd_phred"
+      ],
+      "file": "pilot_frame.parquet",
+      "sha256": "8073c499c4d1f2d039ba93945191446aa7297a4d254515f865fb4116d705801c"
+    },
+    "inputs": {
+      "cohort": {
+        "bytes": 142269185,
+        "file": "clinvar_grch38_clean.parquet",
+        "sha256": "8d8747eb741cecd960ae3118d2b0b844a1cf55662ab617a1fd2b5dfc4f6e2c2c"
+      },
+      "dbnsfp_clinvar_index": {
+        "bytes": 36247405,
+        "file": "dbnsfp_clinvar_index.parquet",
+        "sha256": "3cf75aa174bb519fd7401740df06688cb94bf11d339ece6d198a7819e32ab044"
+      }
+    },
+    "joint": {
+      "revel_sift_polyphen2_all_default": 122517
+    },
+    "per_predictor": {
+      "cadd_phred": {
+        "exactly_default": 1065,
+        "exactly_default_auroc_among_joined_rows": 0.497047,
+        "exactly_default_auroc_within_consequence_among_joined_rows": {
+          "<none>": 0.367251,
+          "initiator_codon_variant": 0.500325,
+          "intron_variant": 0.499854,
+          "missense_variant": 0.499842,
+          "non-coding_transcript_variant": 0.499745,
+          "nonsense": 0.5,
+          "splice_acceptor_variant": 0.5,
+          "splice_donor_variant": 0.5,
+          "synonymous_variant": 0.499923
+        },
+        "exactly_default_by_consequence": {
+          "<none>": 1008,
+          "initiator_codon_variant": 1,
+          "intron_variant": 2,
+          "missense_variant": 52,
+          "non-coding_transcript_variant": 1,
+          "synonymous_variant": 1
+        },
+        "exactly_default_by_label": {
+          "auroc_of_the_indicator_for_the_label": 0.499744,
+          "benign": {
+            "count": 1007,
+            "fraction": 0.000787,
+            "rows": 1279465
+          },
+          "pathogenic": {
+            "count": 58,
+            "fraction": 0.000275,
+            "rows": 210549
+          }
+        },
+        "exactly_default_missense": 52,
+        "joined_finite": 320626,
+        "neighbours": {
+          "14.970": 56,
+          "14.980": 47,
+          "14.990": 49,
+          "15.010": 55,
+          "15.020": 52,
+          "15.030": 37
+        }
+      },
+      "polyphen2_score": {
+        "exactly_default": 137944,
+        "exactly_default_auroc_among_joined_rows": 0.725232,
+        "exactly_default_auroc_within_consequence_among_joined_rows": {
+          "<none>": 0.433799,
+          "initiator_codon_variant": 0.442615,
+          "intron_variant": 0.486562,
+          "missense_variant": 0.471847,
+          "non-coding_transcript_variant": 0.549185,
+          "nonsense": 0.499868,
+          "splice_acceptor_variant": 0.50825,
+          "splice_donor_variant": 0.510428,
+          "synonymous_variant": 0.455964
+        },
+        "exactly_default_by_consequence": {
+          "3_prime_UTR_variant": 333,
+          "5_prime_UTR_variant": 448,
+          "<none>": 1093,
+          "genic_downstream_transcript_variant": 2,
+          "genic_upstream_transcript_variant": 3,
+          "initiator_codon_variant": 83,
+          "intron_variant": 6556,
+          "missense_variant": 18376,
+          "non-coding_transcript_variant": 1777,
+          "nonsense": 65149,
+          "splice_acceptor_variant": 17079,
+          "splice_donor_variant": 20528,
+          "stop_lost": 251,
+          "synonymous_variant": 6266
+        },
+        "exactly_default_by_label": {
+          "auroc_of_the_indicator_for_the_label": 0.736308,
+          "benign": {
+            "count": 33004,
+            "fraction": 0.025795,
+            "rows": 1279465
+          },
+          "pathogenic": {
+            "count": 104940,
+            "fraction": 0.498411,
+            "rows": 210549
+          }
+        },
+        "exactly_default_missense": 18376,
+        "joined_finite": 320626,
+        "neighbours": {
+          "0.497": 17,
+          "0.498": 16,
+          "0.499": 14,
+          "0.501": 31,
+          "0.502": 14,
+          "0.503": 15
+        }
+      },
+      "revel_score": {
+        "exactly_default": 129779,
+        "exactly_default_auroc_among_joined_rows": 0.747683,
+        "exactly_default_auroc_within_consequence_among_joined_rows": {
+          "<none>": 0.455399,
+          "initiator_codon_variant": 0.470533,
+          "intron_variant": 0.491608,
+          "missense_variant": 0.489413,
+          "non-coding_transcript_variant": 0.607288,
+          "nonsense": 0.500137,
+          "splice_acceptor_variant": 0.508191,
+          "splice_donor_variant": 0.518323,
+          "synonymous_variant": 0.385819
+        },
+        "exactly_default_by_consequence": {
+          "3_prime_UTR_variant": 314,
+          "5_prime_UTR_variant": 360,
+          "<none>": 1074,
+          "genic_downstream_transcript_variant": 2,
+          "genic_upstream_transcript_variant": 4,
+          "initiator_codon_variant": 91,
+          "intron_variant": 6015,
+          "missense_variant": 11870,
+          "non-coding_transcript_variant": 1549,
+          "nonsense": 65096,
+          "splice_acceptor_variant": 17077,
+          "splice_donor_variant": 20525,
+          "stop_lost": 251,
+          "synonymous_variant": 5551
+        },
+        "exactly_default_by_label": {
+          "auroc_of_the_indicator_for_the_label": 0.738185,
+          "benign": {
+            "count": 25314,
+            "fraction": 0.019785,
+            "rows": 1279465
+          },
+          "pathogenic": {
+            "count": 104465,
+            "fraction": 0.496155,
+            "rows": 210549
+          }
+        },
+        "exactly_default_missense": 11870,
+        "joined_finite": 320626,
+        "neighbours": {
+          "0.497": 59,
+          "0.498": 60,
+          "0.499": 54,
+          "0.501": 56,
+          "0.502": 64,
+          "0.503": 59
+        }
+      },
+      "sift_score": {
+        "exactly_default": 132603,
+        "exactly_default_auroc_among_joined_rows": 0.744526,
+        "exactly_default_auroc_within_consequence_among_joined_rows": {
+          "<none>": 0.482277,
+          "initiator_codon_variant": 0.484367,
+          "intron_variant": 0.483122,
+          "missense_variant": 0.490355,
+          "non-coding_transcript_variant": 0.569317,
+          "nonsense": 0.5002,
+          "splice_acceptor_variant": 0.506054,
+          "splice_donor_variant": 0.518323,
+          "synonymous_variant": 0.442703
+        },
+        "exactly_default_by_consequence": {
+          "3_prime_UTR_variant": 312,
+          "5_prime_UTR_variant": 400,
+          "<none>": 779,
+          "genic_downstream_transcript_variant": 2,
+          "genic_upstream_transcript_variant": 4,
+          "initiator_codon_variant": 73,
+          "intron_variant": 5895,
+          "missense_variant": 14857,
+          "non-coding_transcript_variant": 1698,
+          "nonsense": 65104,
+          "splice_acceptor_variant": 17078,
+          "splice_donor_variant": 20525,
+          "stop_lost": 251,
+          "synonymous_variant": 5625
+        },
+        "exactly_default_by_label": {
+          "auroc_of_the_indicator_for_the_label": 0.739579,
+          "benign": {
+            "count": 27235,
+            "fraction": 0.021286,
+            "rows": 1279465
+          },
+          "pathogenic": {
+            "count": 105368,
+            "fraction": 0.500444,
+            "rows": 210549
+          }
+        },
+        "exactly_default_missense": 14857,
+        "joined_finite": 320626,
+        "neighbours": {
+          "0.497": 73,
+          "0.498": 73,
+          "0.499": 69,
+          "0.501": 74,
+          "0.502": 79,
+          "0.503": 80
+        }
+      }
+    },
+    "population": {
+      "benign": 1279465,
+      "missense": 201130,
+      "pathogenic": 210549,
+      "population_id": "clinvar_grch38_clean:labelled:review_tier_le_3:non_conflicting",
+      "rows": 1490014,
+      "sha256_v1": "d4085699adaf257ad032da6eb1284d5ea8d05d220defd7dc7144bfa2485d79f5",
+      "sha256_v2": "5f58c0349413aa4ce83c6a873e0938992b26ae701dbec0d4699bf238d7284dce"
+    },
+    "revel": {
+      "join_unobserved": 1169388,
+      "legacy_revel_pathogenic_without_a_non_default_score": 1299167,
+      "note": "a value exactly 0.5 in the index is a genuine score OR the index build's fill; the publisher source (part revel) separates the two at these alleles",
+      "observed_not_at_default": 190847,
+      "observed_not_at_default_ge_0_5": 58709,
+      "pilot_recorded_observed": 320626,
+      "unobserved_or_at_default": 1299167
+    }
+  },
+  "procedure": {
+    "scripts/measure_1d1b2_pilots.py::load_population": "e86fc2fbdfb929b2e8a8b189a4840a60a0b0a23e87c01ec5da2c7afff4ce9b85",
+    "scripts/measure_predictor_sources_1d1c2.py::_load_frame": "ad561be695386fba00cc8d502aabfb635c6e1a283934bb97d116e3c51ca7a010",
+    "scripts/measure_predictor_sources_1d1c2.py::_population_and_join": "f9c03db7753437757e9bed3a508e5c7e64cca12191f3ed3415746e6e93c19b16",
+    "scripts/measure_predictor_sources_1d1c2.py::clinvar_declared": "76197960c4c8034fa4aa9b320224914838e56ab2f1c980a02e11a76f3266eb85",
+    "scripts/measure_predictor_sources_1d1c2.py::collect": "c7d16387369dc6873d3e5b301a90f65c974abcae4f142ed6f2aff02ad2191d4d",
+    "scripts/measure_predictor_sources_1d1c2.py::index_defaults": "62077ea42edde10bf83fed6339a126216482e1533a23113cafc772e27b33fe54",
+    "scripts/measure_predictor_sources_1d1c2.py::mane_coverage": "a34de274b0247ab8bb816db37ec7d1e34dddfb3a40bf209162ac2aed5ffece84",
+    "scripts/measure_predictor_sources_1d1c2.py::pilot_defaults": "6e6f1c138e2999e6ab680cded50fab92056c53ef91244a2772266e57994c7f16",
+    "scripts/measure_predictor_sources_1d1c2.py::read_revel_member": "42f2bb9800779fc189be51ab1b22e86c8a429f74caab8fb62840e3fd02ac9b8c",
+    "scripts/measure_predictor_sources_1d1c2.py::revel_source": "657b06e996ec471017f71a639abb198c6452413f9de5e23d36e3bc949c8dd6cb",
+    "scripts/measure_predictor_sources_1d1c2.py::scan_revel": "7096aa8ca2c8bc0c6f5ecd73e8e0696d19a9910328f9808657e7f34ab8bd67d7",
+    "scripts/measure_predictor_sources_1d1c2.py::select_scalar": "af7090619098635efd2e1830835d019aedb3cb86b6382289fce33fd184f8db0e"
+  },
+  "revel": {
+    "absence_as_evidence_correction": {
+      "default_triggered_positives": 1299167,
+      "default_triggered_without_index_score_or_without_a_publisher_0_5_at_the_allele": 1299101,
+      "definitions": {
+        "default_triggered_without_index_score_or_without_a_publisher_0_5_at_the_allele": "revel_pathogenic = 1 from no index score, or from an index 0.5 where the publisher has no 0.5 at the allele; NOT the number without a publisher score (some have one)",
+        "domain": "REVEL scores single-nucleotide missense variants; the domain is read from the cohort's ClinVar consequence (one consequence per row, not per transcript)",
+        "of_which_no_publisher_score_in_the_grch38_view": "no publisher row with a score at the GRCh38 allele, in the completely scanned GRCh38 view; not a claim about the GRCh37 source (see the GRCh37 rows) and, outside REVEL's domain, not a missing value",
+        "of_which_publisher_has_0_5_at_allele": "a publisher 0.5 at the allele; whether it belongs to the transcript the index value described is unverified"
+      },
+      "no_publisher_score_in_the_grch38_view_but_a_publisher_row_at_the_grch37_allele_with_unresolved_grch38": {
+        "hist_0_5_pub_absent__fabricated": {
+          "single_nucleotide_missense": 326,
+          "single_nucleotide_other_consequence": 5
+        },
+        "hist_absent_pub_absent": {
+          "single_nucleotide_other_consequence": 21
+        },
+        "hist_value_pub_absent": {
+          "single_nucleotide_missense": 1
+        }
+      },
+      "no_publisher_score_in_the_grch38_view_by_domain": {
+        "not_single_nucleotide": 74708,
+        "single_nucleotide_missense": 3694,
+        "single_nucleotide_other_consequence": 1163663
+      },
+      "nondefault_index_value_without_publisher_score_positivity_not_recorded": 2,
+      "of_which_a_publisher_score_exists_at_the_allele": 57036,
+      "of_which_no_publisher_score_in_the_grch38_view": 1242065,
+      "of_which_publisher_has_0_5_at_allele": 66,
+      "of_which_the_grch37_row_has_a_score": 353,
+      "pilot_observed_at_0_5": 129779,
+      "pilot_unobserved": 1169388
+    },
+    "at_population_alleles": {
+      "alleles_with_rows": 247947,
+      "alleles_with_several_amino_acid_changes": 11188,
+      "alleles_with_several_distinct_scores": 10584,
+      "rows_per_allele_1": 236759,
+      "rows_per_allele_2": 11075,
+      "rows_per_allele_3": 110,
+      "rows_per_allele_4": 3
+    },
+    "historical_index_against_publisher": {
+      "hist_0_5_pub_absent__fabricated": 115538,
+      "hist_0_5_pub_has_0_5__genuine": 66,
+      "hist_0_5_pub_other_values": 14175,
+      "hist_absent_pub_absent": 1126527,
+      "hist_absent_pub_present": 42861,
+      "hist_value_differs_from_pub_max": 2320,
+      "hist_value_equals_pub_max": 188525,
+      "hist_value_pub_absent": 2
+    },
+    "historical_index_against_publisher_by_domain": {
+      "hist_0_5_pub_absent__fabricated": {
+        "single_nucleotide_missense": 2642,
+        "single_nucleotide_other_consequence": 112896
+      },
+      "hist_0_5_pub_has_0_5__genuine": {
+        "single_nucleotide_missense": 60,
+        "single_nucleotide_other_consequence": 6
+      },
+      "hist_0_5_pub_other_values": {
+        "single_nucleotide_missense": 9168,
+        "single_nucleotide_other_consequence": 5007
+      },
+      "hist_absent_pub_absent": {
+        "not_single_nucleotide": 74708,
+        "single_nucleotide_missense": 1052,
+        "single_nucleotide_other_consequence": 1050767
+      },
+      "hist_absent_pub_present": {
+        "single_nucleotide_missense": 475,
+        "single_nucleotide_other_consequence": 42386
+      },
+      "hist_value_differs_from_pub_max": {
+        "single_nucleotide_missense": 2243,
+        "single_nucleotide_other_consequence": 77
+      },
+      "hist_value_equals_pub_max": {
+        "single_nucleotide_missense": 184317,
+        "single_nucleotide_other_consequence": 4208
+      },
+      "hist_value_pub_absent": {
+        "single_nucleotide_missense": 2
+      }
+    },
+    "inputs": {
+      "clinvar_variant_summary": {
+        "bytes": 439962524,
+        "file": "variant_summary.txt.gz",
+        "sha256": "5fe4fe10783391d01dc414dc5583a3e63487b67f8cd3c8429d59227cd5f4f37f"
+      },
+      "cohort": {
+        "bytes": 142269185,
+        "file": "clinvar_grch38_clean.parquet",
+        "sha256": "8d8747eb741cecd960ae3118d2b0b844a1cf55662ab617a1fd2b5dfc4f6e2c2c"
+      },
+      "dbnsfp_clinvar_index": {
+        "bytes": 36247405,
+        "file": "dbnsfp_clinvar_index.parquet",
+        "sha256": "3cf75aa174bb519fd7401740df06688cb94bf11d339ece6d198a7819e32ab044"
+      },
+      "gencode_v50_gtf": {
+        "file": "gencode.v50.annotation.gtf.gz",
+        "sha256": "83fba3e9b03f0b8c958f3595c6c350adc55f468abf8b0e47b6d5284cfe13a453"
+      },
+      "pilot_frame": {
+        "file": "pilot_frame.parquet",
+        "sha256": "8073c499c4d1f2d039ba93945191446aa7297a4d254515f865fb4116d705801c"
+      },
+      "revel_archive": {
+        "bytes": 667102707,
+        "file": "revel-v1.3_all_chromosomes.zip",
+        "md5": "3ea2bc33e6b5455fc7e9899da863b5fe",
+        "member": "revel_with_transcript_ids",
+        "sha256": "815801d832e4ab76922dddfd901d7f24a755df57078a7138aa14f615da86a8a2",
+        "zenodo_record": "10.5281/zenodo.7072866"
+      }
+    },
+    "nonfatal_anomalies": {
+      "aaalt_not_one_of_20": 0,
+      "aaref_not_one_of_20": 0
+    },
+    "policy_disagreements": {
+      "amino_acid_change_differs": 163,
+      "crosses_0_5": 15,
+      "mane_transcript_named_by_a_clinvar_selected_row": 0,
+      "note": "the two policies select different publisher rows; a different score under a different selection is a policy disagreement, not a source conflict (owner ruling ace92e09, section 8)",
+      "rows": 163
+    },
+    "population_sha256_v1": "d4085699adaf257ad032da6eb1284d5ea8d05d220defd7dc7144bfa2485d79f5",
+    "publisher_grch37_rows_with_unresolved_grch38_at_population_alleles": 373,
+    "rows_by_chromosome": {
+      "1": 8467065,
+      "10": 3289834,
+      "11": 4850828,
+      "12": 4361643,
+      "13": 1448206,
+      "14": 2672365,
+      "15": 2686408,
+      "16": 3350511,
+      "17": 4510502,
+      "18": 1223623,
+      "19": 5160678,
+      "2": 6108312,
+      "20": 1984320,
+      "21": 841258,
+      "22": 1785378,
+      "3": 4849265,
+      "4": 3388227,
+      "5": 3738180,
+      "6": 4151134,
+      "7": 3847838,
+      "8": 2881145,
+      "9": 3370973,
+      "X": 3101433,
+      "Y": 31551
+    },
+    "score_decimal_places": {
+      "3": 82100677
+    },
+    "selection_agreement": {
+      "mane=candidate|clinvar=clinvar_name_not_transcript_hgvs": 6,
+      "mane=candidate|clinvar=clinvar_no_single_residue_substitution": 45,
+      "mane=candidate|clinvar=clinvar_no_unique_grch38_record": 32,
+      "mane=candidate|clinvar=no_applicable_source_row": 4,
+      "mane=no_applicable_source_row|clinvar=candidate": 29625,
+      "mane=no_applicable_source_row|clinvar=clinvar_name_not_transcript_hgvs": 83,
+      "mane=no_applicable_source_row|clinvar=clinvar_no_single_residue_substitution": 4541,
+      "mane=no_applicable_source_row|clinvar=clinvar_no_unique_grch38_record": 1,
+      "mane=no_applicable_source_row|clinvar=no_applicable_source_row": 34,
+      "mane=not_applicable_consequence|clinvar=not_applicable_consequence": 1288884,
+      "mane=not_applicable_not_snv|clinvar=not_applicable_not_snv": 1171,
+      "mane=not_in_publisher_grch38_view|clinvar=clinvar_name_not_transcript_hgvs": 8,
+      "mane=not_in_publisher_grch38_view|clinvar=clinvar_no_single_residue_substitution": 2092,
+      "mane=not_in_publisher_grch38_view|clinvar=clinvar_no_unique_grch38_record": 1,
+      "mane=not_in_publisher_grch38_view|clinvar=not_in_publisher_grch38_view": 1421,
+      "mane=transcript_unresolved|clinvar=candidate": 916,
+      "mane=transcript_unresolved|clinvar=clinvar_name_not_transcript_hgvs": 12,
+      "mane=transcript_unresolved|clinvar=clinvar_no_single_residue_substitution": 105,
+      "mane=transcript_unresolved|clinvar=not_in_publisher_grch38_view": 147,
+      "policy_agreement_same_score": 160723,
+      "policy_disagreement_different_score": 163
+    },
+    "selection_clinvar_declared_substitution": {
+      "by_label_reported_after_selection": {
+        "candidate": {
+          "benign": 135365,
+          "pathogenic": 56062
+        },
+        "clinvar_name_not_transcript_hgvs": {
+          "benign": 105,
+          "pathogenic": 4
+        },
+        "clinvar_no_single_residue_substitution": {
+          "benign": 6549,
+          "pathogenic": 234
+        },
+        "clinvar_no_unique_grch38_record": {
+          "benign": 2,
+          "pathogenic": 32
+        },
+        "no_applicable_source_row": {
+          "benign": 38,
+          "pathogenic": 0
+        },
+        "not_applicable_consequence": {
+          "benign": 1135288,
+          "pathogenic": 153596
+        },
+        "not_applicable_not_snv": {
+          "benign": 696,
+          "pathogenic": 475
+        },
+        "not_in_publisher_grch38_view": {
+          "benign": 1422,
+          "pathogenic": 146
+        }
+      },
+      "clinvar_summary": {
+        "grch37_records_of_population_variants": 1490236,
+        "grch38_records_of_population_variants": 1490309,
+        "keys_with_several_records": 0,
+        "rows": 8992046,
+        "variation_ids_with_one_grch37_record": 1489382,
+        "variation_ids_with_several_grch37_records": 427
+      },
+      "policy": "CANDIDATE selection for clinical-context reconstruction, not a qualified transcript context and not a prospective selector: the variant_summary Name (ClinVar's calculated preferred name) of the row's unique GRCh38 record; the publisher rows at the GRCh38 allele whose (aaref, aaalt) equal the declared single-residue substitution -- the allele and the amino-acid pair only: the RefSeq accession and the residue position are parsed but not matched (the publisher has neither). Applicable rows that disagree are an unresolved context, not a source conflict.",
+      "states": {
+        "candidate": 191427,
+        "clinvar_name_not_transcript_hgvs": 109,
+        "clinvar_no_single_residue_substitution": 6783,
+        "clinvar_no_unique_grch38_record": 34,
+        "no_applicable_source_row": 38,
+        "not_applicable_consequence": 1288884,
+        "not_applicable_not_snv": 1171,
+        "not_in_publisher_grch38_view": 1568
+      }
+    },
+    "selection_mane_select": {
+      "by_label_reported_after_selection": {
+        "candidate": {
+          "benign": 113115,
+          "pathogenic": 47858
+        },
+        "no_applicable_source_row": {
+          "benign": 26130,
+          "pathogenic": 8154
+        },
+        "not_applicable_consequence": {
+          "benign": 1135288,
+          "pathogenic": 153596
+        },
+        "not_applicable_not_snv": {
+          "benign": 696,
+          "pathogenic": 475
+        },
+        "not_in_publisher_grch38_view": {
+          "benign": 3295,
+          "pathogenic": 227
+        },
+        "transcript_unresolved": {
+          "benign": 941,
+          "pathogenic": 239
+        }
+      },
+      "policy": "CANDIDATE selection, not a qualified transcript context: the GENCODE v50 MANE Select transcript of the cohort's gene_symbol -- a ClinVar-derived field, so the selection is not independent of the ClinVar record (part mane, pilot_missense_snv_rows_by_locus_mane, measures the dependence) -- matched by stable identifier to the publisher's unversioned transcript list, with no version, coding-sequence or residue check; applicability = the cohort's ClinVar consequence. Applicable rows that disagree are a source conflict.",
+      "states": {
+        "candidate": 160973,
+        "no_applicable_source_row": 34284,
+        "not_applicable_consequence": 1288884,
+        "not_applicable_not_snv": 1171,
+        "not_in_publisher_grch38_view": 3522,
+        "transcript_unresolved": 1180
+      }
+    },
+    "source_census": {
+      "grch38_unresolved": 509942,
+      "no_transcript": 0,
+      "rows": 82100677,
+      "score_exactly_0_5": 48001,
+      "score_missing": 0,
+      "transcript_ids_unversioned": 227185437,
+      "transcript_ids_versioned": 0
+    },
+    "transcripts_per_row": {
+      "1": 29312126,
+      "10": 459290,
+      "11": 285519,
+      "12": 197557,
+      "13": 140319,
+      "14": 106797,
+      "15": 78214,
+      "16": 45326,
+      "17": 31654,
+      "18": 30421,
+      "19": 15389,
+      "2": 18789466,
+      "20": 8662,
+      "21": 8732,
+      "22": 5570,
+      "23": 7776,
+      "24": 9419,
+      "25": 6026,
+      "26": 8901,
+      "27": 2911,
+      "28": 1893,
+      "29": 788,
+      "3": 12787428,
+      "30": 72,
+      "31": 69,
+      "32": 3191,
+      "33": 841,
+      "34": 126,
+      "35": 130,
+      "36": 210,
+      "37": 104,
+      "38": 276,
+      "4": 8067442,
+      "41": 42,
+      "42": 6,
+      "43": 5,
+      "44": 34,
+      "47": 7,
+      "48": 40,
+      "49": 31,
+      "5": 5107875,
+      "50": 49,
+      "51": 219,
+      "52": 203,
+      "53": 198,
+      "54": 85,
+      "6": 2896180,
+      "7": 1784406,
+      "8": 1165140,
+      "9": 733512
+    }
+  },
+  "schema": "gvc.predictor-sources.1d1c2/1"
+}

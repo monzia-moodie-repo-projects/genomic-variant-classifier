@@ -16,7 +16,12 @@ were read and verified. The rules, each refused at construction:
 * Every other state carries NO value -- no 0.0, 0.5 or -1 sentinel may ride along with "absent".
 * The content digest follows the state (the owner's table): OBSERVED, NOT_IN_SOURCE and UNSUPPORTED_VARIANT assert something
   about bytes that were read and require their SHA-256; SOURCE_ABSENT asserts no bytes were read and forbids one;
-  BAD_MAPPING and COMPUTATION_FAILED depend on the failure stage and accept either.
+  BAD_MAPPING and COMPUTATION_FAILED depend on the failure stage and accept either. SOURCE_ROW_WITHOUT_VALUE (stage
+  1D-1c.2, owner ruling e755519d) asserts that the bytes read hold a row for the variant without a value -- e.g. a
+  per-transcript score slot '.' of a dbNSFP v5 row (REVEL v1.3 has none: 0 of its 82,100,677 rows, measured) -- which is
+  neither NOT_IN_SOURCE nor a failed computation; it requires the digest. The states' uint8 codes are their declaration
+  order (columns.STATE_CODES), so a state is only ever APPENDED: codes 0-6 are unchanged, and counts name an appended state
+  only where it occurs (columns.COUNTED_STATES), so no record sealed before the append changes.
 * A DERIVED value (``derived:<feature>``, computed from other observations) has no source bytes of its own: its identity is
   its inputs' identities and its propagation rule (columns.derive). It is OBSERVED, INPUT_UNOBSERVED (an input was not
   observed) or COMPUTATION_FAILED, and never names a content digest. INPUT_UNOBSERVED exists only for derived values, so a
@@ -48,6 +53,8 @@ class ObservationState(str, Enum):
     BAD_MAPPING = "bad_mapping"                   # the variant could not be mapped (or mapped ambiguously) to the source
     COMPUTATION_FAILED = "computation_failed"     # a computed feature's computation failed for this variant
     INPUT_UNOBSERVED = "input_unobserved"         # derived values only: an input was not observed
+    SOURCE_ROW_WITHOUT_VALUE = "source_row_without_value"   # the named source was read and has a row for this
+                                                            # variant, but that row carries no value (stage 1D-1c.2)
 
 
 class SourceRequirement(str, Enum):
@@ -65,6 +72,7 @@ SOURCE_RULE: dict[ObservationState, SourceRequirement] = {
     ObservationState.SOURCE_ABSENT: SourceRequirement.FORBIDDEN,
     ObservationState.BAD_MAPPING: SourceRequirement.OPTIONAL,
     ObservationState.COMPUTATION_FAILED: SourceRequirement.OPTIONAL,
+    ObservationState.SOURCE_ROW_WITHOUT_VALUE: SourceRequirement.REQUIRED,
 }
 #: The states a derived value may take.
 DERIVED_STATES: frozenset[ObservationState] = frozenset({

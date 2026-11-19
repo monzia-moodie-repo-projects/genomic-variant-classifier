@@ -74,6 +74,23 @@ DATASETS = {
               [code(D + "dbsnp.py", "Build 156 VCF")]),
     "dbnsfp": ("dbNSFP index of precomputed SIFT, PolyPhen-2 HDIV, REVEL, CADD, phyloP100way and GERP++ scores",
                "academic", [code(D + "dbnsfp.py", "Delivers six pre-computed pathogenicity and conservation scores for all")]),
+    "revel_v1_3": ("REVEL v1.3 (2021-05-03), the publisher's transcript-aware release: member revel_with_transcript_ids of "
+                   "revel-v1.3_all_chromosomes.zip (Zenodo 10.5281/zenodo.7072866; MD5 3ea2bc33e6b5455fc7e9899da863b5fe as "
+                   "published, SHA-256 815801d832e4ab76922dddfd901d7f24a755df57078a7138aa14f615da86a8a2 as measured): 82,100,677 "
+                   "rows of chromosome, GRCh37 and lifted GRCh38 position, alleles, amino-acid change, score and unversioned "
+                   "Ensembl transcript identifiers. Registered at stage 1D-1c.2A; no producer consumes it yet (stage 1D-1c.2B)",
+                   "academic (the publisher's terms: free for non-commercial use; Zenodo labels the record ODbL 1.0 -- the "
+                   "stricter publisher term is applied; nothing is redistributed. The project is strictly research and "
+                   "non-commercial, confirmed by the owner on 2026-11-18, so the term is met)",
+                   ["record:docs/census/PREDICTOR_SOURCES_1D1c2.json", "url:https://sites.google.com/site/revelgenomics/downloads"]),
+    "gencode_v50": ("GENCODE release 50 comprehensive annotation, GRCh38 (gencode.v50.annotation.gtf.gz, SHA-256 "
+                    "83fba3e9b03f0b8c958f3595c6c350adc55f468abf8b0e47b6d5284cfe13a453): the MANE Select and Ensembl-canonical "
+                    "transcript of each gene, measured at stage 1D-1c.2A", "public", ["record:docs/census/PREDICTOR_SOURCES_1D1c2.json"]),
+    "clinvar_variant_summary": ("ClinVar variant_summary.txt.gz (SHA-256 5fe4fe10783391d01dc414dc5583a3e63487b67f8cd3c8429d59227cd5f4f37f, "
+                                "8,992,046 rows): the release-level table the cohort is built from. Its Name declares the "
+                                "RefSeq transcript (with version) and the protein change, which the cohort connector drops "
+                                "(COHORT-TRANSCRIPT-UNDECLARED-1)", "public",
+                                [code(D + "database_connectors.py", 'df["transcript_id"] = None'), "record:docs/census/PREDICTOR_SOURCES_1D1c2.json"]),
     "phylop_bigwig": ("PhyloP conservation BigWig track (second phyloP producer)", "public",
                       [code(RDP, "PHYLOPLOG-1 (2026-08-12).")]),
     "spliceai": ("SpliceAI precomputed masked SNV delta scores (hg38)", "public",
@@ -218,11 +235,13 @@ ENTRIES = [
     F("cadd_phred", A, "CADD PHRED-scaled score from dbNSFP (or the optional REST connector); absent 15.0.",
       DBNSFP + [f"code:{D}cadd.py::CADDConnector"], "proxy_nonclinical", "none", "not_applicable", "current_only",
       "acmg_computational_evidence", "Trained to separate simulated variants from human-derived alleles: a "
-      "non-clinical proxy objective. It is PP3/BP4 evidence (ClinGen calibration), recorded as label-criterion use.",
+      "non-clinical proxy objective. It is PP3/BP4 evidence (ClinGen calibration), recorded as label-criterion use."
+      " Strict in principle; its MATERIALISED values are not yet a qualified observation (DBNSFP-INDEX-DEFAULT-BAKED-1): a scientific fit must withhold it, through a versioned roster, until its source is qualified (owner ruling e755519d, section 7.1).",
       [ve('"cadd_phred": 15.0,'), LIT["cadd"], LIT["pejaver"]]),
     F("sift_score", A, "SIFT score in [0,1] from dbNSFP; absent 0.5 (the code's neutral fill).", DBNSFP, "none",
       "none", "not_applicable", "current_only", "acmg_computational_evidence",
-      "Homology-based and unsupervised. PP3/BP4 evidence, recorded as label-criterion use.",
+      "Homology-based and unsupervised. PP3/BP4 evidence, recorded as label-criterion use."
+      " Strict in principle; its MATERIALISED values are not yet a qualified observation (DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1): a scientific fit must withhold it, through a versioned roster, until its source is qualified (owner ruling e755519d, section 7.1).",
       [ve('"sift_score": 0.5,'), LIT["pejaver"]]),
     F("polyphen2_score", CO, "PolyPhen-2 HDIV probability from dbNSFP; absent 0.5.", DBNSFP, "clinical", "none",
       "unknown", "current_only", "acmg_computational_evidence",
@@ -267,13 +286,15 @@ ENTRIES = [
        LIT["eve"], "record:docs/census/measure_1d1_correction.json"]),
     F("cadd_high", A, "1 when cadd_phred >= 20 (top 1% of all possible substitutions by construction).", DBNSFP,
       "proxy_nonclinical", "none", "not_applicable", "current_only", "acmg_computational_evidence",
-      "A fixed cut of an admitted score; the cut is rank-based, not fitted to clinical labels.",
+      "A fixed cut of an admitted score; the cut is rank-based, not fitted to clinical labels. Withheld with "
+      "cadd_phred until its source is qualified (owner ruling e755519d, section 5 of the refined ruling).",
       [ve('feats["cadd_high"] = (feats["cadd_phred"] >= 20).astype(int)')], ["cadd_phred"]),
     F("sift_deleterious", A, "1 when sift_score < 0.05 (absent variants, filled 0.5, are 0).", DBNSFP, "none",
       "unknown", "not_applicable", "current_only", "acmg_computational_evidence",
       "A fixed cut of an admitted score. The provenance of the conventional 0.05 cut was not verified in this "
       "review (recorded as unknown); a single fixed cut-point can carry at most one fitted scalar, so it adds no "
-      "label information beyond its admitted score.",
+      "label information beyond its admitted score. Withheld with sift_score until its source is qualified (owner "
+      "ruling e755519d, section 7.1).",
       [ve('feats["sift_deleterious"] = (feats["sift_score"] < 0.05).astype(int)')], ["sift_score"]),
     F("polyphen_probably_damaging", CO, "1 when polyphen2_score >= 0.908 (the HDIV 'probably damaging' cut).",
       DBNSFP, "clinical", "clinical", "unknown", "current_only", "acmg_computational_evidence",
@@ -699,12 +720,24 @@ DEFECTS = [
      "1,169,388 rows (78.5%) have no REVEL score and are all flagged pathogenic, so 90.1% of benign rows carry "
      "revel_pathogenic = 1; 497,970 rows (33.4%) have no gnomAD frequency and are all 'ultra-rare', and the missing "
      "frequency alone separates the labels (67.0% of pathogenic against 27.9% of benign rows; AUROC 0.695). No cohort "
-     "row lacks ref or alt, so is_snv is latent there. Fix: stage 1D-1c (observed-only derivation, columns.DERIVED_RULES).",
+     "row lacks ref or alt, so is_snv is latent there. Fix: stage 1D-1c (observed-only derivation, columns.DERIVED_RULES). "
+     "CORRECTED at stage 1D-1c.2A and made precise by owner ruling ace92e09 (docs/census/PREDICTOR_SOURCES_1D1c2.json, "
+     "absence_as_evidence_correction): 1,169,388 is a LOWER bound -- the join's 'observed' rows include 129,779 that hold "
+     "exactly 0.5, the dbNSFP index's own fill (DBNSFP-INDEX-DEFAULT-BAKED-1) -- so 1,299,167 rows carry "
+     "revel_pathogenic = 1 from no index score or an index 0.5, and 1,299,101 of them from no index score or an index 0.5 "
+     "without a publisher 0.5 at the allele (the publisher has a 0.5 at 66; whether it is the transcript the index "
+     "described is unverified). That is NOT the number without a publisher score: 1,242,065 have no publisher score in the "
+     "completely scanned GRCh38 view and 57,036 have one (42,861 without an index value, 14,175 with another score than "
+     "the index's 0.5). Of the 1,242,065, 1,238,371 are outside REVEL's domain by the cohort's own fields (74,708 not "
+     "single-nucleotide, 1,163,663 single-nucleotide with a non-missense ClinVar consequence) -- a value fabricated where "
+     "REVEL does not apply, not a missing one -- and 3,694 are missense; 352 (326 missense) have a scored publisher row at "
+     "the variant's ClinVar GRCh37 allele whose GRCh38 position the publisher left unresolved.",
      ["af_is_absent", "af_is_ultra_rare", "is_snv", "revel_pathogenic", "n_tools_pathogenic"],
      [ve('feats["revel_pathogenic"] = (feats["revel_score"] >= 0.5).astype(int)'),
       ve('feats["af_is_ultra_rare"] = (af < 0.0001).astype(int)'),
       ve('ref = df.get("ref", pd.Series(["A"] * len(df), index=df.index)).fillna("A")'),
-      "record:docs/census/SOURCE_ABSENCE_1D1b2.json", "record:docs/census/PILOTS_1D1b2.json"]),
+      "record:docs/census/SOURCE_ABSENCE_1D1b2.json", "record:docs/census/PILOTS_1D1b2.json", "record:docs/census/PREDICTOR_SOURCES_1D1c2.json"])
+    ,
     ("GNOMAD-CHRX-LOCUS-PARSE-1", "DataPrepPipeline._join_gnomad's locus parse drops a first field that is not digits "
      "once X, Y and M are removed, as a prefix: 'X' becomes '' and ''.isdigit() is False, so every chromosome-X gnomAD "
      "record (91,771 of 2,951,148 in gnomad_v4_exomes.parquet) is discarded and all 63,929 chromosome-X cohort rows get "
@@ -931,6 +964,59 @@ DEFECTS = [
      "ac_het and an.",
      ["af_raw"],
      [code("scripts/build_gnomad_ymt_af.py", 'ac_hom = v.get("ac_hom") or 0'), "record:docs/census/AF_REPAIR_1D1c1.json"]),
+    # ---- registered by set "aw" (stage 1D-1c.2A, owner ruling e755519d), each with an executable witness
+    ("DBNSFP-INDEX-DEFAULT-BAKED-1", "data/dbnsfp.py's raw parse fills an absent SIFT, PolyPhen-2, REVEL or CADD score with "
+     "the connector default (0.5; 15.0 for CADD) BEFORE writing the parquet cache, so the cached index holds no missing value "
+     "and a stored 0.5 is a score or a fill, irreversibly; replacing 0.5 by NaN cannot repair it (a genuine 0.5 is the same "
+     "value). Measured (docs/census/PREDICTOR_SOURCES_1D1c2.json): dbnsfp_full_index.parquet, 85,299,339 rows, no null; "
+     "exactly at the default REVEL 15,505,294 rows against about 44,000 at each neighbouring value, SIFT 16,413,824 (about "
+     "17,400), PolyPhen-2 18,787,223 (about 13,000), CADD 44,611 (about 19,000); the masks differ (all three 12,828,878; "
+     "REVEL alone 308,674). On the pilot population's 320,626 joined rows, 129,779 REVEL, 132,603 SIFT and 137,944 "
+     "PolyPhen-2 values are exactly 0.5, mostly nonsense and canonical-splice variants (REVEL: 65,096, 20,525 donor, 17,077 "
+     "acceptor), so the value encodes the consequence class and separates the labels BETWEEN classes (REVEL at 0.5: 49.6% "
+     "of pathogenic against 2.0% of benign rows; AUROC 0.738 over all pilot rows, 0.748 over the joined rows) but hardly "
+     "WITHIN them (joined rows: missense 0.489, nonsense 0.500, intron 0.492): an invalid representation of REVEL that "
+     "carries the consequence, not established target leakage (owner ruling ace92e09, section 15). Against the publisher's REVEL v1.3 at those alleles: 66 genuine 0.5, "
+     "115,538 without a publisher score, 14,175 with another publisher score the index lost; 42,861 further alleles have a "
+     "publisher score and no index row. SIFT and CADD are strict-admitted: withheld until qualified (owner ruling e755519d).",
+     ["sift_score", "polyphen2_score", "revel_score", "cadd_phred", "cadd_high", "sift_deleterious", "polyphen_probably_damaging", "revel_pathogenic", "n_tools_pathogenic"],
+     [code(D + "dbnsfp.py", "chunk[out_col] = chunk[out_col].fillna(default)"), "record:docs/census/PREDICTOR_SOURCES_1D1c2.json",
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_dbnsfp_index_default_baked_1(tmp_path):")]),
+    ("PREDICTOR-TRANSCRIPT-COLLAPSE-1", "data/dbnsfp.py reduces each per-transcript score list to one number -- SIFT its "
+     "minimum, PolyPhen-2, REVEL and CADD their maximum -- and keeps the first record of an allele, so which transcript, "
+     "protein context and amino-acid change the stored value describes is lost. Measured against the publisher's REVEL "
+     "v1.3 (docs/census/PREDICTOR_SOURCES_1D1c2.json): 10,584 of the pilot population's 247,947 alleles with publisher rows "
+     "have several distinct scores and 11,188 several amino-acid changes; the index value equals the publisher maximum at "
+     "188,525 alleles and differs at 2,320. A maximum is a research feature of its own identity, never the observation.",
+     ["sift_score", "polyphen2_score", "revel_score", "sift_deleterious", "polyphen_probably_damaging", "revel_pathogenic",
+      "n_tools_pathogenic"],
+     [code(D + "dbnsfp.py", '_COL_REVEL:  "max",'), code(D + "dbnsfp.py", 'full = full.drop_duplicates(subset=["chrom", "pos", "ref", "alt"])'),
+      "record:docs/census/PREDICTOR_SOURCES_1D1c2.json", code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_predictor_transcript_collapse_1(tmp_path):")]),
+    ("DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1", "data/dbnsfp.py catches every exception of the raw parse, logs it and returns "
+     "an EMPTY index; annotate_dataframe then writes all six defaults to every row, so an unreadable or renamed source "
+     "becomes plausible scores with only a log line (no refusal).",
+     ["sift_score", "polyphen2_score", "revel_score", "cadd_phred", "phylop_score", "gerp_score"],
+     [code(D + "dbnsfp.py", 'logger.error("DbNSFP: failed to parse %s: %s", self._path, exc)'),
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_dbnsfp_parse_failure_silent_defaults_1(tmp_path):")]),
+    ("COHORT-TRANSCRIPT-UNDECLARED-1", "No prediction unit declares a transcript: the ClinVar connector writes transcript_id "
+     "= None and keeps no Name, and the cohort's transcript_id and protein_change are null in every row, while ClinVar's own Name declares the "
+     "RefSeq transcript and protein change (NM_014630.3(ZNF592):c.3136G>A (p.Gly1046Arg)). Measured "
+     "(docs/census/PREDICTOR_SOURCES_1D1c2.json): both null in all 1,490,014 pilot rows; 1,489,881 rows have one "
+     "GRCh38 variant_summary record by VariationID and allele. Of the 201,130 missense rows, ClinVar's preferred name, "
+     "matched to the publisher's rows by the allele and the amino-acid pair only (the RefSeq accession and the residue "
+     "position are not matched: the publisher has neither), gives a CANDIDATE score for 191,427 (38 have publisher rows of "
+     "another amino-acid change only, 1,568 no publisher row, 6,926 no single-residue declaration or no unique record, "
+     "1,171 are not single-nucleotide); the GENCODE v50 MANE Select transcript of the cohort's gene_symbol, matched by "
+     "stable identifier with no version or coding-sequence check, gives a candidate for 160,973 (34,284 with publisher rows "
+     "on other transcripts only: the 2021 transcript set against GENCODE v50). Neither is a qualified transcript context "
+     "(stage 1D-1c.2B; owner ruling ace92e09). The MANE policy is not independent of the ClinVar record: it reads the "
+     "cohort's gene_symbol, and at 848 single-nucleotide missense positions the one MANE coding sequence covering the "
+     "position is another gene's (75 are covered by several). Both give a candidate for 160,886 rows, the same score at "
+     "160,723; the other 163 are policy disagreements, not source conflicts -- in all 163 the MANE-selected row has another "
+     "amino-acid change than ClinVar's declared one (15 cross 0.5).",
+     ["revel_score", "sift_score", "polyphen2_score"],
+     [code(D + "database_connectors.py", 'df["transcript_id"] = None'), "record:docs/census/PREDICTOR_SOURCES_1D1c2.json",
+      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_cohort_transcript_undeclared_1(tmp_path):")]),
 ]
 
 
