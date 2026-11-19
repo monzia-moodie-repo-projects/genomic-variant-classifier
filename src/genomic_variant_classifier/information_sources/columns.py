@@ -59,6 +59,12 @@ logger = logging.getLogger(__name__)
 #: The fixed uint8 code of each state (the enum's declaration order; append-only).
 STATE_CODES: tuple[ObservationState, ...] = tuple(ObservationState)
 CODE: dict[ObservationState, int] = {s: i for i, s in enumerate(STATE_CODES)}
+#: The states every count names, present or not: the vocabulary of codes 0-6 (OBSERVED .. INPUT_UNOBSERVED), in which every
+#: record before stage 1D-1c.2 was sealed. A state APPENDED after it is counted only where it occurs, so an append changes no
+#: sealed record (measured 2026-11-18: with every state counted, appending SOURCE_ROW_WITHOUT_VALUE added a zero count to the
+#: re-measured AF_REPAIR_1D1c1.json and QUALIFIED_PREPARATION_1D1c1C.json -- changing the canonical identity 9619b172 -- and
+#: would have to every materialisation receipt; with this rule both re-measure byte for byte).
+COUNTED_STATES: tuple[ObservationState, ...] = STATE_CODES[:CODE[ObservationState.INPUT_UNOBSERVED] + 1]
 
 
 #: Version 2 of the population identity (stage 1D-1c.1). Version 1 is ``Population.sha256_v1``.
@@ -201,7 +207,8 @@ class ObservationColumn:
 
     # ------------------------------------------------------------------------------------------------------ reading
     def counts(self) -> dict[str, int]:
-        c = {s.value: int((self.states == CODE[s]).sum()) for s in STATE_CODES}
+        """{state: rows}: every state of COUNTED_STATES, and an appended state only where it occurs."""
+        c = {s.value: n for s in STATE_CODES for n in (int((self.states == CODE[s]).sum()),) if n or s in COUNTED_STATES}
         if sum(c.values()) != len(self.population):          # cannot fail for a valid column; never assumed
             raise AssertionError("state counts do not reconcile with the population")
         return c
@@ -457,6 +464,6 @@ def derive(name: str, inputs: Sequence[ObservationColumn]) -> DerivedColumn:
     return DerivedColumn(column, inputs_observed, len(inputs))
 
 
-__all__ = ["CODE", "DERIVATION_SCHEMA", "DERIVED_RULES", "DERIVED_STATES", "DerivedColumn", "DerivedRule", "MODEL_OUTPUTS",
-           "ObservationColumn", "POPULATION_IDENTITY_SCHEMA", "Population", "Propagation", "SOURCE_RULE", "STATE_CODES",
+__all__ = ["CODE", "COUNTED_STATES", "DERIVATION_SCHEMA", "DERIVED_RULES", "DERIVED_STATES", "DerivedColumn", "DerivedRule",
+           "MODEL_OUTPUTS", "ObservationColumn", "POPULATION_IDENTITY_SCHEMA", "Population", "Propagation", "SOURCE_RULE", "STATE_CODES",
            "SourceRequirement", "column_digest", "derivation_identity", "derive", "readonly_array"]

@@ -142,7 +142,14 @@ def test_registered_defects_are_attached_to_the_names_they_affect(derived):
     assert row(derived, "eve_score")["registered_defects"] == ["EVE-COVERAGE-IDENTITY-1",
                                                                "EVE-DUPLICATE-KEY-MULTIPLIES-ROWS-1",
                                                                "MISSINGNESS-SEMANTICS-1"]
-    assert row(derived, "revel_pathogenic")["registered_defects"] == ["ABSENCE-AS-EVIDENCE-1"]
+    assert row(derived, "revel_pathogenic")["registered_defects"] == ["ABSENCE-AS-EVIDENCE-1",
+                                                                      "DBNSFP-INDEX-DEFAULT-BAKED-1",
+                                                                      "PREDICTOR-TRANSCRIPT-COLLAPSE-1"]
+    assert row(derived, "sift_score")["registered_defects"] == ["COHORT-TRANSCRIPT-UNDECLARED-1",
+                                                                "DBNSFP-INDEX-DEFAULT-BAKED-1",
+                                                                "DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1",
+                                                                "MISSINGNESS-SEMANTICS-1",
+                                                                "PREDICTOR-TRANSCRIPT-COLLAPSE-1"]
     assert "GNOMAD-CHRX-LOCUS-PARSE-1" in row(derived, "af_is_ultra_rare")["registered_defects"]
     assert row(derived, "codon_position")["registered_defects"] == ["CODON-POSITION-SEMANTICS-1"]
 
@@ -240,7 +247,7 @@ NEW_MODULES = ("admission", "observation", "lineage", "columns", "materializatio
 #: Measurement scripts that may import the shadow modules: they fit no model and write no production artefact.
 DIAGNOSTIC_IMPORTERS = {"scripts/measure_1d1b2_pilots.py", "scripts/measure_1d1b3_graph_identity.py",
                         "scripts/measure_1d1b4_population.py", "scripts/measure_af_repair_1d1c1.py",
-                        "scripts/measure_qualified_preparation_1d1c1c.py"}
+                        "scripts/measure_qualified_preparation_1d1c1c.py", "scripts/measure_predictor_sources_1d1c2.py"}
 #: Stage 1D-1c.1C (owner ruling aa999b96) ends shadow mode for exactly two authorities, imported by exactly one
 #: production module: the regime vocabulary and the AF arms (the experiment declaration reuses them rather than
 #: restating them). models/execution.py is a launcher module, outside the inference service's import closure; the
