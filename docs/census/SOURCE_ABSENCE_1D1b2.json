@@ -1,6 +1,6 @@
 {
   "builder_sha256": "8ec7841073291a68be9b103808997d3c9aa90920bfb3aac2ee36bfd4fdb466cc",
-  "census_ledger_sha256": "dfc9789a5d5b5e98de6e0226658bf51ce6c6a4af3a2051c81413aa1db820c364",
+  "census_ledger_sha256": "9d5c8e66f8b8332c162f2a7d51e96b5265514297462234deafa28fc704af9b99",
   "connector_layer": {
     "files_created_in_the_hermetic_folder": [
       "data",

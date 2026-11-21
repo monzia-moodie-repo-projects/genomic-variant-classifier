@@ -92,6 +92,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 # Re-use normalisation helpers from Connector 6 — no duplication
@@ -203,7 +204,7 @@ class DbNSFPSourceError(ValueError):
     """A configured source cannot support the requested legacy lookup."""
 
 
-def _checked_score(raw: object, aggregation: str) -> Optional[float]:
+def _checked_score(raw: object, aggregation: str, column: str) -> Optional[float]:
     """Preserve declared missing slots while refusing unparseable or infinite observations."""
     if pd.isna(raw):
         return None
@@ -216,7 +217,29 @@ def _checked_score(raw: object, aggregation: str) -> Optional[float]:
             raise DbNSFPSourceError(f"Malformed dbNSFP score token {token!r}") from exc
         if not math.isfinite(value):
             raise DbNSFPSourceError(f"Nonfinite dbNSFP score token {token!r}")
+        if column in {_COL_SIFT, _COL_PP2, _COL_REVEL} and not 0 <= value <= 1:
+            raise DbNSFPSourceError(f"Out-of-domain dbNSFP score token {token!r} in {column}")
     return _parse_multival(raw, aggregation)
+
+
+def _index_chrom(chrom: str) -> str:
+    """Canonical spelling for dbNSFP chromosome lookup in both public interfaces."""
+    text = _normalise_chrom(chrom).upper()
+    return "MT" if text == "M" else text
+
+
+def _positions(values: pd.Series) -> pd.Series:
+    """Validate integer text before conversion so fractions, nulls and overflow never alias a locus."""
+    tokens = values.astype("string")
+    if values.isna().any() or not tokens.str.fullmatch(r"[1-9][0-9]*").all():
+        raise DbNSFPSourceError("Invalid 1-based position")
+    try:
+        result = tokens.astype("int64")
+    except (ValueError, OverflowError) as exc:
+        raise DbNSFPSourceError("Position exceeds the supported integer domain") from exc
+    if (result < 1).any():
+        raise DbNSFPSourceError("Position exceeds the supported integer domain")
+    return result
 
 
 class DbNSFPConnector:
@@ -280,9 +303,10 @@ class DbNSFPConnector:
             Copy of *df* with all six score columns added / replaced.
         """
         out = df.copy()
+        positions = _positions(out["pos"])
         # Extract unique normalised chromosomes to filter parquet cache
         _chroms: set[str] = set(
-            df["chrom"].astype(str).apply(_normalise_chrom).unique()
+            df["chrom"].astype(str).apply(_index_chrom).unique()
         ) if "chrom" in df.columns else set()
         index_df = self._get_index(filter_chroms=_chroms if _chroms else None)
 
@@ -297,8 +321,8 @@ class DbNSFPConnector:
 
         # Normalise join keys on left side
         left = out[["chrom", "pos", "ref", "alt"]].copy()
-        left["_chrom"] = left["chrom"].astype(str).apply(_normalise_chrom)
-        left["_pos"]   = pd.to_numeric(left["pos"], errors="coerce").astype("Int64")
+        left["_chrom"] = left["chrom"].astype(str).apply(_index_chrom)
+        left["_pos"]   = positions
         left["_ref"]   = left["ref"].astype(str).str.upper()
         left["_alt"]   = left["alt"].astype(str).str.upper()
 
@@ -308,9 +332,7 @@ class DbNSFPConnector:
         # `right` and OOM. Position is a necessary condition for any (chrom,pos,
         # ref,alt) match, so this pre-filter never drops a true match; the exact
         # 4-key merge below still does the real matching. Vectorised int isin.
-        _cohort_pos = set(
-            pd.to_numeric(out["pos"], errors="coerce").dropna().astype("int64")
-        )
+        _cohort_pos = set(positions)
         _idx_pos = pd.to_numeric(index_df["pos"], errors="coerce")
         index_df = index_df.loc[_idx_pos.isin(_cohort_pos)]
 
@@ -319,7 +341,7 @@ class DbNSFPConnector:
         right = right.rename(columns={
             "chrom": "_chrom", "pos": "_pos", "ref": "_ref", "alt": "_alt"
         })
-        right["_chrom"] = right["_chrom"].astype(str).apply(_normalise_chrom)
+        right["_chrom"] = right["_chrom"].astype(str).apply(_index_chrom)
         right["_pos"]   = pd.to_numeric(right["_pos"], errors="coerce").astype("Int64")
         right["_ref"]   = right["_ref"].astype(str).str.upper()
         right["_alt"]   = right["_alt"].astype(str).str.upper()
@@ -340,7 +362,7 @@ class DbNSFPConnector:
 
         n_hit = int(merged[score_cols[0]].notna().sum())
         logger.debug(
-            "DbNSFP: annotated %d/%d variants with real scores.",
+            "DbNSFP: %d/%d rows matched the legacy allele index.",
             n_hit, len(df),
         )
         return out
@@ -372,12 +394,13 @@ class DbNSFPConnector:
             All six scores.  Fields equal their DEFAULT_* constant for
             variants absent from the index.
         """
-        index_df = self._get_index(filter_chroms={_normalise_chrom(chrom)})
+        pos = int(_positions(pd.Series([pos])).iloc[0])
+        index_df = self._get_index(filter_chroms={_index_chrom(chrom)})
         if index_df.empty:
             return _DEFAULT_SCORES
-        chrom_n = _normalise_chrom(chrom)
+        chrom_n = _index_chrom(chrom)
         mask = (
-            (index_df["chrom"].apply(_normalise_chrom) == chrom_n) &
+            (index_df["chrom"].apply(_index_chrom) == chrom_n) &
             (index_df["pos"] == int(pos)) &
             (index_df["ref"].str.upper() == ref.upper()) &
             (index_df["alt"].str.upper() == alt.upper())
@@ -424,24 +447,44 @@ class DbNSFPConnector:
             raise FileNotFoundError(self._path)
         suffix = self._path.suffix.lower()
         if suffix in {".parquet", ".pq"}:
+            import pyarrow as pa
+            import pyarrow.compute as pc
             import pyarrow.parquet as pq
 
-            with pq.ParquetFile(self._path) as file:
-                if file.metadata.num_rows == 0 or not set(columns) <= set(file.schema_arrow.names):
-                    raise DbNSFPSourceError("empty or incomplete historical parquet index")
-            filters = None
+            predicate = None
             if filter_chroms:
-                names = set(filter_chroms)
+                # Normalize the stored column before filtering, just as we normalize the query.
+                # Finite enumerations of spellings silently lose rows (e.g. "cHr1" and " 1 ").
+                names = {_index_chrom(c) for c in filter_chroms}
                 if "MT" in names:
                     names.add("M")
-                aliases = {p + c for c in names for p in ("", "chr", "CHR")}
-                filters = [("chrom", "in", sorted(aliases))]
-            frame = pd.read_parquet(self._path, columns=columns, filters=filters)
+                label = pc.utf8_upper(pc.utf8_trim_whitespace(pc.field("chrom").cast(pa.string())))
+                label = pc.replace_substring_regex(label, pattern="^CHR", replacement="")
+                predicate = label.isin(sorted(names))
+            with self._path.open("rb") as source:
+                footer = pq.read_metadata(source)
+                if footer.num_rows == 0 or not set(columns) <= set(footer.schema.to_arrow_schema().names):
+                    raise DbNSFPSourceError("empty or incomplete historical parquet index")
+                frame = pq.read_table(source, columns=columns, filters=predicate).to_pandas()
             if frame[keys].isna().any().any():
-                raise DbNSFPSourceError("missing allele key in historical parquet")
-            frame["chrom"] = frame["chrom"].map(_normalise_chrom)
-            frame["ref"] = frame["ref"].str.upper()
-            frame["alt"] = frame["alt"].str.upper()
+                raise DbNSFPSourceError("Missing allele key in historical parquet")
+            frame["chrom"] = frame["chrom"].map(_index_chrom)
+            frame["pos"] = _positions(frame["pos"])
+            for name in ("ref", "alt"):
+                frame[name] = frame[name].astype("string").str.upper()
+                if not frame[name].isin(("A", "C", "G", "T")).all():
+                    raise DbNSFPSourceError(f"Invalid historical SNV allele in {name}")
+            if (frame["ref"] == frame["alt"]).any():
+                raise DbNSFPSourceError("Identical historical SNV alleles")
+            for name in _OUTPUT_COLS.values():
+                # A baked historical index declares complete numeric columns.
+                # Its remaining nulls cannot identify a valid historical default.
+                values = pd.to_numeric(frame[name], errors="raise")
+                if pd.api.types.is_bool_dtype(values.dtype) or not np.isfinite(values.to_numpy(dtype=float, na_value=np.nan)).all():
+                    raise DbNSFPSourceError(f"Missing or nonfinite historical score in {name}")
+                if name in {"sift_score", "polyphen2_score", "revel_score"} and not values.between(0, 1).all():
+                    raise DbNSFPSourceError(f"Out-of-domain historical score in {name}")
+                frame[name] = values
             self._require_unique(frame, keys)
             return frame
 
@@ -486,10 +529,10 @@ class DbNSFPConnector:
             with reader:
                 for chunk in reader:
                     chunk = chunk.rename(columns={_COL_CHROM: "chrom", _COL_POS: "pos"})
-                    if chunk[keys].isna().any().any() or not chunk["pos"].str.fullmatch(r"[1-9][0-9]*").all():
+                    if chunk[keys].isna().any().any():
                         raise DbNSFPSourceError("missing allele key or invalid 1-based position")
-                    chunk["pos"] = chunk["pos"].astype("int64")
-                    chunk["chrom"] = chunk["chrom"].apply(_normalise_chrom)
+                    chunk["pos"] = _positions(chunk["pos"])
+                    chunk["chrom"] = chunk["chrom"].apply(_index_chrom)
                     chunk["ref"]   = chunk["ref"].str.upper()
                     chunk["alt"]   = chunk["alt"].str.upper()
 
@@ -501,6 +544,10 @@ class DbNSFPConnector:
                     )
                     chunk = chunk.loc[snv].copy()
 
+                    if not (chunk["ref"].isin(("A", "C", "G", "T")) &
+                            chunk["alt"].isin(("A", "C", "G", "T")) &
+                            (chunk["ref"] != chunk["alt"])).all():
+                        raise DbNSFPSourceError("Invalid raw SNV alleles")
                     self._require_unique(chunk, keys)
 
                     # Parse and aggregate multi-transcript score fields
@@ -509,7 +556,7 @@ class DbNSFPConnector:
                         agg     = _AGG[raw_col]
                         default = _DEFAULTS[out_col]
                         chunk[out_col] = chunk[raw_col].apply(
-                            lambda v, a=agg: _checked_score(v, a)
+                            lambda v, a=agg, c=raw_col: _checked_score(v, a, c)
                         )
                         chunk[out_col] = chunk[out_col].fillna(default)
 
@@ -556,7 +603,7 @@ class DbNSFPConnector:
         score_cols = list(_OUTPUT_COLS.values())
         for row in df.itertuples(index=False):
             key = (
-                _normalise_chrom(row.chrom),
+                _index_chrom(row.chrom),
                 int(row.pos),
                 row.ref.upper(),
                 row.alt.upper(),

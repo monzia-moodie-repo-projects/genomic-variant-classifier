@@ -845,12 +845,7 @@ class DataPrepPipeline:
         # 1. dbNSFP
         dbnsfp = DbNSFPConnector(dbnsfp_file=ac.dbnsfp_path)
         df = dbnsfp.annotate_dataframe(df)
-        logger.info(
-            "Score annotation 1/17 (DbNSFP): %d variants with real SIFT scores.",
-            (
-                df.get("sift_score", pd.Series([0.5] * len(df), index=df.index)) != 0.5
-            ).sum(),
-        )
+        logger.info("Score annotation 1/17 (dbNSFP): legacy projection completed for %d rows.", len(df))
 
         # 2. PhyloP
         phylop = PhyloPConnector(phylop_file=ac.phylop_path)

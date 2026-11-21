@@ -3963,7 +3963,7 @@
     "src/genomic_variant_classifier/data/clingen.py::ClinGenConnector": "c588d73c5b37241ad51ffbd6b8ec63cb2d1fa628e18a87cf56f4c80cf31def9f",
     "src/genomic_variant_classifier/data/connectors/connector_cosmic.py::CosmicCmcConnector": "55b985383733edc6a5c7d4523321503eb0b187ab226e94437482295c7876d437",
     "src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py::GnomADConstraintConnector": "17d8fe61da5b1ae18c707722c62b2833411b2dbfc26e316de36c404d1b2f78c1",
-    "src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector": "99d9c3b02b4245386e417e403ed8e9768b655d9ad945c758189b14751fcd25b1",
+    "src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector": "9485c95b18e4434520c9f928eaaa521f0978cdc55963aa53f3de1440aa1f8f88",
     "src/genomic_variant_classifier/data/dbsnp.py::DbSNPConnector": "b282869e1f1c597b03597bab2c3fc395a08216f643d37292d5de495378ed879e",
     "src/genomic_variant_classifier/data/esm2.py::ESM2Connector": "0585b20decc8852543a3ec6db466c408c505ba172e83a3e01ac2b1222a19832a",
     "src/genomic_variant_classifier/data/eve.py::EVEConnector": "006e2858b043503e87c7ff57d41920eda41ac71d04153b171b1d20707fca9047",
@@ -3981,7 +3981,7 @@
     "src/genomic_variant_classifier/data/omim.py::OMIMConnector": "ffef6ccc760cba6d940ea19256d52a22e0d76d548d3626e6605d9402b625f999",
     "src/genomic_variant_classifier/data/phylop.py::PhyloPConnector": "c1cd55dd793bea7288127f99373e5c7f1aebc90193f6e5e4d6e58c22c0d5796e",
     "src/genomic_variant_classifier/data/reactome.py::ReactomeConnector": "50e920c158411ba64b1a4d2edd20cd397f6c5e29a24260e563ae290a5a773367",
-    "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._annotate_scores": "55e1ada7416968d2c58cdcd2787931abcc9b14474e35d564000a1cacf88cd82d",
+    "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._annotate_scores": "0c468f43a212f3612856849e39ed0b008ee3d4d82d599d79b52fc1552285ac66",
     "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._gene_aware_split": "856374066692b25667a70b796efe818e4a34191e3c71507af18b77b45b221baa",
     "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_alphamissense": "ac75bc7790e7e82c357c50648a3bc6aede56cd7fc985faca528f40e664126a68",
     "src/genomic_variant_classifier/data/real_data_prep.py::DataPrepPipeline._join_gnomad": "0a344246b7c44b5ee8155dee82fa7b929d903b245d463784124dc8ab55bca388",
@@ -5187,7 +5187,7 @@
     },
     "scaler_fit": {
       "anchor": "X_train_scaled = pd.DataFrame(self.scaler.fit_transform(X_train), columns=cols)",
-      "line": 1600,
+      "line": 1595,
       "note": "StandardScaler fitted on every column of the guarded training matrix",
       "observed": [
         "af_1kg_afr",
@@ -5287,7 +5287,7 @@
     },
     "split_persistence": {
       "anchor": "X_train.to_parquet(out / \"X_train.parquet\", index=False, compression=\"zstd\")",
-      "line": 1622,
+      "line": 1617,
       "note": "every column of the scaled matrices is written; the run driver re-writes them after GNN injection",
       "observed": [
         "af_1kg_afr",
@@ -5387,7 +5387,7 @@
     },
     "tabular_fit": {
       "anchor": "engineer_features output violates the TABULAR_FEATURES contract -- ",
-      "line": 1369,
+      "line": 1364,
       "note": "the training matrix is refused unless its columns equal the contract in order; VariantEnsemble.fit records X_tab.columns as tabular_columns_",
       "observed": [
         "af_1kg_afr",

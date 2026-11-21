@@ -887,6 +887,22 @@ class TestDbNSFPConnector:
                              index=pd.Index([4], name="row"))
         assert reader.annotate_dataframe(frame).loc[4, "revel_score"] == 0.12
         assert reader.get_scores("2", 1, "A", "T").revel_score == 0.82
+        # Stored spellings and integer text must identify the same rows in both public APIs.
+        legacy = pd.read_parquet(historical)
+        legacy["chrom"] = ["cHr1", " 2 "]
+        legacy["pos"] = ["1", "1"]
+        legacy.to_parquet(historical, index=False)
+        assert reader.get_scores("1", 1, "A", "T").revel_score == 0.12
+        assert reader.annotate_dataframe(frame).loc[4, "revel_score"] == 0.12
+        assert reader.get_scores("2", 1, "A", "T").revel_score == 0.82
+        for invalid in (float("inf"), float("nan"), 1.6):
+            legacy.loc[0, "revel_score"] = invalid
+            legacy.to_parquet(historical, index=False)
+            with pytest.raises(dbnsfp.DbNSFPSourceError):
+                reader.get_scores("1", 1, "A", "T")
+            with pytest.raises(dbnsfp.DbNSFPSourceError):
+                reader.annotate_dataframe(frame)
+
 
     # ------------------------------------------------------------------
     # End-to-end: all six scores flow through engineer_features
