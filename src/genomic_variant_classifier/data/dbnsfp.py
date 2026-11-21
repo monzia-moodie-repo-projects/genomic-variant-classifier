@@ -61,9 +61,8 @@ Multi-transcript aggregation:
     GERP++      → max  (strongest evolutionary constraint signal)
 
 Lookup strategy (identical to REVELConnector and SIFTPolyPhenConnector):
-    First call parses the raw file in chunks, writes a parquet cache, then
-    builds an in-memory dict.  Subsequent calls load the parquet (~5 s vs
-    ~90–180 s cold start for a full-genome file).
+    Pass an explicit historical parquet for indexed replay, or a raw table for
+    an in-memory legacy projection. Repeated raw allele keys are refused.
 
 Stub mode:
     Pass dbnsfp_file=None.  Every lookup returns default scores and a
@@ -88,6 +87,7 @@ CHANGES:
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -199,13 +199,31 @@ _DEFAULT_SCORES = DbNSFPScores()
 # DbNSFPConnector
 # ---------------------------------------------------------------------------
 
+class DbNSFPSourceError(ValueError):
+    """A configured source cannot support the requested legacy lookup."""
+
+
+def _checked_score(raw: object, aggregation: str) -> Optional[float]:
+    """Preserve declared missing slots while refusing unparseable or infinite observations."""
+    if pd.isna(raw):
+        return None
+    for token in str(raw).split(";"):
+        if token in {".", "", "NA"}:
+            continue
+        try:
+            value = float(token)
+        except ValueError as exc:
+            raise DbNSFPSourceError(f"Malformed dbNSFP score token {token!r}") from exc
+        if not math.isfinite(value):
+            raise DbNSFPSourceError(f"Nonfinite dbNSFP score token {token!r}")
+    return _parse_multival(raw, aggregation)
+
+
 class DbNSFPConnector:
     """
     Full-width dbNSFP connector delivering six pre-computed scores per variant.
 
-    Reads a dbNSFP flat file (tab-delimited, GRCh38 coordinates) and builds
-    an in-memory dict index backed by a parquet cache for fast warm starts.
-    Behaviour is identical to REVELConnector and SIFTPolyPhenConnector.
+    Reads the selected raw table or an explicitly requested historical index.
 
     Parameters
     ----------
@@ -214,8 +232,7 @@ class DbNSFPConnector:
         a single concatenated file (all chromosomes) or a single-chromosome
         file for testing.  Pass *None* to operate in stub mode.
     cache_dir:
-        Directory for the parquet index cache.  Defaults to the directory
-        containing *dbnsfp_file*.  Cache filename: ``dbnsfp_clinvar_index.parquet``.
+        Legacy index directory when supplied alone. An explicit source takes precedence.
     """
 
     source_name = "dbnsfp"
@@ -225,14 +242,10 @@ class DbNSFPConnector:
         dbnsfp_file: Optional[str | Path] = None,
         cache_dir: Optional[str | Path] = None,
     ) -> None:
-        self._path: Optional[Path] = (
-            Path(dbnsfp_file) if dbnsfp_file else None
-        )
-        self._cache_dir: Optional[Path] = (
-            Path(cache_dir) if cache_dir
-            else (self._path.parent if self._path else None)
-        )
-        self._index: Optional[dict[tuple[str, int, str, str], DbNSFPScores]] = None
+        self._path = Path(dbnsfp_file) if dbnsfp_file is not None else None
+        if self._path is None and cache_dir is not None:
+            self._path = Path(cache_dir) / "dbnsfp_clinvar_index.parquet"
+        self._index: Optional[pd.DataFrame] = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -312,12 +325,13 @@ class DbNSFPConnector:
         right["_alt"]   = right["_alt"].astype(str).str.upper()
 
         # Vectorised merge
-        left = left.reset_index(drop=False).rename(columns={"index": "_orig_idx"})
+        left = left.reset_index(drop=True)
         merged = left.merge(
             right,
             on=["_chrom", "_pos", "_ref", "_alt"],
             how="left",
-        ).set_index("_orig_idx")
+            validate="many_to_one",
+        )
 
         score_cols = list(_OUTPUT_COLS.values())
         for col_name in score_cols:
@@ -358,7 +372,7 @@ class DbNSFPConnector:
             All six scores.  Fields equal their DEFAULT_* constant for
             variants absent from the index.
         """
-        index_df = self._get_index()
+        index_df = self._get_index(filter_chroms={_normalise_chrom(chrom)})
         if index_df.empty:
             return _DEFAULT_SCORES
         chrom_n = _normalise_chrom(chrom)
@@ -389,92 +403,51 @@ class DbNSFPConnector:
         self,
         filter_chroms: Optional[set[str]] = None,
     ) -> pd.DataFrame:
-        if self._index is None:
-            self._index = self._load_index(filter_chroms=filter_chroms)
+        if self._index is not None:
+            return self._index
+        if self._path is not None and self._path.suffix.lower() in {".parquet", ".pq"}:
+            return self._load_index(filter_chroms=filter_chroms)
+        self._index = self._load_index()
         return self._index
-
-    def _cache_path(self) -> Optional[Path]:
-        if self._cache_dir is None:
-            return None
-        return self._cache_dir / "dbnsfp_clinvar_index.parquet"
 
     def _load_index(
         self,
         filter_chroms: Optional[set[str]] = None,
     ) -> pd.DataFrame:
-        """
-        Build the (chrom, pos, ref, alt) → DbNSFPScores index.
-
-        Precedence:
-          1. Parquet cache  (~5 s warm start).
-          2. Raw dbNSFP flat file (~90–180 s; writes cache afterward).
-          3. Empty dict (stub mode).
-        """
-        # 0. Explicit pre-built parquet index takes precedence.
-        #    If self._path is itself a .parquet/.pq, it IS the index -> load it
-        #    directly. This prevents a differently-named cache in the same
-        #    directory (e.g. dbnsfp_clinvar_index.parquet) from silently
-        #    shadowing an explicitly-supplied full index.
-        if self._path is not None and self._path.exists() and "".join(
-            self._path.suffixes
-        ).lower() in (".parquet", ".pq"):
-            logger.info(
-                "DbNSFP: loading explicit parquet index directly: %s", self._path
-            )
-            import pyarrow.parquet as pq  # noqa: F401
-            if filter_chroms:
-                _filters = [("chrom", "in", list(filter_chroms))]
-                pdf = pq.read_table(self._path, filters=_filters).to_pandas()
-            else:
-                pdf = pd.read_parquet(self._path)
-            logger.info(
-                "DbNSFP: loaded %d variants from explicit parquet index.", len(pdf)
-            )
-            return pdf        # 1. Parquet cache
-        cache = self._cache_path()
-        if cache is not None and cache.exists():
-            logger.info(
-                "DbNSFP: loading index from parquet cache: %s", cache
-            )
+        """Read only the specified input. An unconfigured connector is the legacy stub."""
+        keys = ["chrom", "pos", "ref", "alt"]
+        columns = keys + list(_OUTPUT_COLS.values())
+        if self._path is None:
+            logger.warning("DbNSFP: explicit stub, using legacy defaults")
+            return pd.DataFrame(columns=columns)
+        if not self._path.is_file():
+            raise FileNotFoundError(self._path)
+        suffix = self._path.suffix.lower()
+        if suffix in {".parquet", ".pq"}:
             import pyarrow.parquet as pq
-            import pyarrow as pa
-            chroms = list(filter_chroms) if filter_chroms else None
-            if chroms:
-                filters = [("chrom", "in", chroms)]
-                cdf = pq.read_table(cache, filters=filters).to_pandas()
-            else:
-                cdf = pd.read_parquet(cache)
-            logger.info("DbNSFP: loaded %d variants from cache.", len(cdf))
-            return cdf
 
-        # 2. Raw file
-        if self._path is None or not self._path.exists():
-            logger.warning(
-                "DbNSFP: no data file supplied or file not found (%s). "
-                "All variants will receive default scores. "
-                "Download from https://sites.google.com/site/jpopgen/dbNSFP",
-                self._path,
-            )
-            return pd.DataFrame(columns=["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values()))
+            with pq.ParquetFile(self._path) as file:
+                if file.metadata.num_rows == 0 or not set(columns) <= set(file.schema_arrow.names):
+                    raise DbNSFPSourceError("empty or incomplete historical parquet index")
+            filters = None
+            if filter_chroms:
+                names = set(filter_chroms)
+                if "MT" in names:
+                    names.add("M")
+                aliases = {p + c for c in names for p in ("", "chr", "CHR")}
+                filters = [("chrom", "in", sorted(aliases))]
+            frame = pd.read_parquet(self._path, columns=columns, filters=filters)
+            if frame[keys].isna().any().any():
+                raise DbNSFPSourceError("missing allele key in historical parquet")
+            frame["chrom"] = frame["chrom"].map(_normalise_chrom)
+            frame["ref"] = frame["ref"].str.upper()
+            frame["alt"] = frame["alt"].str.upper()
+            self._require_unique(frame, keys)
+            return frame
 
-        logger.info(
-            "DbNSFP: parsing %s (this may take 90-180 s) ...", self._path
-        )
-
-        compression: str = "infer"
-        suffix = "".join(self._path.suffixes).lower()
-        if suffix.endswith(".zip"):
-            compression = "zip"
-        elif suffix.endswith(".gz"):
-            compression = "gzip"
-
-        # Columns we need: coordinate keys + all six score columns
+        compression = {".gz": "gzip", ".bgz": "gzip", ".bgzf": "gzip", ".zip": "zip"}.get(suffix)
         # Guard: some dbNSFP columns may be absent in older versions;
         # we discover which are actually present from the file header.
-        usecols_wanted = [
-            _COL_CHROM, _COL_POS, _COL_REF, _COL_ALT,
-        ] + _ALL_SCORE_COLS
-
         chunks: list[pd.DataFrame] = []
         try:
             # Peek at header to determine which score columns are actually present
@@ -488,6 +461,8 @@ class DbNSFPConnector:
             available_score_cols = [
                 c for c in _ALL_SCORE_COLS if c in header_df.columns
             ]
+            if not available_score_cols:
+                raise DbNSFPSourceError("Configured table has no supported score columns")
             missing_from_file = set(_ALL_SCORE_COLS) - set(available_score_cols)
             if missing_from_file:
                 logger.warning(
@@ -502,70 +477,69 @@ class DbNSFPConnector:
                 compression=compression,
                 usecols=usecols,
                 dtype=str,
+                keep_default_na=False,
                 na_values=[".", "", "NA"],
                 chunksize=CHUNK_SIZE,
                 low_memory=False,
             )
 
-            for chunk in reader:
-                chunk = chunk.rename(columns={_COL_CHROM: "chrom", _COL_POS: "pos"})
-                chunk = chunk.dropna(subset=["pos"])
-                chunk["pos"] = pd.to_numeric(chunk["pos"], errors="coerce")
-                chunk = chunk.dropna(subset=["pos"])
-                chunk["pos"]   = chunk["pos"].astype("int64")
-                chunk["chrom"] = chunk["chrom"].apply(_normalise_chrom)
-                chunk["ref"]   = chunk["ref"].str.upper()
-                chunk["alt"]   = chunk["alt"].str.upper()
+            with reader:
+                for chunk in reader:
+                    chunk = chunk.rename(columns={_COL_CHROM: "chrom", _COL_POS: "pos"})
+                    if chunk[keys].isna().any().any() or not chunk["pos"].str.fullmatch(r"[1-9][0-9]*").all():
+                        raise DbNSFPSourceError("missing allele key or invalid 1-based position")
+                    chunk["pos"] = chunk["pos"].astype("int64")
+                    chunk["chrom"] = chunk["chrom"].apply(_normalise_chrom)
+                    chunk["ref"]   = chunk["ref"].str.upper()
+                    chunk["alt"]   = chunk["alt"].str.upper()
 
-                # SNVs only
-                snv = (
-                    chunk["ref"].str.len() == 1
-                ) & (
-                    chunk["alt"].str.len() == 1
-                )
-                chunk = chunk.loc[snv].copy()
-
-                # Parse and aggregate multi-transcript score fields
-                for raw_col in available_score_cols:
-                    out_col = _OUTPUT_COLS[raw_col]
-                    agg     = _AGG[raw_col]
-                    default = _DEFAULTS[out_col]
-                    chunk[out_col] = chunk[raw_col].apply(
-                        lambda v, a=agg: _parse_multival(v, a)
+                    # SNVs only
+                    snv = (
+                        chunk["ref"].str.len() == 1
+                    ) & (
+                        chunk["alt"].str.len() == 1
                     )
-                    chunk[out_col] = chunk[out_col].fillna(default)
+                    chunk = chunk.loc[snv].copy()
 
-                # Add default columns for any score columns absent from this file
-                for raw_col in _ALL_SCORE_COLS:
-                    out_col = _OUTPUT_COLS[raw_col]
-                    if out_col not in chunk.columns:
-                        chunk[out_col] = _DEFAULTS[out_col]
+                    self._require_unique(chunk, keys)
 
-                keep = ["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values())
-                chunks.append(chunk[keep].copy())
+                    # Parse and aggregate multi-transcript score fields
+                    for raw_col in available_score_cols:
+                        out_col = _OUTPUT_COLS[raw_col]
+                        agg     = _AGG[raw_col]
+                        default = _DEFAULTS[out_col]
+                        chunk[out_col] = chunk[raw_col].apply(
+                            lambda v, a=agg: _checked_score(v, a)
+                        )
+                        chunk[out_col] = chunk[out_col].fillna(default)
 
-        except Exception as exc:
-            logger.error("DbNSFP: failed to parse %s: %s", self._path, exc)
-            return pd.DataFrame(columns=["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values()))
+                    # Add default columns for any score columns absent from this file
+                    for raw_col in _ALL_SCORE_COLS:
+                        out_col = _OUTPUT_COLS[raw_col]
+                        if out_col not in chunk.columns:
+                            chunk[out_col] = _DEFAULTS[out_col]
 
-        if not chunks:
-            logger.warning("DbNSFP: no valid rows parsed from %s.", self._path)
-            return pd.DataFrame(columns=["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values()))
+                    keep = ["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values())
+                    chunks.append(chunk[keep].copy())
 
+        except DbNSFPSourceError:
+            raise
+        except (OSError, EOFError, ValueError, KeyError) as exc:
+            raise DbNSFPSourceError(f"Cannot parse configured dbNSFP source {self._path}: {exc}") from exc
+
+        if not chunks or not any(len(chunk) for chunk in chunks):
+            raise DbNSFPSourceError(f"No usable rows in configured source {self._path}")
         full = pd.concat(chunks, ignore_index=True)
-        full = full.drop_duplicates(subset=["chrom", "pos", "ref", "alt"])
-        logger.info("DbNSFP: indexed %d variants.", len(full))
-
-        # Write parquet cache
-        if cache is not None:
-            try:
-                cache.parent.mkdir(parents=True, exist_ok=True)
-                full.to_parquet(cache, index=False)
-                logger.info("DbNSFP: wrote parquet cache -> %s", cache)
-            except Exception as exc:
-                logger.warning("DbNSFP: could not write cache (%s).", exc)
-
+        self._require_unique(full, keys)
         return full
+
+    @staticmethod
+    def _require_unique(frame: pd.DataFrame, keys: list[str]) -> None:
+        extra = int(frame.duplicated(keys).sum())
+        if extra:
+            raise DbNSFPSourceError(
+                f"{extra} excess allele rows in checked batch. Use the transcript-aware projection."
+            )
 
     @staticmethod
     def _df_to_index(

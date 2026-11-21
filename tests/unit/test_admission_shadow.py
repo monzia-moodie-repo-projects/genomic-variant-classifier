@@ -147,7 +147,6 @@ def test_registered_defects_are_attached_to_the_names_they_affect(derived):
                                                                       "PREDICTOR-TRANSCRIPT-COLLAPSE-1"]
     assert row(derived, "sift_score")["registered_defects"] == ["COHORT-TRANSCRIPT-UNDECLARED-1",
                                                                 "DBNSFP-INDEX-DEFAULT-BAKED-1",
-                                                                "DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1",
                                                                 "MISSINGNESS-SEMANTICS-1",
                                                                 "PREDICTOR-TRANSCRIPT-COLLAPSE-1"]
     assert "GNOMAD-CHRX-LOCUS-PARSE-1" in row(derived, "af_is_ultra_rare")["registered_defects"]

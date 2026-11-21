@@ -221,62 +221,55 @@ _DBNSFP_HEADER = ("#chr", "pos(1-based)", "ref", "alt", "SIFT_score", "Polyphen2
                   "phyloP100way_vertebrate", "GERP++_RS")
 
 
-def _dbnsfp_cache(tmp_path, rows, header=_DBNSFP_HEADER):
-    """The CURRENT connector's raw parse of a small dbNSFP file, and the parquet cache it writes."""
-    import pandas as pd
-
-    from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
-
+def _dbnsfp_source(tmp_path, rows, header=_DBNSFP_HEADER):
     raw = tmp_path / "dbNSFP_test_variant.tsv"
     raw.write_text("\t".join(header) + "\n" + "".join("\t".join(r) + "\n" for r in rows), encoding="ascii",
                    newline="\n")
-    index = DbNSFPConnector(dbnsfp_file=raw, cache_dir=tmp_path)._load_index()
-    cache = tmp_path / "dbnsfp_clinvar_index.parquet"
-    return index, (pd.read_parquet(cache) if cache.exists() else None)
+    return raw
 
 
 def test_witness_dbnsfp_index_default_baked_1(tmp_path):
-    """DBNSFP-INDEX-DEFAULT-BAKED-1: the raw parse fills an absent SIFT, PolyPhen-2, REVEL or CADD with the connector
-    default BEFORE the cache is written, so the cached index has no missing value and a score of exactly 0.5 (or 15.0)
-    and an absent score are the same stored value."""
+    """Legacy projection maps a missing score and an observed default-valued score to the same number."""
+    from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
+
     _registered("DBNSFP-INDEX-DEFAULT-BAKED-1")
-    _, cache = _dbnsfp_cache(tmp_path, [("1", "100", "A", "G", ".", ".", ".", ".", "1.0", "2.0"),
-                                        ("1", "101", "A", "G", "0.5", "0.5", "0.5", "15.0", "1.0", "2.0")])
-    assert not cache[["sift_score", "polyphen2_score", "revel_score", "cadd_phred"]].isna().to_numpy().any()
-    absent, genuine = cache.iloc[0], cache.iloc[1]
-    for col in ("sift_score", "polyphen2_score", "revel_score", "cadd_phred"):
-        assert absent[col] == genuine[col]                    # indistinguishable once cached
+    raw = _dbnsfp_source(tmp_path, [("1", "100", "A", "G", ".", ".", ".", ".", "1.0", "2.0"),
+                                    ("1", "101", "A", "G", "0.5", "0.5", "0.5", "15.0", "1.0", "2.0")])
+    source = DbNSFPConnector(raw)
+    assert source.get_scores("1", 100, "A", "G") == source.get_scores("1", 101, "A", "G")
 
 
 def test_witness_predictor_transcript_collapse_1(tmp_path):
-    """PREDICTOR-TRANSCRIPT-COLLAPSE-1: a transcript list becomes one number (SIFT its minimum, PolyPhen-2 and REVEL their
-    maximum), and of two records of one allele the index keeps the first -- which transcript and protein context the
-    stored value describes is lost."""
-    _registered("PREDICTOR-TRANSCRIPT-COLLAPSE-1")
-    _, cache = _dbnsfp_cache(tmp_path, [("1", "100", "A", "G", "0.3;0.01", "0.2;0.9", "0.2;0.8", "20", "1", "2"),
-                                        ("1", "200", "C", "T", "0.4", "0.4", "0.1", "20", "1", "2"),
-                                        ("1", "200", "C", "T", "0.4", "0.4", "0.9", "20", "1", "2")])
-    row = cache.set_index("pos")
-    assert row.loc[100, "sift_score"] == 0.01 and row.loc[100, "polyphen2_score"] == 0.9
-    assert row.loc[100, "revel_score"] == 0.8
-    assert len(cache) == 2 and row.loc[200, "revel_score"] == 0.1      # the first record wins
-
-
-def test_witness_dbnsfp_parse_failure_silent_defaults_1(tmp_path):
-    """DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1: a raw file the parse cannot read is logged and replaced by an EMPTY index,
-    and annotate_dataframe then writes every default to every row: a failed source becomes plausible scores."""
-    _registered("DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1")
-    import pandas as pd
-
+    """The legacy projection still collapses lists within one row to extrema."""
     from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
 
-    bad = tuple("chr" if h == "#chr" else h for h in _DBNSFP_HEADER)        # a renamed coordinate column
-    index, cache = _dbnsfp_cache(tmp_path, [("1", "100", "A", "G", "0.01", "0.99", "0.95", "30", "1", "2")], header=bad)
-    assert index.empty and cache is None
-    raw = tmp_path / "dbNSFP_test_variant.tsv"
-    out = DbNSFPConnector(dbnsfp_file=raw, cache_dir=tmp_path).annotate_dataframe(
-        pd.DataFrame({"chrom": ["1"], "pos": [100], "ref": ["A"], "alt": ["G"]}))
-    assert out.loc[0, "revel_score"] == 0.5 and out.loc[0, "sift_score"] == 0.5 and out.loc[0, "cadd_phred"] == 15.0
+    _registered("PREDICTOR-TRANSCRIPT-COLLAPSE-1")
+    raw = _dbnsfp_source(tmp_path, [("1", "100", "A", "G", "0.3;0.01", "0.2;0.9", "0.2;0.8", "20", "1", "2")])
+    scores = DbNSFPConnector(raw).get_scores("1", 100, "A", "G")
+    assert (scores.sift_score, scores.polyphen2_score, scores.revel_score) == (0.01, 0.9, 0.8)
+
+
+def test_dbnsfp_corrupt_source_refuses_scalar_and_dataframe(tmp_path):
+    import gzip
+
+    import pandas as pd
+    import pytest
+
+    from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector, DbNSFPSourceError
+
+    row = ("1", "100", "A", "G", "0.01", "0.99", "0.95", "30", "1", "2")
+    raw = _dbnsfp_source(tmp_path, [row])
+    path = tmp_path / "raw.bgz"
+    data = gzip.compress(raw.read_bytes())
+    path.write_bytes(data[:-7])
+    source = DbNSFPConnector(path)
+    frame = pd.DataFrame({"chrom": ["1"], "pos": [100], "ref": ["A"], "alt": ["G"]})
+    with pytest.raises(DbNSFPSourceError):
+        source.get_scores("1", 100, "A", "G")
+    with pytest.raises(DbNSFPSourceError):
+        source.annotate_dataframe(frame)
+    path.write_bytes(data)
+    assert source.get_scores("1", 100, "A", "G").revel_score == 0.95
 
 
 def test_witness_cohort_transcript_undeclared_1(tmp_path):

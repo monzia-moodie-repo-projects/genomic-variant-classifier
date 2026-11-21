@@ -840,7 +840,7 @@ class TestDbNSFPConnector:
         assert result.loc[0, "sift_score"]  == pytest.approx(0.03)
         assert result.loc[0, "gerp_score"]  == DEFAULT_GERP   # graceful default
 
-    def test_parquet_cache_written_and_reused(self, tmp_path):
+    def test_raw_source_precedence_and_explicit_parquet_replay(self, tmp_path):
         from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
         content = (
             "#chr\tpos(1-based)\tref\talt\t"
@@ -851,23 +851,42 @@ class TestDbNSFPConnector:
         tsv = tmp_path / "dbnsfp_full.tsv"
         tsv.write_text(content)
 
-        c1 = DbNSFPConnector(dbnsfp_file=tsv, cache_dir=tmp_path)
-        c1.get_scores("17", 43071077, "G", "T")
-        cache_file = tmp_path / "dbnsfp_clinvar_index.parquet"
-        assert cache_file.exists(), "Parquet cache not written"
-
+        source = DbNSFPConnector(tsv)
+        selected = source._load_index()
+        historical = tmp_path / "dbnsfp_clinvar_index.parquet"
+        selected["sift_score"] = 0.7
+        selected.to_parquet(historical)
+        assert DbNSFPConnector(tsv).get_scores("17", 43071077, "G", "T").sift_score == 0.03
         tsv.unlink()
-        c2 = DbNSFPConnector(dbnsfp_file=tsv, cache_dir=tmp_path)
-        scores = c2.get_scores("17", 43071077, "G", "T")
-        assert scores.sift_score == pytest.approx(0.03)
+        with pytest.raises(FileNotFoundError):
+            DbNSFPConnector(tsv).get_scores("17", 43071077, "G", "T")
+        assert DbNSFPConnector(historical).get_scores("17", 43071077, "G", "T").sift_score == 0.7
 
-    def test_cache_filename_does_not_collide_with_connector6(self, tmp_path):
-        """Connector 7 cache must not overwrite Connector 6 cache."""
-        from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
-        from genomic_variant_classifier.data.sift_polyphen import SIFTPolyPhenConnector
-        c6_cache = tmp_path / "dbnsfp_sift_pp2_index.parquet"
-        c7_cache = tmp_path / "dbnsfp_clinvar_index.parquet"
-        assert c6_cache != c7_cache
+    def test_cross_chunk_allele_collision_and_sequential_partitions(self, tmp_path, monkeypatch):
+        from genomic_variant_classifier.data import dbnsfp
+
+        monkeypatch.setattr(dbnsfp, "CHUNK_SIZE", 1)
+        raw = tmp_path / "test.tsv"
+        head = "#chr\tpos(1-based)\tref\talt\tREVEL_score\n"
+        rows = "1\t1\tA\tT\t0.12\n2\t1\tA\tT\t0.82\n"
+        raw.write_text(head + rows + "chr1\t1\ta\tt\t0.72\n")
+        with pytest.raises(dbnsfp.DbNSFPSourceError, match="1 excess"):
+            dbnsfp.DbNSFPConnector(raw).get_scores("1", 1, "A", "T")
+        for invalid in ("0.9;bad", "Inf", "NaN", "1e999"):
+            raw.write_text(head + rows.replace("0.82", invalid))
+            with pytest.raises(dbnsfp.DbNSFPSourceError, match="score token"):
+                dbnsfp.DbNSFPConnector(raw).get_scores("2", 1, "A", "T")
+        raw.write_text(head.replace("REVEL_score", "something_else") + rows)
+        with pytest.raises(dbnsfp.DbNSFPSourceError, match="no supported score"):
+            dbnsfp.DbNSFPConnector(raw).get_scores("2", 1, "A", "T")
+        raw.write_text(head + rows)
+        historical = tmp_path / "source.2026.parquet"
+        dbnsfp.DbNSFPConnector(raw)._load_index().to_parquet(historical)
+        reader = dbnsfp.DbNSFPConnector(historical)
+        frame = pd.DataFrame({"chrom": ["1"], "pos": [1], "ref": ["A"], "alt": ["T"]},
+                             index=pd.Index([4], name="row"))
+        assert reader.annotate_dataframe(frame).loc[4, "revel_score"] == 0.12
+        assert reader.get_scores("2", 1, "A", "T").revel_score == 0.82
 
     # ------------------------------------------------------------------
     # End-to-end: all six scores flow through engineer_features
