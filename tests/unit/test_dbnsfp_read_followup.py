@@ -293,3 +293,68 @@ def test_the_pipeline_annotation_step_surfaces_a_source_failure(tmp_path):
 def test_the_source_error_is_still_a_value_error():
     """Callers that caught ValueError for a refused source keep doing so; the cause chain carries the detail."""
     assert issubclass(DbNSFPSourceError, ValueError)
+
+
+# ---------------------------------------------------------------------------
+# Validation once per distinct value: exactly the element-wise result
+# ---------------------------------------------------------------------------
+
+def _text_positions(values: pd.Series) -> pd.Series:
+    """The text path of _positions, written out: what the integer fast path must equal."""
+    tokens = values.astype("string")
+    if values.isna().any() or not tokens.str.fullmatch(r"[1-9][0-9]*").all():
+        raise DbNSFPSourceError("Invalid 1-based position")
+    try:
+        return tokens.astype("int64")
+    except (ValueError, OverflowError) as exc:
+        raise DbNSFPSourceError("Position exceeds the supported integer domain") from exc
+
+
+def _outcome(fn):
+    try:
+        return "ok", fn()
+    except DbNSFPSourceError as exc:
+        return "refused", str(exc)
+
+
+@pytest.mark.parametrize("values", [
+    pd.Series([1, 5, 2**40], dtype="int64", index=[4, 4, 0], name="pos"), pd.Series([3, 7], dtype="int8"),
+    pd.Series([2**31 - 1], dtype="int32"), pd.Series([0, 4], dtype="int64"), pd.Series([-2], dtype="int16"),
+    pd.Series([2**63 - 1], dtype="uint64"), pd.Series([2**63], dtype="uint64"), pd.Series([0, 2**64 - 1], dtype="uint64"),
+    pd.Series([], dtype="int64"), pd.Series([1, None], dtype="Int64"), pd.Series([7, 2**40], dtype="Int64", name="pos"),
+    pd.Series([0, 3], dtype="Int64"), pd.Series([2**64 - 1], dtype="UInt64"), pd.Series([9], dtype="UInt8"),
+    pd.Series([1.0]), pd.Series([True]),
+    pd.Series(["1", "01", "7"]), pd.Series(["12", "9"]),
+], ids=lambda v: str(v.dtype))
+def test_integer_positions_equal_the_text_path(values):
+    ours, text = _outcome(lambda: dbnsfp._positions(values)), _outcome(lambda: _text_positions(values))
+    assert ours[0] == text[0]
+    if ours[0] == "ok":
+        pd.testing.assert_series_equal(ours[1], text[1], check_exact=True)
+    else:
+        assert ours[1] == text[1]
+
+
+@pytest.mark.parametrize("values", [
+    pd.Series(["chr1", " 1 ", "cHr1", "chrchr1", "M", "chrM", "x", "ß", "", "chr1"] * 3, index=range(30, 0, -1), name="c"),
+    pd.Series([1, True, 1.0, "1", None, "chrM"], dtype=object),          # equal across types: the element-wise path
+    pd.Series(pd.Categorical(["chr1", "1", "chrX"])), pd.Series([], dtype=object), pd.Series(["chr2"], dtype="string"),
+], ids=["strings", "mixed", "categorical", "empty", "string_dtype"])
+def test_per_distinct_equals_the_element_wise_map(values):
+    pd.testing.assert_series_equal(dbnsfp._per_distinct(values, dbnsfp._index_chrom), values.map(dbnsfp._index_chrom),
+                                   check_exact=True)
+    ours = dbnsfp._canonical_alleles(values.astype(str) if values.dtype == object and len(values) else values)
+    base = values.astype(str) if values.dtype == object and len(values) else values
+    pd.testing.assert_series_equal(ours, base.astype("string").str.upper(), check_exact=True)
+
+
+def test_every_row_of_a_requested_chromosome_is_still_validated(tmp_path):
+    """Validation runs per distinct value, not per requested variant: an invalid stored row anywhere on a requested chromosome
+    refuses the read; the same row on a chromosome that is not requested is never read."""
+    rows = [("1", "1", 100, "A", "C"), ("1", "1", 200, "N", "C"), ("2", "2", 100, "A", "C")]
+    path = tmp_path / "index.parquet"
+    _write_index(path, "string", rows=rows)
+    conn = DbNSFPConnector(path)
+    with pytest.raises(DbNSFPSourceError, match="Invalid historical SNV allele in ref"):
+        conn.get_scores("1", 100, "A", "C")
+    assert conn.get_scores("2", 100, "A", "C").revel_score == _revel(2)

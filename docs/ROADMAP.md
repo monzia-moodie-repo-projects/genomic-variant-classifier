@@ -78,7 +78,7 @@ frozen: `tests/unit/test_roadmap_claims.py` and `tests/unit/test_roadmap_counter
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,621 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,645 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 | Feature-semantics epochs | 2 | `models/feature_semantics.py`: `gvc.features/1` (historical) and `gvc.features/2` (three-valued AF) |
 | Strict admission | 55 features admitted, 47 entries not | `docs/census/ADMISSION_SHADOW_1D1b2.json` (36 features + 11 non-tabular information sources: 6 graph relations, 3 edge attributes, 2 supervision labels) |
 
@@ -157,6 +157,17 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   parquet indices retain default fills and within-row extremes. Explicit raw sources take precedence over sibling indices.
   ABSENCE-AS-EVIDENCE-1 was corrected at 2A. SIFT and CADD stay
   strict in principle and are withheld from a scientific fit until qualified.
+- **The dbNSFP read follow-up (2026-11-22, after pull request #82).** One normalisation decides chromosome membership:
+  `_index_chrom` is applied to the distinct stored labels and the rows are read with a literal set of the matching stored
+  spellings (dictionary-typed columns decoded); stored keys are normalised once in both interfaces; every failure of a
+  configured source raises `DbNSFPSourceError` with its cause, while a valid absent allele still returns the defaults; the
+  index is validated once per distinct value. Measured on the real historical index (2,687,077 rows, three row groups) and
+  the whole ClinVar cohort, Linux sandbox, the locked pandas 2.3.3 / pyarrow 23.0.1 (Windows not measured): every answer
+  equal to main's, the cohort's 26,394,534 values bit for bit; a one-chromosome read plans 1 of 3 row groups (8.1-14.1 MB
+  of 36.2 MB); against main, scalar lookup median 0.51 -> 0.27 s per call, a 2,300-row frame 5.2 -> 2.8 s, the cohort
+  25.5 -> 14.8 s, peak memory 1.9 -> 1.3 GiB (frame) and 4.4 -> 2.8 GiB (cohort). The frame path stays well above the
+  pre-containment 0.47 s: its cost is validating every row of the requested chromosomes on each call (profiled), which a
+  set-based join alone does not remove; 1D-1c.2B should validate a release once and join against it.
 - **Ruled 2026-11-16 (ff77015c), LOEUF.** An unknown `gene_is_constrained` stays refused for a finite-requiring member
   until the constraint-source stage qualifies LOEUF (observed versus unobserved from upstream provenance, gene and
   transcript identity, release; label-blind). At the first strict baseline: admit a qualified LOEUF family, or compile a

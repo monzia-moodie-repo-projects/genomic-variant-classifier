@@ -8541,4 +8541,8 @@
 #   truncated and a part-read parquet, a non-numeric score and a truncated raw source each DbNSFPSourceError with its
 #   cause, also through the pipeline's annotation step). tests/unit/test_core.py: one assertion changed (a missing source
 #   is DbNSFPSourceError caused by FileNotFoundError), no test added or removed. (tests_drift/: unchanged, 22.)
-9621
+#   Its second commit (the index validated once per distinct value): +24 / -0 by node identity (collected against the
+#   first): tests/unit/test_dbnsfp_read_followup.py +18 (integer positions, NumPy and nullable, equal to the text path,
+#   refusals included), +5 (the per-distinct map equal to the element-wise map, mixed and categorical columns included), +1
+#   (every row of a requested chromosome still validated). (tests_drift/: unchanged, 22.)
+9645

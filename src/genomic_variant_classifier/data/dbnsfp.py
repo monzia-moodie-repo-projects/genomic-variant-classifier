@@ -235,8 +235,45 @@ def _index_chrom(chrom: str) -> str:
     return "MT" if text == "M" else text
 
 
+def _all_str(values: pd.Series) -> bool:
+    """True when the column is a plain object column whose every value is a Python ``str`` (decided in C, no row loop)."""
+    return values.dtype == object and pd.api.types.infer_dtype(values, skipna=False) == "string"
+
+
+def _per_distinct(values: pd.Series, fn) -> pd.Series:
+    """Exactly ``values.map(fn)``, with ``fn`` evaluated once per DISTINCT value when every value is a ``str``.
+
+    A dictionary keyed by the distinct strings returns ``fn(v)`` for every row ``v``: ``str`` equality is exact and ``fn``
+    depends on the string only. Any other column (numbers, categoricals, mixed objects, whose distinct values can compare
+    equal across types, e.g. ``1 == True``) takes the element-wise path unchanged.
+    """
+    if _all_str(values):
+        return values.map({v: fn(v) for v in pd.unique(values)})
+    return values.map(fn)
+
+
+def _canonical_alleles(values: pd.Series) -> pd.Series:
+    """Exactly ``values.astype("string").str.upper()``, upper-casing each distinct string once."""
+    if _all_str(values):
+        return values.map({v: v.upper() for v in pd.unique(values)}).astype("string")
+    return values.astype("string").str.upper()
+
+
+_MASKED_INTEGERS = (pd.Int8Dtype, pd.Int16Dtype, pd.Int32Dtype, pd.Int64Dtype,
+                    pd.UInt8Dtype, pd.UInt16Dtype, pd.UInt32Dtype, pd.UInt64Dtype)
+
+
 def _positions(values: pd.Series) -> pd.Series:
     """Validate integer text before conversion so fractions, nulls and overflow never alias a locus."""
+    if isinstance(values.dtype, np.dtype) or isinstance(values.dtype, _MASKED_INTEGERS):
+        if values.dtype.kind in "iu" and not values.isna().any() and not (
+                values.dtype.kind == "u" and len(values) and int(values.max()) > np.iinfo(np.int64).max):
+            # An integer column (NumPy, or pandas' nullable integers -- a historical index restores Int64 -- without a
+            # null) within int64: its decimal text is "[1-9][0-9]*" exactly when the value is >= 1, so this is the text
+            # path's refusal without writing every position as text. Nulls and larger unsigned values take that path.
+            if (values < 1).any():
+                raise DbNSFPSourceError("Invalid 1-based position")
+            return values.astype("int64")
     tokens = values.astype("string")
     if values.isna().any() or not tokens.str.fullmatch(r"[1-9][0-9]*").all():
         raise DbNSFPSourceError("Invalid 1-based position")
@@ -313,7 +350,7 @@ class DbNSFPConnector:
         positions = _positions(out["pos"])
         # Extract unique normalised chromosomes to filter parquet cache
         _chroms: set[str] = set(
-            df["chrom"].astype(str).apply(_index_chrom).unique()
+            _per_distinct(df["chrom"].astype(str), _index_chrom).unique()
         ) if "chrom" in df.columns else set()
         index_df = self._get_index(filter_chroms=_chroms if _chroms else None)
 
@@ -328,10 +365,10 @@ class DbNSFPConnector:
 
         # Normalise join keys on left side
         left = out[["chrom", "pos", "ref", "alt"]].copy()
-        left["_chrom"] = left["chrom"].astype(str).apply(_index_chrom)
+        left["_chrom"] = _per_distinct(left["chrom"].astype(str), _index_chrom)
         left["_pos"]   = positions
-        left["_ref"]   = left["ref"].astype(str).str.upper()
-        left["_alt"]   = left["alt"].astype(str).str.upper()
+        left["_ref"]   = _per_distinct(left["ref"].astype(str), str.upper)
+        left["_alt"]   = _per_distinct(left["alt"].astype(str), str.upper)
 
         # Memory-safe pre-filter: shrink the index to rows at cohort positions
         # BEFORE materialising the six score columns below. Without this, a full
@@ -497,10 +534,11 @@ class DbNSFPConnector:
                 ) from exc
             if frame[keys].isna().any().any():
                 raise DbNSFPSourceError("Missing allele key in historical parquet")
-            frame["chrom"] = frame["chrom"].map(_index_chrom)
+            # Every row of the requested chromosomes is validated; the Python-level work runs once per distinct value.
+            frame["chrom"] = _per_distinct(frame["chrom"], _index_chrom)
             frame["pos"] = _positions(frame["pos"])
             for name in ("ref", "alt"):
-                frame[name] = frame[name].astype("string").str.upper()
+                frame[name] = _canonical_alleles(frame[name])
                 if not frame[name].isin(("A", "C", "G", "T")).all():
                     raise DbNSFPSourceError(f"Invalid historical SNV allele in {name}")
             if (frame["ref"] == frame["alt"]).any():
