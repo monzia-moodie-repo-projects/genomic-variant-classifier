@@ -78,7 +78,7 @@ frozen: `tests/unit/test_roadmap_claims.py` and `tests/unit/test_roadmap_counter
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,593 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,621 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 | Feature-semantics epochs | 2 | `models/feature_semantics.py`: `gvc.features/1` (historical) and `gvc.features/2` (three-valued AF) |
 | Strict admission | 55 features admitted, 47 entries not | `docs/census/ADMISSION_SHADOW_1D1b2.json` (36 features + 11 non-tabular information sources: 6 graph relations, 3 edge attributes, 2 supervision labels) |
 

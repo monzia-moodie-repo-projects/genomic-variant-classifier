@@ -3963,7 +3963,7 @@
     "src/genomic_variant_classifier/data/clingen.py::ClinGenConnector": "c588d73c5b37241ad51ffbd6b8ec63cb2d1fa628e18a87cf56f4c80cf31def9f",
     "src/genomic_variant_classifier/data/connectors/connector_cosmic.py::CosmicCmcConnector": "55b985383733edc6a5c7d4523321503eb0b187ab226e94437482295c7876d437",
     "src/genomic_variant_classifier/data/connectors/connector_gnomad_constraint.py::GnomADConstraintConnector": "17d8fe61da5b1ae18c707722c62b2833411b2dbfc26e316de36c404d1b2f78c1",
-    "src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector": "9485c95b18e4434520c9f928eaaa521f0978cdc55963aa53f3de1440aa1f8f88",
+    "src/genomic_variant_classifier/data/dbnsfp.py::DbNSFPConnector": "09e2c823c697470306d57a6886de84e75535d215a2ac265fb6299da12a40c74d",
     "src/genomic_variant_classifier/data/dbsnp.py::DbSNPConnector": "b282869e1f1c597b03597bab2c3fc395a08216f643d37292d5de495378ed879e",
     "src/genomic_variant_classifier/data/esm2.py::ESM2Connector": "0585b20decc8852543a3ec6db466c408c505ba172e83a3e01ac2b1222a19832a",
     "src/genomic_variant_classifier/data/eve.py::EVEConnector": "006e2858b043503e87c7ff57d41920eda41ac71d04153b171b1d20707fca9047",
