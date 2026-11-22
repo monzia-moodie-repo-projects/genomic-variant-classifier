@@ -966,7 +966,7 @@ DEFECTS = [
      [code("scripts/build_gnomad_ymt_af.py", 'ac_hom = v.get("ac_hom") or 0'), "record:docs/census/AF_REPAIR_1D1c1.json"]),
     # ---- registered by set "aw" (stage 1D-1c.2A, owner ruling e755519d), each with an executable witness
     ("DBNSFP-INDEX-DEFAULT-BAKED-1", "data/dbnsfp.py's raw parse fills an absent SIFT, PolyPhen-2, REVEL or CADD score with "
-     "the connector default (0.5; 15.0 for CADD) BEFORE writing the parquet cache, so the cached index holds no missing value "
+     "the connector default (0.5; 15.0 for CADD). Historical caches preserve that collapse, so the stored index holds no missing value "
      "and a stored 0.5 is a score or a fill, irreversibly; replacing 0.5 by NaN cannot repair it (a genuine 0.5 is the same "
      "value). Measured (docs/census/PREDICTOR_SOURCES_1D1c2.json): dbnsfp_full_index.parquet, 85,299,339 rows, no null; "
      "exactly at the default REVEL 15,505,294 rows against about 44,000 at each neighbouring value, SIFT 16,413,824 (about "
@@ -983,21 +983,15 @@ DEFECTS = [
      [code(D + "dbnsfp.py", "chunk[out_col] = chunk[out_col].fillna(default)"), "record:docs/census/PREDICTOR_SOURCES_1D1c2.json",
       code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_dbnsfp_index_default_baked_1(tmp_path):")]),
     ("PREDICTOR-TRANSCRIPT-COLLAPSE-1", "data/dbnsfp.py reduces each per-transcript score list to one number -- SIFT its "
-     "minimum, PolyPhen-2, REVEL and CADD their maximum -- and keeps the first record of an allele, so which transcript, "
+     "minimum, PolyPhen-2, REVEL and CADD their maximum. Historical indices also kept the first record. Which transcript, "
      "protein context and amino-acid change the stored value describes is lost. Measured against the publisher's REVEL "
      "v1.3 (docs/census/PREDICTOR_SOURCES_1D1c2.json): 10,584 of the pilot population's 247,947 alleles with publisher rows "
      "have several distinct scores and 11,188 several amino-acid changes; the index value equals the publisher maximum at "
      "188,525 alleles and differs at 2,320. A maximum is a research feature of its own identity, never the observation.",
      ["sift_score", "polyphen2_score", "revel_score", "sift_deleterious", "polyphen_probably_damaging", "revel_pathogenic",
       "n_tools_pathogenic"],
-     [code(D + "dbnsfp.py", '_COL_REVEL:  "max",'), code(D + "dbnsfp.py", 'full = full.drop_duplicates(subset=["chrom", "pos", "ref", "alt"])'),
+     [code(D + "dbnsfp.py", '_COL_REVEL:  "max",'), code(D + "dbnsfp.py", "self._require_unique(full, keys)"),
       "record:docs/census/PREDICTOR_SOURCES_1D1c2.json", code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_predictor_transcript_collapse_1(tmp_path):")]),
-    ("DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1", "data/dbnsfp.py catches every exception of the raw parse, logs it and returns "
-     "an EMPTY index; annotate_dataframe then writes all six defaults to every row, so an unreadable or renamed source "
-     "becomes plausible scores with only a log line (no refusal).",
-     ["sift_score", "polyphen2_score", "revel_score", "cadd_phred", "phylop_score", "gerp_score"],
-     [code(D + "dbnsfp.py", 'logger.error("DbNSFP: failed to parse %s: %s", self._path, exc)'),
-      code("tests/unit/test_registered_defect_witnesses.py", "def test_witness_dbnsfp_parse_failure_silent_defaults_1(tmp_path):")]),
     ("COHORT-TRANSCRIPT-UNDECLARED-1", "No prediction unit declares a transcript: the ClinVar connector writes transcript_id "
      "= None and keeps no Name, and the cohort's transcript_id and protein_change are null in every row, while ClinVar's own Name declares the "
      "RefSeq transcript and protein change (NM_014630.3(ZNF592):c.3136G>A (p.Gly1046Arg)). Measured "

@@ -153,7 +153,9 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   unqualified at the first strict fit, `admission.compiled_roster` gives 49 features (measured: loeuf, gene_is_constrained,
   sift_score, sift_deleterious, cadd_phred and cadd_high withheld).
 - **Registered at stage 1D-1c.2A (executable witnesses).** DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1,
-  DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1, COHORT-TRANSCRIPT-UNDECLARED-1; ABSENCE-AS-EVIDENCE-1 corrected. SIFT and CADD stay
+  COHORT-TRANSCRIPT-UNDECLARED-1. The legacy reader now refuses parse failure and repeated raw allele keys. Historical
+  parquet indices retain default fills and within-row extremes. Explicit raw sources take precedence over sibling indices.
+  ABSENCE-AS-EVIDENCE-1 was corrected at 2A. SIFT and CADD stay
   strict in principle and are withheld from a scientific fit until qualified.
 - **Ruled 2026-11-16 (ff77015c), LOEUF.** An unknown `gene_is_constrained` stays refused for a finite-requiring member
   until the constraint-source stage qualifies LOEUF (observed versus unobserved from upstream provenance, gene and

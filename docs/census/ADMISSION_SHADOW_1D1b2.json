@@ -1,7 +1,7 @@
 {
   "census": {
     "contract_digest": "4df21547625a09ffa281a58a00b146d11bbbed526ba6422051cd63f570f1b7d1",
-    "ledger_sha256": "e6d2e91f33718da4f65454009544a3058725e206a5e689a61f4a3f5de78138cd",
+    "ledger_sha256": "9d5c8e66f8b8332c162f2a7d51e96b5265514297462234deafa28fc704af9b99",
     "path": "docs/census/FEATURE_CENSUS_1D1a.json",
     "schema": "gvc.feature-census.1d1a/2",
     "semantic_digest": "c19eb10396de528e9947ef98f6502ba21d73e95fe602903399a29b8120ab8209"
@@ -729,7 +729,6 @@
       "observation": "not_recorded_by_producer",
       "registered_defects": [
         "DBNSFP-INDEX-DEFAULT-BAKED-1",
-        "DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1",
         "MISSINGNESS-SEMANTICS-1"
       ]
     },
@@ -764,7 +763,6 @@
       "registered_defects": [
         "COHORT-TRANSCRIPT-UNDECLARED-1",
         "DBNSFP-INDEX-DEFAULT-BAKED-1",
-        "DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1",
         "MISSINGNESS-SEMANTICS-1",
         "PREDICTOR-TRANSCRIPT-COLLAPSE-1"
       ]
@@ -800,7 +798,6 @@
       "registered_defects": [
         "COHORT-TRANSCRIPT-UNDECLARED-1",
         "DBNSFP-INDEX-DEFAULT-BAKED-1",
-        "DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1",
         "MISSINGNESS-SEMANTICS-1",
         "PREDICTOR-TRANSCRIPT-COLLAPSE-1"
       ]
@@ -836,7 +833,6 @@
       "registered_defects": [
         "COHORT-TRANSCRIPT-UNDECLARED-1",
         "DBNSFP-INDEX-DEFAULT-BAKED-1",
-        "DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1",
         "MISSINGNESS-SEMANTICS-1",
         "PREDICTOR-TRANSCRIPT-COLLAPSE-1"
       ]
@@ -870,7 +866,6 @@
       "name": "phylop_score",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1",
         "MISSINGNESS-SEMANTICS-1"
       ]
     },
@@ -903,7 +898,6 @@
       "name": "gerp_score",
       "observation": "not_recorded_by_producer",
       "registered_defects": [
-        "DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1",
         "MISSINGNESS-SEMANTICS-1"
       ]
     },
