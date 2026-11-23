@@ -1,3 +1,62 @@
+## 2026-11-23 (documentation) -- the roadmap's status and this changelog brought current
+
+Built on main c85461d9 (pull request #83). Documentation only: no code, test, record or count changes.
+
+- ROADMAP-STATUS-STALE-1. docs/ROADMAP.md's version line still read 2026-11-18, its execution table still marked set "aw"
+  as "THIS DELIVERY" (merged 2026-11-19, pull request #81), it had no rows for the dbNSFP containment (pull request #82)
+  or its read follow-up (pull request #83), and this changelog ended at set "aw". The roadmap's version line, execution
+  table, register and changelog section, docs/census/README.md and the history of tests/EXPECTED_SUITE_SIZE now record
+  them; the two entries below are written from the commits, their diffs and the re-derived records.
+
+## 2026-11-22 (package 1D, stage 1D-1c.2A, the dbNSFP read follow-up) -- one chromosome normalisation, one error type
+
+Decision C of the owner's containment ruling of 2026-11-21: the read refinement as its own commits after the containment.
+Built on main 0c0233c8 (pull request #82). Commits 9f30685f and 48a9eb9c. Nothing in production changes; no model is
+fitted; scientific training stays refused.
+
+- data/dbnsfp.py: `_index_chrom` is applied to the distinct stored chromosome labels, and the rows are read with a literal
+  set of the matching stored spellings (dictionary-typed columns decoded), which row-group statistics can prune; stored
+  keys are normalised once in both interfaces (a stored "chrchr1" row was unreachable before, measured); every failure of
+  a configured source raises `DbNSFPSourceError` with its cause (a missing file or a directory, a malformed, truncated or
+  part-read parquet, a non-numeric score), while a valid absent allele still returns the defaults. The second commit
+  validates the index once per distinct value (`_per_distinct`, `_canonical_alleles`, an integer fast path in
+  `_positions`); a differential check of 9,022 outcomes over 3,002 generated indexes and queries found every frame and
+  refusal identical to the first commit's.
+- Measured on the real historical index (2,687,077 rows, three row groups) and the whole ClinVar cohort, Linux sandbox,
+  pandas 2.3.3 / pyarrow 23.0.1: every answer equal to main's, the cohort's 26,394,534 values bit for bit; a
+  one-chromosome read plans 1 of 3 row groups; scalar median 0.51 -> 0.27 s per call, a 2,300-row frame 5.2 -> 2.8 s, the
+  cohort 25.5 -> 14.8 s, peak memory 1.9 -> 1.3 GiB (frame) and 4.4 -> 2.8 GiB (cohort).
+- tests/unit/test_dbnsfp_read_followup.py (new, 52 tests); the census ledger (9d5c8e66 -> 8ae60493), shadow admission
+  report and source-absence census re-derived, summary counts unchanged. Suite 9,593 -> 9,645 (+52 / -0).
+- The owner's validation (2026-11-22): 9,557 passed, 83 skipped, 5 xfailed, every record stage passed, the
+  predictor-source record identical; merged 2026-11-23 as c85461d9, verified on the owner's machine (3,689 targeted tests
+  each as validated, drift 22 passed).
+
+## 2026-11-21 (package 1D, stage 1D-1c.2A, the dbNSFP containment) -- the legacy reader refuses instead of defaulting
+
+The owner's containment ruling of 2026-11-21 (decisions A, B and C). Built on main 57791f13 (set "aw", pull request #81).
+Commits 22e2b0ad and 13281183, re-authored to the owner (decision B; trees as the ruling's). Nothing in production changes;
+no model is fitted.
+
+- data/dbnsfp.py reads only the source it is given: an explicit historical parquet for indexed replay, or a raw table for
+  an in-memory legacy projection; no cache is written, and `cache_dir` alone names a legacy index. A missing source raises
+  FileNotFoundError; an unreadable raw table, a table with no supported score column, repeated raw allele keys, invalid
+  SNV alleles and a malformed, non-finite or out-of-domain (SIFT, PolyPhen-2, REVEL outside 0-1) score token raise
+  `DbNSFPSourceError`; a historical index with an empty or incomplete footer, a missing key, an invalid allele or a
+  missing, non-finite or out-of-domain score is refused. Positions are validated as integer text (`_positions`). One
+  chromosome normaliser (`_index_chrom`) serves both interfaces, and a parquet read is no longer cached by the first
+  chromosome requested (measured on the real index: chromosome-2 rows after chromosome 1, 0 of 50 on main, 50 of 50 here).
+- DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1 is retired (its witness replaced by a refusal test); DBNSFP-INDEX-DEFAULT-BAKED-1
+  and PREDICTOR-TRANSCRIPT-COLLAPSE-1 are restated for historical indices; 38 -> 37 registered defects.
+  scripts/prep_dbnsfp_cache.py only inspects the named historical index's footer.
+- The census records are re-derived (ledger e6d2e91f -> 9d5c8e66; semantic digest c19eb103 unchanged). Measured before
+  publication: main's and the containment's reader give bit-identical joins over the whole ClinVar cohort (4,399,089 rows,
+  26,394,534 values), so the predictor-source record re-measured IDENTICAL (95ccc414) on the owner's machine.
+- Tests +3 / -3 by node identity (tests/unit/test_core.py: raw-source precedence and explicit replay; cross-chunk
+  collisions, invalid score tokens, stored spellings; tests/unit/test_registered_defect_witnesses.py: a corrupt source
+  refuses in both interfaces). Suite 9,593, unchanged. The owner's validation (2026-11-22): 9,505 passed, 83 skipped,
+  5 xfailed; merged 2026-11-22 as 0c0233c8.
+
 ## 2026-11-18 (package 1D, stage 1D-1c.2A, set "aw") -- the computational-predictor source audit
 
 Owner ruling e755519d (2026-11-17, refined 2026-11-18); audit AUDIT_OF_RULING_e755519d_2026-11-18.md. Built on main

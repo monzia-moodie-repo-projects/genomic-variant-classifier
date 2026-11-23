@@ -8532,6 +8532,13 @@
 #   (DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1, DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1 and
 #   COHORT-TRANSCRIPT-UNDECLARED-1, each executing the current connector). tests/unit/test_admission_shadow.py: two lists
 #   extended, no test added or removed. (tests_drift/: unchanged, 22.)
+# 2026-11-21  THE dbNSFP CONTAINMENT (the owner's containment ruling of 2026-11-21) -- +3 / -3 by node identity (collected
+#   against main, 57791f13); 9,593 unchanged. tests/unit/test_core.py: -2 (the parquet cache written and reused; the
+#   cache filename distinct from Connector 6's -- no cache is written any more), +2 (raw-source precedence and explicit
+#   parquet replay; cross-chunk allele collisions, invalid score tokens, stored spellings in both interfaces).
+#   tests/unit/test_registered_defect_witnesses.py: -1 (the witness of DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1, retired),
+#   +1 (a corrupt source refuses in both interfaces). tests/unit/test_admission_shadow.py: one list shortened, no test
+#   added or removed. (tests_drift/: unchanged, 22.) Recorded on 2026-11-23 (ROADMAP-STATUS-STALE-1).
 # 2026-11-22  THE dbNSFP READ FOLLOW-UP (the owner's containment ruling of 2026-11-21: the read refinement as its own commit,
 #   after pull request #82) -- +28 / -0 by node identity (collected against main, 0c0233c8). New file: +28 (16 functions)
 #   tests/unit/test_dbnsfp_read_followup.py (one connector across chromosome orders with stored and absent alleles
