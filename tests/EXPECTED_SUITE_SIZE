@@ -8532,4 +8532,17 @@
 #   (DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1, DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1 and
 #   COHORT-TRANSCRIPT-UNDECLARED-1, each executing the current connector). tests/unit/test_admission_shadow.py: two lists
 #   extended, no test added or removed. (tests_drift/: unchanged, 22.)
-9593
+# 2026-11-22  THE dbNSFP READ FOLLOW-UP (the owner's containment ruling of 2026-11-21: the read refinement as its own commit,
+#   after pull request #82) -- +28 / -0 by node identity (collected against main, 0c0233c8). New file: +28 (16 functions)
+#   tests/unit/test_dbnsfp_read_followup.py (one connector across chromosome orders with stored and absent alleles
+#   interleaved, against an oracle; the four Arrow chromosome types with and without statistics; every stored spelling
+#   answering every query spelling; row-group pruning; a label the normaliser does not leave fixed; order, duplicates and a
+#   non-unique index, frame equal to scalar; a valid absent allele a miss; a missing source, a directory, a malformed, a
+#   truncated and a part-read parquet, a non-numeric score and a truncated raw source each DbNSFPSourceError with its
+#   cause, also through the pipeline's annotation step). tests/unit/test_core.py: one assertion changed (a missing source
+#   is DbNSFPSourceError caused by FileNotFoundError), no test added or removed. (tests_drift/: unchanged, 22.)
+#   Its second commit (the index validated once per distinct value): +24 / -0 by node identity (collected against the
+#   first): tests/unit/test_dbnsfp_read_followup.py +18 (integer positions, NumPy and nullable, equal to the text path,
+#   refusals included), +5 (the per-distinct map equal to the element-wise map, mixed and categorical columns included), +1
+#   (every row of a requested chromosome still validated). (tests_drift/: unchanged, 22.)
+9645

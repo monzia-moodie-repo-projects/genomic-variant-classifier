@@ -858,8 +858,11 @@ class TestDbNSFPConnector:
         selected.to_parquet(historical)
         assert DbNSFPConnector(tsv).get_scores("17", 43071077, "G", "T").sift_score == 0.03
         tsv.unlink()
-        with pytest.raises(FileNotFoundError):
+        # A missing configured source is a SOURCE failure (one type for every source failure), its cause kept.
+        from genomic_variant_classifier.data.dbnsfp import DbNSFPSourceError
+        with pytest.raises(DbNSFPSourceError, match="not a readable file") as missing:
             DbNSFPConnector(tsv).get_scores("17", 43071077, "G", "T")
+        assert isinstance(missing.value.__cause__, FileNotFoundError)
         assert DbNSFPConnector(historical).get_scores("17", 43071077, "G", "T").sift_score == 0.7
 
     def test_cross_chunk_allele_collision_and_sequential_partitions(self, tmp_path, monkeypatch):

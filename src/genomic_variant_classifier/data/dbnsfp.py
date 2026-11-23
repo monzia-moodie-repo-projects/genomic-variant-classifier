@@ -86,8 +86,10 @@ CHANGES:
 
 from __future__ import annotations
 
+import errno
 import logging
 import math
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -201,7 +203,12 @@ _DEFAULT_SCORES = DbNSFPScores()
 # ---------------------------------------------------------------------------
 
 class DbNSFPSourceError(ValueError):
-    """A configured source cannot support the requested legacy lookup."""
+    """A configured source cannot support the requested legacy lookup.
+
+    Every failure of a CONFIGURED source -- a missing or unreadable file, a malformed or truncated parquet index, a read that
+    fails part-way, an invalid row -- raises this one type, with the underlying exception as its ``__cause__``, so that a
+    consumer can tell a source failure from a genuine lookup miss (which returns the defaults) by catching one class.
+    """
 
 
 def _checked_score(raw: object, aggregation: str, column: str) -> Optional[float]:
@@ -228,8 +235,45 @@ def _index_chrom(chrom: str) -> str:
     return "MT" if text == "M" else text
 
 
+def _all_str(values: pd.Series) -> bool:
+    """True when the column is a plain object column whose every value is a Python ``str`` (decided in C, no row loop)."""
+    return values.dtype == object and pd.api.types.infer_dtype(values, skipna=False) == "string"
+
+
+def _per_distinct(values: pd.Series, fn) -> pd.Series:
+    """Exactly ``values.map(fn)``, with ``fn`` evaluated once per DISTINCT value when every value is a ``str``.
+
+    A dictionary keyed by the distinct strings returns ``fn(v)`` for every row ``v``: ``str`` equality is exact and ``fn``
+    depends on the string only. Any other column (numbers, categoricals, mixed objects, whose distinct values can compare
+    equal across types, e.g. ``1 == True``) takes the element-wise path unchanged.
+    """
+    if _all_str(values):
+        return values.map({v: fn(v) for v in pd.unique(values)})
+    return values.map(fn)
+
+
+def _canonical_alleles(values: pd.Series) -> pd.Series:
+    """Exactly ``values.astype("string").str.upper()``, upper-casing each distinct string once."""
+    if _all_str(values):
+        return values.map({v: v.upper() for v in pd.unique(values)}).astype("string")
+    return values.astype("string").str.upper()
+
+
+_MASKED_INTEGERS = (pd.Int8Dtype, pd.Int16Dtype, pd.Int32Dtype, pd.Int64Dtype,
+                    pd.UInt8Dtype, pd.UInt16Dtype, pd.UInt32Dtype, pd.UInt64Dtype)
+
+
 def _positions(values: pd.Series) -> pd.Series:
     """Validate integer text before conversion so fractions, nulls and overflow never alias a locus."""
+    if isinstance(values.dtype, np.dtype) or isinstance(values.dtype, _MASKED_INTEGERS):
+        if values.dtype.kind in "iu" and not values.isna().any() and not (
+                values.dtype.kind == "u" and len(values) and int(values.max()) > np.iinfo(np.int64).max):
+            # An integer column (NumPy, or pandas' nullable integers -- a historical index restores Int64 -- without a
+            # null) within int64: its decimal text is "[1-9][0-9]*" exactly when the value is >= 1, so this is the text
+            # path's refusal without writing every position as text. Nulls and larger unsigned values take that path.
+            if (values < 1).any():
+                raise DbNSFPSourceError("Invalid 1-based position")
+            return values.astype("int64")
     tokens = values.astype("string")
     if values.isna().any() or not tokens.str.fullmatch(r"[1-9][0-9]*").all():
         raise DbNSFPSourceError("Invalid 1-based position")
@@ -306,7 +350,7 @@ class DbNSFPConnector:
         positions = _positions(out["pos"])
         # Extract unique normalised chromosomes to filter parquet cache
         _chroms: set[str] = set(
-            df["chrom"].astype(str).apply(_index_chrom).unique()
+            _per_distinct(df["chrom"].astype(str), _index_chrom).unique()
         ) if "chrom" in df.columns else set()
         index_df = self._get_index(filter_chroms=_chroms if _chroms else None)
 
@@ -321,10 +365,10 @@ class DbNSFPConnector:
 
         # Normalise join keys on left side
         left = out[["chrom", "pos", "ref", "alt"]].copy()
-        left["_chrom"] = left["chrom"].astype(str).apply(_index_chrom)
+        left["_chrom"] = _per_distinct(left["chrom"].astype(str), _index_chrom)
         left["_pos"]   = positions
-        left["_ref"]   = left["ref"].astype(str).str.upper()
-        left["_alt"]   = left["alt"].astype(str).str.upper()
+        left["_ref"]   = _per_distinct(left["ref"].astype(str), str.upper)
+        left["_alt"]   = _per_distinct(left["alt"].astype(str), str.upper)
 
         # Memory-safe pre-filter: shrink the index to rows at cohort positions
         # BEFORE materialising the six score columns below. Without this, a full
@@ -341,10 +385,12 @@ class DbNSFPConnector:
         right = right.rename(columns={
             "chrom": "_chrom", "pos": "_pos", "ref": "_ref", "alt": "_alt"
         })
-        right["_chrom"] = right["_chrom"].astype(str).apply(_index_chrom)
+        # Both loaders already store canonical keys; normalising them again would change a label _index_chrom does
+        # not leave fixed (e.g. "chrchr1" -> "CHR1" -> "1") and break the one-normalisation rule of get_scores.
+        right["_chrom"] = right["_chrom"].astype(str)
         right["_pos"]   = pd.to_numeric(right["_pos"], errors="coerce").astype("Int64")
-        right["_ref"]   = right["_ref"].astype(str).str.upper()
-        right["_alt"]   = right["_alt"].astype(str).str.upper()
+        right["_ref"]   = right["_ref"].astype(str)
+        right["_alt"]   = right["_alt"].astype(str)
 
         # Vectorised merge
         left = left.reset_index(drop=True)
@@ -395,15 +441,17 @@ class DbNSFPConnector:
             variants absent from the index.
         """
         pos = int(_positions(pd.Series([pos])).iloc[0])
-        index_df = self._get_index(filter_chroms={_index_chrom(chrom)})
+        chrom_n = _index_chrom(chrom)
+        index_df = self._get_index(filter_chroms={chrom_n})
         if index_df.empty:
             return _DEFAULT_SCORES
-        chrom_n = _index_chrom(chrom)
+        # Both loaders store canonical keys (chromosome through _index_chrom once, alleles upper-case A/C/G/T), so the
+        # query is normalised once and compared as is: a stored key is never normalised a second time.
         mask = (
-            (index_df["chrom"].apply(_index_chrom) == chrom_n) &
+            (index_df["chrom"] == chrom_n) &
             (index_df["pos"] == int(pos)) &
-            (index_df["ref"].str.upper() == ref.upper()) &
-            (index_df["alt"].str.upper() == alt.upper())
+            (index_df["ref"] == ref.upper()) &
+            (index_df["alt"] == alt.upper())
         )
         rows = index_df[mask]
         if rows.empty:
@@ -437,41 +485,60 @@ class DbNSFPConnector:
         self,
         filter_chroms: Optional[set[str]] = None,
     ) -> pd.DataFrame:
-        """Read only the specified input. An unconfigured connector is the legacy stub."""
+        """Read only the specified input. An unconfigured connector is the legacy stub.
+
+        ``filter_chroms`` holds CANONICAL chromosome names (already passed through ``_index_chrom`` by the caller); a
+        historical parquet index then returns exactly the rows whose stored label ``_index_chrom`` maps to one of them.
+        """
         keys = ["chrom", "pos", "ref", "alt"]
         columns = keys + list(_OUTPUT_COLS.values())
         if self._path is None:
             logger.warning("DbNSFP: explicit stub, using legacy defaults")
             return pd.DataFrame(columns=columns)
         if not self._path.is_file():
-            raise FileNotFoundError(self._path)
+            raise DbNSFPSourceError(f"Configured dbNSFP source is not a readable file: {self._path}") from FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), str(self._path))
         suffix = self._path.suffix.lower()
         if suffix in {".parquet", ".pq"}:
             import pyarrow as pa
             import pyarrow.compute as pc
             import pyarrow.parquet as pq
 
-            predicate = None
-            if filter_chroms:
-                # Normalize the stored column before filtering, just as we normalize the query.
-                # Finite enumerations of spellings silently lose rows (e.g. "cHr1" and " 1 ").
-                names = {_index_chrom(c) for c in filter_chroms}
-                if "MT" in names:
-                    names.add("M")
-                label = pc.utf8_upper(pc.utf8_trim_whitespace(pc.field("chrom").cast(pa.string())))
-                label = pc.replace_substring_regex(label, pattern="^CHR", replacement="")
-                predicate = label.isin(sorted(names))
-            with self._path.open("rb") as source:
-                footer = pq.read_metadata(source)
-                if footer.num_rows == 0 or not set(columns) <= set(footer.schema.to_arrow_schema().names):
-                    raise DbNSFPSourceError("empty or incomplete historical parquet index")
-                frame = pq.read_table(source, columns=columns, filters=predicate).to_pandas()
+            try:
+                # An Arrow-native handle: the footer, the stored spellings and the rows all come from the one opened file.
+                with pa.OSFile(str(self._path), "rb") as source:
+                    footer = pq.read_metadata(source)
+                    if footer.num_rows == 0 or not set(columns) <= set(footer.schema.to_arrow_schema().names):
+                        raise DbNSFPSourceError("empty or incomplete historical parquet index")
+                    predicate = None
+                    if filter_chroms:
+                        # ONE normalisation decides which rows belong to a requested chromosome: _index_chrom, the
+                        # function both public interfaces apply to the query, is applied to every DISTINCT stored label;
+                        # the rows are then read with a LITERAL set of the stored spellings it maps to a requested name
+                        # ("cHr1", " 1 ", "chr1" and "1" alike). A literal set lets the reader skip row groups by their
+                        # statistics; an expression over the column cannot be pruned (measured on the real index).
+                        names = set(filter_chroms)
+                        stored = pq.read_table(source, columns=["chrom"]).column("chrom")
+                        if pa.types.is_dictionary(stored.type):
+                            stored = pc.dictionary_decode(stored)
+                        distinct = pc.unique(stored)
+                        wanted = [v for v in distinct.to_pylist() if v is not None and _index_chrom(v) in names]
+                        # The value set has the field's decoded type: Arrow binds a dictionary field against it.
+                        predicate = pc.field("chrom").isin(pa.array(wanted, type=distinct.type))
+                    frame = pq.read_table(source, columns=columns, filters=predicate).to_pandas()
+            except DbNSFPSourceError:
+                raise
+            except (OSError, pa.ArrowException) as exc:
+                raise DbNSFPSourceError(
+                    f"Cannot read configured historical parquet index {self._path}: {type(exc).__name__}: {exc}"
+                ) from exc
             if frame[keys].isna().any().any():
                 raise DbNSFPSourceError("Missing allele key in historical parquet")
-            frame["chrom"] = frame["chrom"].map(_index_chrom)
+            # Every row of the requested chromosomes is validated; the Python-level work runs once per distinct value.
+            frame["chrom"] = _per_distinct(frame["chrom"], _index_chrom)
             frame["pos"] = _positions(frame["pos"])
             for name in ("ref", "alt"):
-                frame[name] = frame[name].astype("string").str.upper()
+                frame[name] = _canonical_alleles(frame[name])
                 if not frame[name].isin(("A", "C", "G", "T")).all():
                     raise DbNSFPSourceError(f"Invalid historical SNV allele in {name}")
             if (frame["ref"] == frame["alt"]).any():
@@ -479,7 +546,10 @@ class DbNSFPConnector:
             for name in _OUTPUT_COLS.values():
                 # A baked historical index declares complete numeric columns.
                 # Its remaining nulls cannot identify a valid historical default.
-                values = pd.to_numeric(frame[name], errors="raise")
+                try:
+                    values = pd.to_numeric(frame[name], errors="raise")
+                except (TypeError, ValueError) as exc:
+                    raise DbNSFPSourceError(f"Non-numeric historical score in {name}") from exc
                 if pd.api.types.is_bool_dtype(values.dtype) or not np.isfinite(values.to_numpy(dtype=float, na_value=np.nan)).all():
                     raise DbNSFPSourceError(f"Missing or nonfinite historical score in {name}")
                 if name in {"sift_score", "polyphen2_score", "revel_score"} and not values.between(0, 1).all():
