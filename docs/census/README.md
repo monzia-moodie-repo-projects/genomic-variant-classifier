@@ -229,3 +229,14 @@ qualified. No disposition changes; admission is unchanged (strict 55 / 47, condi
   changes (the allele-frequency ledger and the qualified-preparation record re-measure byte for byte).
   REVEL v1.3 itself has no row without a score (measured); the state is for per-transcript sources such as dbNSFP v5.
 - `FEATURE_CENSUS_1D1a.json`, `SOURCE_ABSENCE_1D1b2.json` and `ADMISSION_SHADOW_1D1b2.json` are re-derived in the documented order.
+
+## Stage 1D-1c.2A: the dbNSFP containment and its read follow-up
+
+The owner's containment ruling of 2026-11-21 (pull requests #82 and #83). No disposition, admission or summary count changes;
+the semantic digest stays c19eb103.
+
+- The containment retires DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1: the legacy reader refuses a configured source it cannot
+  read instead of returning defaults. 37 registered defects; the defect leaves the six features it was attached to.
+  DBNSFP-INDEX-DEFAULT-BAKED-1 and PREDICTOR-TRANSCRIPT-COLLAPSE-1 are restated for historical indices.
+- `FEATURE_CENSUS_1D1a.json`, `SOURCE_ABSENCE_1D1b2.json` and `ADMISSION_SHADOW_1D1b2.json` are re-derived for the
+  connector's code digest: ledger e6d2e91f -> 9d5c8e66 (containment) -> 8ae60493 (read follow-up).

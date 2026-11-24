@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-18 (v7: set "av" merged; predictor source audit set "aw")  |  Owner: Monzia Moodie**
+**Version: 2026-11-23 (v8: set "aw", the dbNSFP containment and its read follow-up merged)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -118,8 +118,10 @@ mixed, unfiltered, ClinVar-ascertained extract; strict admission does not certif
 | 1D-1c.1C set "au" -- model-facing core: semantic epochs, fitted member projections (P capability-aware, C common fold median, B research arm), the member adapter, the fit context, serving through member projections | MERGED 2026-11-16 (pull request #78) |
 | 1D-1c.1C set "au.1" -- corrective revision (owner ruling ff77015c): content-keyed code identity, the B1 sample verified at every transform and its claim corrected, deployment admitted per recorded fit protocol | MERGED 2026-11-17 (pull request #79) |
 | 1D-1c.1C set "av" -- data-facing: the explicit qualified preparation (verified, declared sources; the strict AF selection fed to the single builder; the canonical epoch-2 matrix, content-addressed), the GRCh38 reference-status authority (content-addressed reuse; novel variants validated against the pinned sequence), rosters compiled by the admission authority, the source binding of a fitted ensemble, the fresh-process end-to-end proof (ruling aa999b96 revised section 15), the real-data record `docs/census/QUALIFIED_PREPARATION_1D1c1C.json`; REVISION C (owner ruling 6fa240c0): trust boundaries made exact -- the matrix and the reference status valid by construction and immutable, three identities (logical, representation, payload) and a two-level store with exclusive publication, source bytes re-hashed at consumption, the reference pin declared, exact replay labelled | MERGED 2026-11-18 (pull request #80) |
-| 1D-1c.2A set "aw" -- the computational-predictor source audit (owner ruling e755519d): the publisher's REVEL v1.3 acquired and verified (MD5 as published, SHA-256 measured), the full dbNSFP index and the pilot's join measured, ABSENCE-AS-EVIDENCE-1 corrected (revision c, owner ruling ace92e09: 1,299,101 positives from no index score or an unmatched 0.5, of which 1,242,065 have no publisher score in the GRCh38 view -- 1,238,371 of those outside REVEL's domain -- and 57,036 have one), four defects registered with witnesses, three datasets registered, two label-blind CANDIDATE selections measured (ClinVar's preferred name by allele and amino-acid pair, 191,427 missense rows; the MANE Select transcript of the cohort's gene, 160,973; the 163 differing rows are policy disagreements, all with another amino-acid change), the append-only state SOURCE_ROW_WITHOUT_VALUE (counted only where it occurs, so no sealed record changes); the record `docs/census/PREDICTOR_SOURCES_1D1c2.json` | THIS DELIVERY |
-| 1D-1c.2B the allele -> transcript -> protein-consequence qualification and transcript-aware REVEL (owner ruling ace92e09: a clinical-context arm from ClinVar's preferred name and a prespecified arm from the GRCh38 locus, candidates kept apart from qualified contexts, agreement a sensitivity cohort); 2C SIFT, PolyPhen-2 and CADD source qualification (from dbNSFP 5.4a, acquired 2026-11-18); 2D derived-feature semantics (epoch `gvc.features/3`); 2E qualification. 1D-1c.3 EVE identity and the 310-row population reconciliation; 1D-1c.4 enforced admission; 1D-1c.5 train-serve certification | AFTER |
+| 1D-1c.2A set "aw" -- the computational-predictor source audit (owner ruling e755519d): the publisher's REVEL v1.3 acquired and verified (MD5 as published, SHA-256 measured), the full dbNSFP index and the pilot's join measured, ABSENCE-AS-EVIDENCE-1 corrected (revision c, owner ruling ace92e09: 1,299,101 positives from no index score or an unmatched 0.5, of which 1,242,065 have no publisher score in the GRCh38 view -- 1,238,371 of those outside REVEL's domain -- and 57,036 have one), four defects registered with witnesses, three datasets registered, two label-blind CANDIDATE selections measured (ClinVar's preferred name by allele and amino-acid pair, 191,427 missense rows; the MANE Select transcript of the cohort's gene, 160,973; the 163 differing rows are policy disagreements, all with another amino-acid change), the append-only state SOURCE_ROW_WITHOUT_VALUE (counted only where it occurs, so no sealed record changes); the record `docs/census/PREDICTOR_SOURCES_1D1c2.json` | MERGED 2026-11-19 (pull request #81) |
+| 1D-1c.2A the dbNSFP containment (the owner's containment ruling of 2026-11-21) -- the legacy reader refuses a configured source it cannot read, a raw table with repeated allele keys and a non-numeric, non-finite or out-of-domain score (`DbNSFPSourceError`) instead of returning defaults (DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1 retired); an explicit source takes precedence over a sibling index and no cache is written; one chromosome normaliser in both interfaces, so a chromosome read first no longer hides the others | MERGED 2026-11-22 (pull request #82) |
+| 1D-1c.2A the dbNSFP read follow-up (decision C of that ruling) -- chromosome membership by one normalisation, read by a literal set of the stored spellings (row groups pruned); stored keys normalised once; every source failure one error type with its cause; the index validated once per distinct value; every answer equal to the containment's | MERGED 2026-11-23 (pull request #83) |
+| 1D-1c.2B the allele -> transcript -> protein-consequence qualification and transcript-aware REVEL (owner ruling ace92e09: a clinical-context arm from ClinVar's preferred name and a prespecified arm from the GRCh38 locus, candidates kept apart from qualified contexts, agreement a sensitivity cohort; the ruling of 2026-11-21: a publisher row binds only on the full consequence for the identical versioned transcript, and source observation, release consequence, protein comparison, selection and use are five separately auditable facts); 2C SIFT, PolyPhen-2 and CADD source qualification (from dbNSFP 5.4a, acquired 2026-11-18); 2D derived-feature semantics (epoch `gvc.features/3`); 2E qualification. 1D-1c.3 EVE identity and the 310-row population reconciliation; 1D-1c.4 enforced admission; 1D-1c.5 train-serve certification | AFTER |
 | 1D-1d canonical leakage-disjoint evaluation (components on the full identity graph before any eligibility projection) | AFTER 1D-1c |
 | 1D-2 the corrected strict baseline and the controlled comparisons (P, C, B, AF-free; source-shift; rare benign) | AFTER 1D-1d |
 
@@ -153,11 +155,12 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   unqualified at the first strict fit, `admission.compiled_roster` gives 49 features (measured: loeuf, gene_is_constrained,
   sift_score, sift_deleterious, cadd_phred and cadd_high withheld).
 - **Registered at stage 1D-1c.2A (executable witnesses).** DBNSFP-INDEX-DEFAULT-BAKED-1, PREDICTOR-TRANSCRIPT-COLLAPSE-1,
-  COHORT-TRANSCRIPT-UNDECLARED-1. The legacy reader now refuses parse failure and repeated raw allele keys. Historical
+  COHORT-TRANSCRIPT-UNDECLARED-1; DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1 was retired by the containment (pull request
+  #82, 37 registered defects). The legacy reader now refuses parse failure and repeated raw allele keys. Historical
   parquet indices retain default fills and within-row extremes. Explicit raw sources take precedence over sibling indices.
   ABSENCE-AS-EVIDENCE-1 was corrected at 2A. SIFT and CADD stay
   strict in principle and are withheld from a scientific fit until qualified.
-- **The dbNSFP read follow-up (2026-11-22, after pull request #82).** One normalisation decides chromosome membership:
+- **The dbNSFP read follow-up (merged 2026-11-23, pull request #83).** One normalisation decides chromosome membership:
   `_index_chrom` is applied to the distinct stored labels and the rows are read with a literal set of the matching stored
   spellings (dictionary-typed columns decoded); stored keys are normalised once in both interfaces; every failure of a
   configured source raises `DbNSFPSourceError` with its cause, while a valid absent allele still returns the defaults; the
@@ -281,4 +284,20 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   for byte. Nothing in production changes; no model is fitted. Revision b: the record's parts are written as canonical
   bytes on every platform (the owner's V1 differed only in their Windows line ends). Revision c (owner ruling ace92e09):
   the absence count and the selections carry exactly the meaning their computation supports, with the domain, GRCh37 and
-  locus measurements behind them. 9,555 -> 9,593 collected (+38 / -0).
+  locus measurements behind them. 9,555 -> 9,593 collected (+38 / -0). Merged 2026-11-19 (pull request #81, main
+  57791f13).
+- **2026-11-21 -- the dbNSFP containment (the owner's containment ruling of 2026-11-21; its decisions A and B).** The
+  legacy reader `data/dbnsfp.py` reads only the source it is given: a configured source that cannot be read, a raw table
+  with repeated allele keys or a malformed, non-finite or out-of-domain score, and a historical index with a missing key,
+  an invalid allele or a non-finite score each raise `DbNSFPSourceError` (DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1
+  retired; 38 -> 37 registered defects); positions are validated as integer text; no cache is written; one chromosome
+  normaliser serves both interfaces. Two commits, re-authored to the owner (decision B; the trees are the ruling's).
+  The census records are re-derived (ledger e6d2e91f -> 9d5c8e66; semantic digest c19eb103 unchanged). Measured before
+  publication: bit-identical joins over the whole ClinVar cohort (26,394,534 values), so the predictor-source record
+  re-measured identical (95ccc414). 9,593 collected, unchanged (+3 / -3 by node identity). Merged 2026-11-22 (pull
+  request #82, main 0c0233c8).
+- **2026-11-22 -- the dbNSFP read follow-up (decision C of that ruling).** Recorded in section 6. Ledger 9d5c8e66 ->
+  8ae60493 (summary counts unchanged). 9,593 -> 9,645 collected (+52 / -0). Merged 2026-11-23 (pull request #83, main
+  c85461d9).
+- **2026-11-23 -- the status brought current (ROADMAP-STATUS-STALE-1).** The version line, the execution table, this
+  changelog and docs/CHANGELOG.md had not recorded the merges after 2026-11-18. Documentation only.
