@@ -1,3 +1,37 @@
+## 2026-11-24 (evaluation infrastructure, reliability set 1R) -- family-weighted coverage, exact deferral, four silent coercions removed
+
+Built on main 2b55f06f (pull request #84). From the audit of the evaluation of twelve papers (2026-11-21) and of its two
+research packages, every claim re-measured on this commit before use. Evaluation code only: no model is fitted, no
+feature, source, admission rule or record changes, and scientific training stays refused.
+
+- conformal/coverage.py: `family_class_coverage` (new) reports, for one true class, the family-weighted coverage (each
+  family containing the class weighted equally) beside the variant-weighted rate, the family-size distribution, the set
+  sizes (empty, singleton, full) and the singleton error, with a family-cluster percentile bootstrap that is withheld below
+  a declared family support (`insufficient_family_support`; a class with no rows is `class_absent`, never a zero). It
+  refuses a missing or blank family identity and never derives one. `group_coverage_disjoint` ("all" / "any") and
+  `marginal_ok` keep their meanings; their docstrings now say what they are not.
+- COVERAGE-SILENT-COERCION-1 repaired: the coverage inputs were cast with `dtype=int` and `dtype=bool`; measured on
+  2b55f06f, a label of 0.7 became class 0 and was reported covered (marginal coverage 1.0), and probabilities (0.3, 0.2)
+  were read as set membership. Both now refuse; boolean sets, 0/1 integers and integral float labels are still accepted.
+- conformal/risk_control.py: the Clopper-Pearson paragraph said the bound is "neither conservative nor
+  anticonservative"; its exact coverage, recomputed by an independent `math.comb` sum, is 0.907 to 1.000 at nominal 0.90
+  (n 20, 50, 200; R 0.01 to 0.20), so it is conservative, and the text says so (RISK-CONTROL-CP-DOCSTRING-1).
+  RISK-CONTROL-CP-GRADED-ROUNDING-1 repaired: `control_risk(..., bound="clopper_pearson")` rounded r_hat * n to a count,
+  so a graded risk of 1.05 events was bounded as 1 event (anticonservative); it now raises `NonBinaryRiskError`.
+- conformal/risk_control.py: `predicted_class_deferral` (new; a fixed review quota per predicted class, descriptive and
+  not risk control) orders rows exactly -- predicted negatives by descending score, predicted positives by ascending
+  score, ties by row index -- instead of by |score - threshold|, which rounds 1e-20, 2e-20 and 3e-20 against 0.5 to one
+  value and then defers the farthest row (both research packages did); quotas are floor(count x fraction) on the
+  declared decimal (100 x 0.29 is 29, not the float product's 28). `truth_class_routing` (new) keeps each true class's
+  denominators apart: acceptance, wrong automatic decisions per class and among the accepted (unavailable, not zero, when
+  none was accepted).
+- conformal/calibrate.py: CALIBRATE-NULL-GENE-POOL-1 repaired (a missing gene became the string "None" or "nan", pooling
+  such rows into one pseudo-gene for the gene-disjoint split; measured 60 rows; now refused); CALIBRATE-SILENT-ROW-DROP-1
+  repaired (rows without a usable label or score were dropped with no record, and `n_total` reported the survivors;
+  `CalibrationResult.rows` now carries input, dropped and usable counts).
+- tests/unit/test_conformal_reliability_1r.py (new, 86 tests; 77 of them fail on 2b55f06f, the other 9 pin behaviour that
+  is kept). Suite 9,645 -> 9,731 (+86 / -0).
+
 ## 2026-11-23 (documentation) -- the roadmap's status and this changelog brought current
 
 Built on main c85461d9 (pull request #83). Documentation only: no code, test, record or count changes.
@@ -7,6 +41,8 @@ Built on main c85461d9 (pull request #83). Documentation only: no code, test, re
   or its read follow-up (pull request #83), and this changelog ended at set "aw". The roadmap's version line, execution
   table, register and changelog section, docs/census/README.md and the history of tests/EXPECTED_SUITE_SIZE now record
   them; the two entries below are written from the commits, their diffs and the re-derived records.
+- Merged 2026-11-24 as 2b55f06f (pull request #84), verified on the owner's machine: each of the validation's 3,689
+  targeted tests had its validated outcome (3,678 passed, 6 skipped, 5 xfailed), drift 22 passed, 0 warnings.
 
 ## 2026-11-22 (package 1D, stage 1D-1c.2A, the dbNSFP read follow-up) -- one chromosome normalisation, one error type
 

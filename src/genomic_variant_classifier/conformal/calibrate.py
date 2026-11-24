@@ -86,6 +86,9 @@ class CalibrationResult:
     disclaimer: str = DISCLAIMER
     #: WHICH scores these numbers describe: a completed run's bound identities, or an unbound file's measured digest.
     substrate: dict = field(default_factory=dict)
+    #: The rows read, dropped (missing label; missing score only) and used. None when the frame
+    #: did not come through _verify_frame, which is the only place the counts are measured.
+    rows: dict | None = None
 
 
 def _gene_disjoint_mask(genes: np.ndarray, cal_frac: float, seed: int) -> np.ndarray:
@@ -122,6 +125,17 @@ def _verify_frame(df: pd.DataFrame, cfg: CalibrationConfig) -> pd.DataFrame:
     ok = ~(np.isnan(y) | np.isnan(p))
     if ok.sum() < 100 or len(np.unique(y[ok])) != 2:
         raise ValueError("label/score not usable (need >=100 rows and a binary label)")
+    # CALIBRATE-NULL-GENE-POOL-1 (2026-11-24): a missing gene used to become the
+    # string 'None' or 'nan' through astype(str), pooling every such row into one
+    # pseudo-gene that the gene-disjoint split then treated as a real gene
+    # (measured: 60 rows pooled as 'None'). An unknown gene is not a group.
+    groups = df[cfg.group_col].to_numpy(dtype=object)[ok]
+    bad = [g for g in groups if not isinstance(g, str) or not g.strip()]
+    if bad:
+        raise ValueError(
+            f"{len(bad)} usable row(s) have no gene identity in {cfg.group_col!r} "
+            f"(e.g. {bad[0]!r}); refusing to pool them into one pseudo-gene for the "
+            "gene-disjoint split")
     # THE GATE
     if roc_auc_score is None:
         raise RuntimeError("sklearn required for the alignment gate")
@@ -136,7 +150,18 @@ def _verify_frame(df: pd.DataFrame, cfg: CalibrationConfig) -> pd.DataFrame:
             f"{cfg.label_col}) = {verdict.auroc:.4f} < minimum "
             f"{verdict.minimum_auroc}. The score<->label join is broken; "
             "refusing to calibrate.")
-    return df.loc[ok].reset_index(drop=True)
+    out = df.loc[ok].reset_index(drop=True)
+    # CALIBRATE-SILENT-ROW-DROP-1 (2026-11-24): rows without a usable label or
+    # score were dropped with no record, and n_total then reported the survivors
+    # (measured: 400 rows in, n_total 390). The counts now travel with the frame
+    # and into CalibrationResult.rows.
+    out.attrs["gvc_calibration_rows"] = {
+        "input": int(len(df)),
+        "dropped_missing_label": int(np.isnan(y).sum()),
+        "dropped_missing_score_only": int((np.isnan(p) & ~np.isnan(y)).sum()),
+        "usable": int(ok.sum()),
+    }
+    return out
 
 
 def calibrate(path: str | Path, cfg: CalibrationConfig | None = None) -> CalibrationResult:
@@ -205,4 +230,5 @@ def _calibrate_frame(df: pd.DataFrame, cfg: CalibrationConfig, substrate: dict) 
         n_total=len(df), n_cal=int(cal_mask.sum()), n_eval=int(eval_mask.sum()),
         auroc=float(auroc), q_hat_lac=float(scc.q_hat_),
         coverage=rep, mondrian_coverage=mond_rep, substrate=dict(substrate),
+        rows=(dict(df.attrs["gvc_calibration_rows"]) if "gvc_calibration_rows" in df.attrs else None),
     )

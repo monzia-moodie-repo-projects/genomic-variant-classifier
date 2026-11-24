@@ -43,9 +43,17 @@ hoeffding_upper_bound
     an implementation.
 
 clopper_pearson_upper_bound
-    EXACT for a BINARY loss, which is what a false-negative rate is. Inverts the
-    binomial tail rather than approximating it, so it is neither conservative nor
-    anticonservative: it is the smallest R with P(Bin(n, R) <= k) <= delta.
+    For a BINARY loss, which is what a false-negative rate is. Inverts the
+    binomial tail rather than approximating it: it is the smallest R with
+    P(Bin(n, R) <= k) <= delta. Because the binomial is discrete its coverage is
+    AT LEAST 1 - delta and generally above it, so it is CONSERVATIVE. (Corrected
+    2026-11-24: this paragraph said "neither conservative nor anticonservative".
+    The exact coverage measured at delta = 0.10 was 0.907 to 1.000 over n in
+    {20, 50, 200} and R in {0.01, 0.05, 0.10, 0.20}; tests/unit/
+    test_conformal_reliability_1r.py recomputes it.) It is valid only for a whole
+    number of binary events: inside control_risk a risk whose r_hat * n is not an
+    integer is refused (NonBinaryRiskError), where it used to be rounded to the
+    nearest count -- 1.05 events became 1, an anticonservative bound.
 
 hoeffding_bentkus_upper_bound
     The bound Bates et al. actually recommend for a general [0, 1] loss: the
@@ -76,6 +84,9 @@ __all__ = [
     "risk_curve",
     "control_risk",
     "risk_control_report",
+    "NonBinaryRiskError",
+    "predicted_class_deferral",
+    "truth_class_routing",
 ]
 
 _BOUNDS = ("hoeffding", "clopper_pearson", "hoeffding_bentkus")
@@ -92,6 +103,12 @@ class NonMonotoneRiskError(RiskControlError):
     nested family has a non-increasing risk. Where that fails the guarantee is
     VOID rather than approximate, so this is a refusal and not a warning.
     """
+
+
+class NonBinaryRiskError(RiskControlError, ValueError):
+    """Raised when the Clopper-Pearson bound is asked to bound a risk that is not
+    a whole number of binary events (r_hat * n not an integer). The bound inverts
+    a binomial tail, so it has no meaning for a graded loss."""
 
 
 # --------------------------------------------------------------------------- #
@@ -265,7 +282,18 @@ def _upper_bound(name: str, r_hat: float, n: int, delta: float) -> float:
     if name == "hoeffding":
         return hoeffding_upper_bound(r_hat, n, delta)
     if name == "clopper_pearson":
-        return clopper_pearson_upper_bound(int(round(r_hat * n)), n, delta)
+        events = r_hat * n
+        k = round(events)
+        # A count k / n carried in floating point reproduces k to within a few
+        # units in the last place; 1e-9 * n is far wider than that and far
+        # narrower than any graded loss worth bounding.
+        if abs(events - k) > 1e-9 * max(1, n):
+            raise NonBinaryRiskError(
+                f"clopper_pearson bounds a count of binary events, but r_hat * n = "
+                f"{events!r} is not an integer (r_hat={r_hat!r}, n={n}). Use "
+                "'hoeffding_bentkus' for a graded loss; rounding to a count would "
+                "under-state the risk.")
+        return clopper_pearson_upper_bound(int(k), n, delta)
     if name == "hoeffding_bentkus":
         return hoeffding_bentkus_upper_bound(r_hat, n, delta)
     raise ValueError(f"unknown bound {name!r}; expected one of {_BOUNDS}")
@@ -432,4 +460,125 @@ def risk_control_report(lambdas, risks, n: int, alpha: float, delta: float,
     out["abstention_at_lambda_hat"] = (float(abstentions[i])
                                        if i is not None else None)
     out["abstention_note"] = None
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Fixed-quota predicted-class deferral (2026-11-24) -- DESCRIPTIVE, NOT RISK CONTROL
+# --------------------------------------------------------------------------- #
+# A review budget is a workload policy, not an error bound: nothing below gives a
+# guarantee on any risk. It is the operational baseline the threshold-aware
+# selective-prediction study (BioData Mining, 2026) reduces to: with a fixed quota
+# per PREDICTED class, deferring by its threshold-rescaled entropy and deferring by
+# distance to the threshold choose the same rows, so the simpler rule is the one
+# kept. Thresholds and quotas are declared inputs, never fitted on the rows they
+# route.
+def _scores_and_threshold(scores, threshold) -> np.ndarray:
+    s = np.asarray(scores)
+    if s.ndim != 1 or s.size == 0:
+        raise ValueError("scores must be a non-empty one-dimensional array")
+    if s.dtype.kind not in "fiu":
+        raise ValueError(f"scores must be real numbers; got dtype {s.dtype}")
+    s = s.astype(float)
+    if not np.isfinite(s).all() or np.any(s < 0.0) or np.any(s > 1.0):
+        raise ValueError("scores must be finite and lie in [0, 1]")
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float, np.floating)) or not (
+            math.isfinite(float(threshold)) and 0.0 < float(threshold) < 1.0):
+        raise ValueError(f"threshold must be a declared number strictly inside (0, 1); got {threshold!r}")
+    return s
+
+
+def _quota(count: int, fraction) -> int:
+    """floor(count * fraction) in EXACT arithmetic on the fraction as declared.
+
+    The float product is not: 100 * 0.29 is 28.999999999999996 and floors to 28.
+    A float is read through its shortest decimal representation (str), which is
+    the number the caller wrote; a fractions.Fraction is taken as it is.
+    """
+    from fractions import Fraction
+    if isinstance(fraction, bool):
+        raise ValueError("a deferral fraction must be a number, not a boolean")
+    if isinstance(fraction, Fraction):
+        f = fraction
+    elif isinstance(fraction, (int, float, np.floating, np.integer)) and math.isfinite(float(fraction)):
+        f = Fraction(str(float(fraction))) if isinstance(fraction, (float, np.floating)) else Fraction(int(fraction))
+    else:
+        raise ValueError(f"a deferral fraction must be a finite number; got {fraction!r}")
+    if not (0 <= f <= 1):
+        raise ValueError(f"a deferral fraction must lie in [0, 1]; got {fraction!r}")
+    return math.floor(count * f)
+
+
+def predicted_class_deferral(scores, threshold: float, *, negative_fraction,
+                             positive_fraction) -> np.ndarray:
+    """Defer, within each PREDICTED class, the rows nearest the declared threshold.
+
+    A row is predicted positive when score >= threshold. In each predicted class
+    floor(count * fraction) rows are deferred (True); the rest are accepted.
+
+    THE ORDERING IS EXACT. Rows predicted negative are taken in DESCENDING score,
+    rows predicted positive in ASCENDING score, ties by ascending row index. It is
+    not |score - threshold|: that subtraction rounds distinct scores to one value
+    (measured: 1e-20, 2e-20 and 3e-20 against 0.5 all give 0.5), after which the
+    tie-break defers the row FARTHEST from the threshold. Both 2026-11-21 research
+    packages did exactly that.
+    """
+    s = _scores_and_threshold(scores, threshold)
+    t = float(threshold)
+    defer = np.zeros(s.size, dtype=bool)
+    neg = np.flatnonzero(s < t)
+    pos = np.flatnonzero(s >= t)
+    k_neg = _quota(neg.size, negative_fraction)
+    k_pos = _quota(pos.size, positive_fraction)
+    if k_neg:
+        defer[neg[np.lexsort((neg, -s[neg]))][:k_neg]] = True
+    if k_pos:
+        defer[pos[np.lexsort((pos, s[pos]))][:k_pos]] = True
+    return defer
+
+
+def truth_class_routing(labels, scores, deferred, threshold: float) -> dict:
+    """What routing did to each TRUE class -- the denominators kept apart.
+
+    For true class c with n_c rows: acceptance_rate = P(accepted | Y = c);
+    wrong_automatic_per_class = P(accepted and predicted != c | Y = c) -- for the
+    pathogenic class this is the share of all pathogenic rows automatically called
+    benign; wrong_rate_among_accepted = P(predicted != c | Y = c, accepted), None
+    when nothing of that class was accepted (a rate over an empty denominator is
+    not zero). A class with no rows is reported with status 'no_observations' and
+    no rates. Descriptive only: no bound on any of these is implied.
+    """
+    s = _scores_and_threshold(scores, threshold)
+    y = np.asarray(labels)
+    d = np.asarray(deferred)
+    if y.shape != s.shape or d.shape != s.shape:
+        raise ValueError("labels, scores and deferred must be aligned one-dimensional arrays")
+    if y.dtype.kind not in "iu" or np.any((y != 0) & (y != 1)):
+        raise ValueError("labels must be integers 0 or 1; define the evaluation population upstream")
+    if d.dtype != np.bool_:
+        raise ValueError(f"deferred must be a boolean mask; got dtype {d.dtype}")
+    predicted = (s >= float(threshold)).astype(int)
+    accepted = ~d
+    out = {"threshold": float(threshold), "n_rows": int(s.size),
+           "accepted_fraction": float(accepted.mean()),
+           "interpretation": "descriptive_routing_not_risk_control", "classes": {}}
+    for c in (0, 1):
+        m = y == c
+        n_c = int(m.sum())
+        if n_c == 0:
+            out["classes"][c] = {"status": "no_observations", "n_total": 0, "n_accepted": 0,
+                                 "n_deferred": 0, "n_wrong_automatic": 0, "acceptance_rate": None,
+                                 "wrong_automatic_per_class": None,
+                                 "wrong_rate_among_accepted": None}
+            continue
+        acc = accepted & m
+        wrong = acc & (predicted != c)
+        n_acc = int(acc.sum())
+        out["classes"][c] = {
+            "status": "observed", "n_total": n_c, "n_accepted": n_acc,
+            "n_deferred": n_c - n_acc, "n_wrong_automatic": int(wrong.sum()),
+            "acceptance_rate": n_acc / n_c,
+            "wrong_automatic_per_class": int(wrong.sum()) / n_c,
+            "wrong_rate_among_accepted": (int(wrong.sum()) / n_acc) if n_acc else None,
+        }
     return out

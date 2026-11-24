@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-23 (v8: set "aw", the dbNSFP containment and its read follow-up merged)  |  Owner: Monzia Moodie**
+**Version: 2026-11-24 (v9: the status synchronisation merged; reliability set 1R proposed)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -78,7 +78,7 @@ frozen: `tests/unit/test_roadmap_claims.py` and `tests/unit/test_roadmap_counter
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,645 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,731 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 | Feature-semantics epochs | 2 | `models/feature_semantics.py`: `gvc.features/1` (historical) and `gvc.features/2` (three-valued AF) |
 | Strict admission | 55 features admitted, 47 entries not | `docs/census/ADMISSION_SHADOW_1D1b2.json` (36 features + 11 non-tabular information sources: 6 graph relations, 3 edge attributes, 2 supervision labels) |
 
@@ -124,6 +124,14 @@ mixed, unfiltered, ClinVar-ascertained extract; strict admission does not certif
 | 1D-1c.2B the allele -> transcript -> protein-consequence qualification and transcript-aware REVEL (owner ruling ace92e09: a clinical-context arm from ClinVar's preferred name and a prespecified arm from the GRCh38 locus, candidates kept apart from qualified contexts, agreement a sensitivity cohort; the ruling of 2026-11-21: a publisher row binds only on the full consequence for the identical versioned transcript, and source observation, release consequence, protein comparison, selection and use are five separately auditable facts); 2C SIFT, PolyPhen-2 and CADD source qualification (from dbNSFP 5.4a, acquired 2026-11-18); 2D derived-feature semantics (epoch `gvc.features/3`); 2E qualification. 1D-1c.3 EVE identity and the 310-row population reconciliation; 1D-1c.4 enforced admission; 1D-1c.5 train-serve certification | AFTER |
 | 1D-1d canonical leakage-disjoint evaluation (components on the full identity graph before any eligibility projection) | AFTER 1D-1c |
 | 1D-2 the corrected strict baseline and the controlled comparisons (P, C, B, AF-free; source-shift; rare benign) | AFTER 1D-1d |
+
+**Evaluation infrastructure, in parallel (no fit, no feature, source or admission change):**
+
+| Unit | State |
+|---|---|
+| Reliability set 1R -- family-weighted class coverage with explicit support states; exact fixed-quota predicted-class deferral and truth-class routing (descriptive, not risk control); the Clopper-Pearson text corrected and a graded risk refused; four silent coercions in the coverage and calibration inputs removed | PROPOSED 2026-11-24 (delivery ab); this row is updated when it merges |
+| Shortcut and ascertainment audit (annotation-availability-only negative control; length, family and curation matching beside the declared estimand) | AFTER 1D-1d (needs canonical identities) |
+| Family-level coverage claims on real predictions | AFTER 1D-1d and a qualified protein-family manifest; synthetic qualification only until then |
 
 **No scientific training is reachable, and no non-scientific fit is deployable.** A load through `model_admission` must
 be admitted for the fit protocol the predictor records: the decision names the protocols it admits, a scientific fit
@@ -200,6 +208,9 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   ESM2-REAL-MODE-FIXTURE-1, ESM2-LIVE-UNIPROT-DEFAULT-1, FRESHNESS-DRY-RUN-1, AGENT-LOGGING-IN-LIBRARY-1,
   CI-INSTALLS-DEV-RANGES-1, METRICORIGIN-1, TEARDOWN-1, the S4Vectors 0.50.1 known limitation (requalification triggers in
   the predecessor archive).
+- **Repaired at reliability set 1R (2026-11-24, tests/unit/test_conformal_reliability_1r.py).** COVERAGE-SILENT-COERCION-1,
+  CALIBRATE-NULL-GENE-POOL-1, CALIBRATE-SILENT-ROW-DROP-1, RISK-CONTROL-CP-GRADED-ROUNDING-1, RISK-CONTROL-CP-DOCSTRING-1;
+  each was measured on 2b55f06f first (docs/CHANGELOG.md, 2026-11-24).
 - **Scheduled.** The legacy-roadmap carry-forward audit: 47 of the 55 item identifiers in the first archive were not
   mentioned in the roadmap when measured on 2026-09-28; absence is not resolution.
 
@@ -300,4 +311,7 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   8ae60493 (summary counts unchanged). 9,593 -> 9,645 collected (+52 / -0). Merged 2026-11-23 (pull request #83, main
   c85461d9).
 - **2026-11-23 -- the status brought current (ROADMAP-STATUS-STALE-1).** The version line, the execution table, this
-  changelog and docs/CHANGELOG.md had not recorded the merges after 2026-11-18. Documentation only.
+  changelog and docs/CHANGELOG.md had not recorded the merges after 2026-11-18. Documentation only. Merged 2026-11-24
+  (pull request #84, main 2b55f06f).
+- **2026-11-24 -- reliability set 1R (evaluation infrastructure).** Recorded in sections 5 and 6 and in docs/CHANGELOG.md.
+  9,645 -> 9,731 collected (+86 / -0).
