@@ -8552,4 +8552,11 @@
 #   first): tests/unit/test_dbnsfp_read_followup.py +18 (integer positions, NumPy and nullable, equal to the text path,
 #   refusals included), +5 (the per-distinct map equal to the element-wise map, mixed and categorical columns included), +1
 #   (every row of a requested chromosome still validated). (tests_drift/: unchanged, 22.)
-9645
+# 2026-11-24  RELIABILITY SET 1R (evaluation infrastructure; delivery ab) -- +86 / -0 by node identity (collected against
+#   main, 2b55f06f). New file: +86 (32 functions) tests/unit/test_conformal_reliability_1r.py (family-weighted and
+#   variant-weighted coverage against hand computations, the three support states, the chunked bootstrap equal to one
+#   draw, unknown families, probabilities as sets and non-integral labels refused; exact predicted-class deferral equal
+#   to a Fraction oracle on 25 random cases, the measured subtraction collapse, exact decimal quotas; truth-class
+#   routing denominators; the Clopper-Pearson exact coverage by math.comb and a graded risk refused; a missing gene
+#   refused and dropped rows counted in calibrate). 77 of the 86 fail on 2b55f06f. (tests_drift/: unchanged, 22.)
+9731

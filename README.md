@@ -5,7 +5,7 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-9645-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-9731-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system built toward the five-tier clinical classification of
@@ -389,15 +389,30 @@ docs/                        - ROADMAP.md, CHANGELOG.md, incidents/, sessions/, 
 
 ## Status and next steps
 
-Current phase: the evaluation subsystem. Metrics, population identity, threshold semantics
-and operating-point selection are typed, tested and recorded.
+As of 2026-11-24 the project is in **Package 1D, the scientific repair** (phase D in
+`docs/ROADMAP.md`). Engineering maturity is established; scientific maturity is not, and
+**no scientific training is reachable**: every scientific fit is refused until five readiness
+gates have a certifying authority. In order:
 
-Next, in order: **data expansion** with every source gated to fail loudly; **algorithm
-expansion and benchmarking** across a common harness on identical folds; a **self-supervised
-joint-embedding representation** benchmarked against the current stacker rather than
-replacing it; **conformal uncertainty** extended to ordinal five-class and multi-label
-prediction sets; **multi-modal expansion** into RNA and whole-slide histopathology; and
-**clinical validation** with a model card and manuscript.
+1. **Stage 1D-1c, source and feature qualification** -- next is 1D-1c.2B, the allele to
+   transcript to protein-consequence qualification and transcript-aware REVEL (Rare Exome
+   Variant Ensemble Learner); then SIFT (Sorting Intolerant From Tolerant), PolyPhen-2 and CADD
+   (Combined Annotation Dependent Depletion) qualification, enforced admission and train-serve
+   certification.
+2. **Stage 1D-1d, canonical leakage-disjoint evaluation** -- the splits grouped by resolved gene
+   identity rather than gene-symbol strings.
+3. **Stage 1D-2, the corrected strict baseline** and its controlled comparisons.
+
+In parallel, evaluation infrastructure that fits nothing: family-weighted conformal coverage
+with explicit support states, and fixed-quota deferral with truth-class routing (reliability
+set 1R). A coverage figure at the family level is reported only on synthetic data until the
+canonical identities of 1D-1d and a qualified protein-family manifest exist; a variant-level
+coverage figure is not evidence of coverage for a new gene or protein family.
+
+After the corrected baseline: **algorithm expansion and benchmarking** on identical folds;
+**conformal uncertainty** extended to ordinal five-class and multi-label sets; **multi-modal
+expansion** into RNA and whole-slide histopathology; and **clinical validation** with a model
+card and manuscript.
 
 `docs/ROADMAP.md` carries the live checklist, the open follow-up register, and the full
 dated history.
