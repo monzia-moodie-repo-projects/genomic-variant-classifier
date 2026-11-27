@@ -1,7 +1,7 @@
 """
 src/genomic_variant_classifier/api/main.py
 ===============
-FastAPI REST API for the Genomic Variant Pathogenicity Classifier.
+FastAPI service for the variant-prediction subsystem of the Genomic Variant Classifier.
 
 Endpoints
 ---------

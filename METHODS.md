@@ -1,6 +1,11 @@
 # Methods
 
-## Genomic Variant Pathogenicity Classifier — Technical Description
+## Variant pathogenicity prediction
+
+This document describes the Phase 2 classifier within the Genomic Variant
+Classifier (GVC). For the wider research program, including disease-gene
+prioritization and molecular evidence qualification, see the
+[project overview](README.md) and [living roadmap](docs/ROADMAP.md).
 
 **Version:** Phase 2 (v2.0.0)
 **Held-out performance:** see section 5.1. The figure previously stated here

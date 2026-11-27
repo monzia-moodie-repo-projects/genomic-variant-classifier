@@ -12,6 +12,9 @@ relations by global set size) and authorized labels (labels.py); stage 1D-1b.4 (
 authorization (population.py: gene-set rows, variant-and-gene split components, the three-way split audit, the STRICT and
 CONDITIONAL_COMPONENT authorities, tempered component weights, the component-disjoint checkpoint split), the claims authority
 (claims.py), training labels that record every read (labels.TrainingLabels) and graph acceptance by re-derivation from the
-pinned files with immutable materialisations (graph_identity.py). Nothing in production imports any of them yet.
+pinned files with immutable materialisations (graph_identity.py). When stage 1D-1b.4 closed, nothing in production imported
+any of them. Since stage 1D-1c.1C, models/execution.py takes the information-regime vocabulary (admission.REGIMES) and the
+allele-frequency arms (allele_frequency.Arm) from here; admission of the fitted roster is still shadow, and enforced
+admission is stage 1D-1c.4.
 """
 from __future__ import annotations

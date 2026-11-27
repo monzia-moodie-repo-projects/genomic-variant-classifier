@@ -1,6 +1,34 @@
+## 2026-11-27 (documentation and one test file) -- the research scope stated; the README's package list complete and checked
+
+Built on main 5192459a (pull request #86).
+From the owner's revision of the public framing (patch b47f3ba, 2026-11-27), each statement checked against the code
+before use. No model, feature, source, admission rule or record changes.
+
+- README.md: the project is presented as a research platform for how human genomic variation contributes to disease,
+  opening with four research questions (variant follow-up, disease-gene prioritization, molecular consequence, model
+  generalization). The three design rules are kept (identical folds, features and splits; gene-disjoint splits; a
+  calibrated "I do not know"). Admission by the information-source layer is stated as shadow (the fit context reads its
+  regime vocabulary and allele-frequency arms; enforced admission is stage 1D-1c.4). The disease-gene row states what
+  inference/ implements (an adapter for the DANDELION R package, exact gene-level confirmation) and that the asthma
+  comparison is planned, unsealed and not run. Run 15 is cited as its claim records give it (launched 2026-06-05 22:46
+  UTC; code at the pre-rewrite commit 4b9de1c3). The repository section keeps a route table and adds a complete package
+  list: information_sources/ was missing (25 package directories, 24 listed, measured on b7983ab6), and so were three
+  top-level modules.
+- tests/unit/test_readme_package_inventory.py (new, 6 tests): the listed packages, top-level modules and directories
+  without __init__.py equal the code's; every repository path the list names exists; every relative README link
+  resolves. Suite 9,731 -> 9,737.
+- docs/ROADMAP.md: version v11; section 1 keeps the dual goal and states the research questions and the science stage
+  (implemented; no analysis contract sealed; not run); the test-suite row; section 10.
+- information_sources/__init__.py: its last sentence ("Nothing in production imports any of them yet") was true when
+  stage 1D-1b.4 closed and stale since 1D-1c.1C (models/execution.py imports admission.REGIMES and
+  allele_frequency.Arm); docstring only.
+- METHODS.md: scoped to the Phase 2 classifier. pyproject.toml, the package docstring and the docstring of the
+  application programming interface (API) module: the platform and its prediction service named as such.
+
 ## 2026-11-27 (documentation) -- reliability set 1R recorded as merged; the AlphaMissense research record aa.2
 
-Built on main b7983ab6 (pull request #85). Documentation only: no code, test, record or count changes.
+Built on main b7983ab6 (pull request #85). Documentation only: no code, test, record or count changes. Merged 2026-11-27
+(pull request #86, main 5192459a).
 
 - docs/ROADMAP.md: version v10; the 1R row marked merged (pull request #85, main b7983ab6); the stage 1D-1c.2B row
   carries the aa.2 research record and the key reconciliation of the AlphaMissense transcript partition: 82,332

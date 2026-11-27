@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-27 (v10: reliability set 1R merged; the AlphaMissense research record aa.2)  |  Owner: Monzia Moodie**
+**Version: 2026-11-27 (v11: the research scope; the science stage's status)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -25,16 +25,31 @@ archives below, in `docs/CHANGELOG.md` (newest first, one entry per session) and
 
 # 1. Project identity & goals
 
-Production-grade multi-modal genomic disease-association program. Core: an ACMG/AMP-style (American College of Medical
-Genetics and Genomics / Association for Molecular Pathology) variant pathogenicity classifier over a ClinVar GRCh38 table
-of 4,399,089 variants after cleaning, of which 1,490,324 are binary-labelled under the current review-status policy (both
-measured 2026-07-24, docs/measurements/), 91 features, 13-model ensemble whose one authoritative score is the stored convex
-blend (exact kernel; the logistic stacker is a research candidate) + STRING-DB GNN + KAN. The four protein-structure
-features are quarantined (`quarantine_policy.py`).
+GVC investigates human variant effects, disease-gene associations and candidate molecular mechanisms. Its
+variant-prediction subsystem is an ACMG/AMP-style (American College of Medical Genetics and Genomics / Association for
+Molecular Pathology) variant pathogenicity classifier over a ClinVar GRCh38 table of 4,399,089 variants after cleaning,
+of which 1,490,324 are binary-labelled under the current review-status policy (both measured 2026-07-24,
+docs/measurements/), 91 features, 13-model ensemble whose one authoritative score is the stored convex blend (exact
+kernel; the logistic stacker is a research candidate) + STRING-DB GNN + KAN. The four protein-structure features are
+quarantined (`quarantine_policy.py`).
 
 **Dual goal (both first-class):** classify variants and infer disease categories and phenotypes; and empirically measure,
 compare and validate machine-learning algorithms on large complex data, including KAN (Kolmogorov-Arnold Network), GNN
 (graph neural network) and GraphGPS, even at small performance differences.
+
+**Research questions.** How variant effects depend on molecular context; which genes warrant disease-specific follow-up;
+which molecular consequence an observation supports; and which predictive methods generalise across populations and
+genes, and why they fail. A prediction concerns a variant in a defined context, a gene ranking prioritises follow-up,
+and a mechanism needs independent biological evidence. Disease and phenotype attribution and functional-assay validation
+are research objectives, not current claims.
+
+**Disease-gene inference (the science stage, `inference/`; its history is in the predecessor archive, entries of
+2026-10-04 to 2026-10-09).** Ranking and confirmation are separate operations: an adapter for the DANDELION R package
+ranks genes by their minimum pair score over a frozen pair plan (DANDELION 0.1.0, igraph and qvalue are pinned in
+`renv.lock`, R 4.6.1), and an exact gene-level conjunction test with inclusive Holm adjustment confirms. The first
+application is planned: asthma (FinnGen J10_ASTHMA, provisional), with burden-only ranking as the comparator and Delta
+H(20), known-positive recovery among each method's top 20 genes, as the primary endpoint. No analysis contract is sealed
+and the comparison has not been run: the repository holds no contract or run record.
 
 **Default stance: implement / keep / study. Never drop models or features on marginal-AUROC grounds.**
 
@@ -78,7 +93,7 @@ frozen: `tests/unit/test_roadmap_claims.py` and `tests/unit/test_roadmap_counter
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,731 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,737 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 | Feature-semantics epochs | 2 | `models/feature_semantics.py`: `gvc.features/1` (historical) and `gvc.features/2` (three-valued AF) |
 | Strict admission | 55 features admitted, 47 entries not | `docs/census/ADMISSION_SHADOW_1D1b2.json` (36 features + 11 non-tabular information sources: 6 graph relations, 3 edge attributes, 2 supervision labels) |
 
@@ -342,5 +357,11 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   reading `MT` as `M` would change 987 values (618 in training), a transcript choice at most 112 more; the matrix column
   is (raw - mean) / population SD bit for bit. Run 15 stays INVALIDATED_EVALUATION; model effects need the four-arm
   refit. aa.3 (score use) stays closed.
-- **2026-11-27 -- this status update (documentation only).** The version line and the 1R row had not recorded pull
+- **2026-11-27 -- the status update (documentation only).** The version line and the 1R row had not recorded pull
   request #85; the aa.2 record, the five consumer defects and the 4,007-key reconciliation were not yet here.
+  Merged 2026-11-27 (pull request #86, main 5192459a).
+- **2026-11-27 -- the research scope (documentation and one test file).** From the owner's revision of the public
+  framing (README, section 1, METHODS.md, package metadata), reviewed against the code: the dual goal and the three
+  design rules kept, the information-source layer's admission stated as shadow, the disease-gene science stage given its
+  status, and the README's package list made complete (information_sources/ was missing) and checked by
+  tests/unit/test_readme_package_inventory.py. 9,731 -> 9,737 collected (+6 / -0).

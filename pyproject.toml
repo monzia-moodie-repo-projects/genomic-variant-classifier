@@ -16,7 +16,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "genomic-variant-classifier"
 version = "0.1.0"
-description = "Ensemble ML system for pathogenic variant classification"
+description = "Research platform for human variant effects, disease-gene prioritization and molecular evidence qualification"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [

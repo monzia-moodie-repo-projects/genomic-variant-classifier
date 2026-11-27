@@ -1,27 +1,23 @@
-# Genomic Variant Pathogenicity Classifier
+# Genomic Variant Classifier
 
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-9731-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-9737-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
-A multi-modal machine learning system built toward the five-tier clinical classification of
-human genomic variants — **Pathogenic, Likely Pathogenic, Uncertain Significance, Likely
-Benign, and Benign** — in accordance with ACMG/AMP guidelines. It serves a pathogenicity
-score today; the five tiers return only with a qualified, bound decision policy.
+**Genomic Variant Classifier (GVC) is a research platform for investigating how human genomic variation contributes to
+disease.** It brings together variant pathogenicity prediction, disease-gene prioritization, and the evidence needed to
+test a proposed molecular mechanism. A prediction concerns a variant in a defined context. A gene ranking prioritizes
+follow-up. Establishing a mechanism requires independent biological evidence.
 
-It integrates genomic sequence, population-stratified allele frequencies, protein and DNA
-language-model representations, gene-network topology, tissue-specific expression, and
-curated gene–disease evidence into a **91-feature** matrix, consumed by a **13-model**
-ensemble whose single authoritative score is the stored convex blend of its members'
-probabilities, computed exactly (the logistic stacker is kept as a research candidate,
-never served). Protein-structure features are currently **quarantined**: excluded
-from the contract, refused at fitting, loading and serving (a model trained with them is
-never served), until repaired (see *Feature set*). It is served as a FastAPI REST service and supervised by an
-autonomous layer of **22 specialised agents** communicating over a typed message bus.
+The variant-prediction subsystem defines a **91-feature** matrix and a **13-model** ensemble. The serving contract uses
+a stored convex blend and gates clinical tiers on a qualified decision policy. Four protein-structure features are
+quarantined. A FastAPI service exposes the prediction interface, and an autonomous layer of **22 specialised agents**
+supports operations. The [living roadmap](docs/ROADMAP.md) records readiness gates and the [claims
+register](docs/claims/) records which evaluations support scientific conclusions.
 
 Training draws on ClinVar on the Genome Reference Consortium human build 38 (GRCh38): 4,399,089 rows (one per variant) after
 cleaning, of which 1,490,324 carry a binary label under the current review-status policy and form the training cohort (both
@@ -32,22 +28,17 @@ measured 2026-07-24, `docs/measurements/`), annotated from some twenty biologica
 
 ## Purpose
 
-A **whole-genome** variant classifier, and not a benchmarking exercise. Four goals that
-reinforce one another:
+| Research question | Implementation and scientific status |
+| --- | --- |
+| Which variants warrant follow-up? | The ensemble combines annotated evidence into a pathogenicity score. The corrected baseline awaits source qualification and gene-disjoint evaluation. |
+| Which genes warrant investigation for a disease? | The inference package keeps ranking and confirmation separate: an adapter for the DANDELION R package (genes ranked by their minimum pair score over a frozen pair plan) and an exact gene-level conjunction test with Holm adjustment. The first application is planned, not run: asthma (FinnGen J10_ASTHMA, provisional), DANDELION's trans-regulatory evidence against burden-only ranking, scored by known-positive recovery among each method's top 20 genes. Its analysis contract is not sealed. |
+| Which molecular consequence does an observation support? | The information-source layer records source identity, reference checks, absence and population membership. The ensemble's fit context takes its regime vocabulary and allele-frequency arms from it (stage 1D-1c.1C), but admission of the fitted roster is still shadow; enforced admission is roadmap stage 1D-1c.4. Allele-to-transcript-to-protein qualification is active roadmap work. Disease attribution and functional-assay validation are research aims. |
+| When does a model generalize, and why does it fail? | The evaluation program studies leakage, uncertainty, annotation coverage and model disagreement. A performance claim needs a defined population, comparison and evidence record. |
 
-- **Clinical** — return not a bare score but a calibrated, interpretable, honestly-bounded
-  assessment a clinician can act on and interrogate.
-- **Biological** — establish which genes, which variants, which combinations, and by what
-  mechanism contribute to disease. Prediction is the instrument; understanding is the object.
-- **Methodological** — measure the tools themselves. Which algorithms genuinely work on this
-  problem, where they fail, and why. The models are objects of study, not just instruments.
-- **Translational** — new methodology that makes personalised medicine more rigorous.
-
-Three constraints follow and are treated as first-class engineering concerns: every base
-model sees **identical folds, features and splits**, so differences are attributable to the
-algorithms; splits are meant to be **gene-disjoint**, so scoring well only on catalogued variants in
-catalogued genes does not count as solving the problem; and *"I do not know"* is a
-**calibrated, auditable output** rather than a probability loitering near 0.5.
+Three constraints govern every model comparison and are treated as first-class engineering concerns: every base model
+sees **identical folds, features and splits**, so differences are attributable to the algorithms; splits are meant to be
+**gene-disjoint**, so scoring well only on catalogued variants in catalogued genes does not count as solving the
+problem; and *"I do not know"* is a **calibrated, auditable output** rather than a probability loitering near 0.5.
 
 The splits are not yet gene-disjoint in fact: they group rows by gene-symbol STRING, and a
 string naming several genes is a different group from a string naming one of them. MEASURED
@@ -59,7 +50,8 @@ with a training string (`docs/claims/`). Grouping by gene is Package 1D work
 
 ## Architecture
 
-A multi-branch fusion model wrapped in an autonomous supervisory layer.
+The diagram shows the variant-prediction subsystem and its proposed extensions. The disease-gene inference and
+evidence-qualification paths are mapped under *Repository structure*.
 
 ```
    Population genetics . Conservation . Functional predictors . Gene-disease
@@ -267,9 +259,10 @@ targets.
 
 ## Early results
 
-**No valid performance result yet.** The Run 15 baseline (sealed 2026-06-09, commit
-`032a2ab`) reported a test AUROC of 0.9984 on expert-reviewed ClinVar variants grouped by
-gene-symbol string, with a comparable unseen-gene-holdout figure. Both evaluations are
+**No valid performance result yet.** Run 15 (launched 2026-06-05 22:46 UTC; its code is the
+pre-rewrite commit `4b9de1c3`, as the claim records state) reported a test AUROC of 0.9984 on
+expert-reviewed ClinVar variants grouped by gene-symbol string, with a comparable
+unseen-gene-holdout figure. Both evaluations are
 **INVALIDATED_EVALUATION** (claims `run15.test.ensemble_evaluation`,
 `run15.validation.ensemble_evaluation` and `run15.c3.unseen_gene_generalization`, owner ruling
 2026-11-08): MEASURED on the run's own files, every evaluated row's gene-count feature equals the
@@ -349,9 +342,25 @@ Run `--help` on any script for its full argument set.
 
 ## Repository structure
 
-```
-src/genomic_variant_classifier/        (every subpackage and top-level module, listed 2026-11-04: 22 packages, and monitoring/
-                                        and training/, which have no __init__.py)
+| Start here | What you can trace |
+| --- | --- |
+| [Data preparation](src/genomic_variant_classifier/data/) and [information sources](src/genomic_variant_classifier/information_sources/) | Follow a source observation through identity, reference checks, absence accounting and (still shadow) admission to a research population. |
+| [Features](src/genomic_variant_classifier/features/), [models](src/genomic_variant_classifier/models/) and [prediction contract](src/genomic_variant_classifier/prediction_contract.py) | Follow predictors and graph inputs through a fitted ensemble to the score exposed by the [API](src/genomic_variant_classifier/api/). |
+| [Disease-gene inference](src/genomic_variant_classifier/inference/) | Inspect ranking, exact confirmation, endpoints and the evaluation boundary. |
+| [Evaluation](src/genomic_variant_classifier/evaluation/), [conformal inference](src/genomic_variant_classifier/conformal/) and [monitoring](src/genomic_variant_classifier/monitoring/) | Locate evaluation metrics, uncertainty procedures and drift checks. |
+| [Censuses](docs/census/), [claims](docs/claims/) and [measurements](docs/measurements/) | Check which sources and populations were measured, which claims were invalidated and why. |
+| [Operations](src/genomic_variant_classifier/operations/), [provenance](src/genomic_variant_classifier/provenance/) and [agents](src/genomic_variant_classifier/agent_layer/) | Trace execution permissions, evidence and supervisory actions. |
+| [Scripts](scripts/), [configurations](configs/), [tests](tests/) and [drift tests](tests_drift/) | Find executable entry points, run settings and the checks for each environment. |
+| [Roadmap](docs/ROADMAP.md), [methods](METHODS.md) and [architecture decisions](docs/architecture/decisions/) | Distinguish planned science, historical classifier methods and recorded design choices. |
+
+### Every package
+
+Each package directory and top-level module of `src/genomic_variant_classifier/`, checked against the code by
+`tests/unit/test_readme_package_inventory.py`: a package or module added, removed or renamed without this list fails the
+suite.
+
+```text
+src/genomic_variant_classifier/
   agent_layer/               - agents, typed message bus, orchestrator, shared state
   api/                       - FastAPI service, auth, schemas, inference
   conformal/                 - conformal prediction, from scratch in numpy
@@ -361,6 +370,8 @@ src/genomic_variant_classifier/        (every subpackage and top-level module, l
   evaluation/                - clinical evaluator, metric registry, thresholds, artifacts
   features/                  - feature engineering
   inference/                 - exact statistical inference for the scientific stage (the DANDELION method's ranking, confirmation)
+  information_sources/       - information-source admission: census, observations, absence, lineage, graph identity, labels,
+                               populations, claims, qualified preparation (admission still shadow; enforced at 1D-1c.4)
   models/                    - variant ensemble, graph networks, uncertainty wrappers, sequence convolutional neural network
   monitoring/                - drift detection, reference profiles, model registry
   operations/                - operation classification, evidence and admission verification
@@ -376,8 +387,13 @@ src/genomic_variant_classifier/        (every subpackage and top-level module, l
   training/                  - continual learner, Elastic Weight Consolidation
   transactions/              - rollback state, transactional and outside the tree
   utils/                     - shared helpers
-  containment.py, model_admission.py, quarantine_policy.py - the containment rules, the one model-admission route, the
-                              quarantined features
+  (no __init__.py: monitoring/, training/)
+  code_identity.py           - canonical code bytes and the symbol-closure digest of a function or class
+  containment.py             - the containment boundary for quarantined scientific inputs
+  inert_pickle.py            - plain data read from historical joblib and pickle files without running any class they name
+  model_admission.py         - the one admission route for loading a classifier artifact
+  prediction_contract.py     - identity-bound probability payloads from each ensemble member to the final result
+  quarantine_policy.py       - the one definition of what is quarantined
 scripts/                     - training entry points, preflight gates, drift monitoring, installers, runbooks
 tests/                       - unit, integration and conformal suites (the train-test environment)
 tests_drift/                 - the drift-monitor suite (the drift environment)
