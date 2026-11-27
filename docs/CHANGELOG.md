@@ -1,6 +1,22 @@
+## 2026-11-27 (documentation) -- reliability set 1R recorded as merged; the AlphaMissense research record aa.2
+
+Built on main b7983ab6 (pull request #85). Documentation only: no code, test, record or count changes.
+
+- docs/ROADMAP.md: version v10; the 1R row marked merged (pull request #85, main b7983ab6); the stage 1D-1c.2B row
+  carries the aa.2 research record and the key reconciliation of the AlphaMissense transcript partition: 82,332
+  product-transcript keys = 78,325 compared on six facts + 534 without a publisher-release coding model + 2,864
+  without a target model + 609 with a non-coding target; section 6 records five consumer defects measured on b7983ab6
+  for epoch gvc.features/3 (AM-CONTIG-MT-SPELLING-1, AM-SCORE-COORDINATE-ROW-SPLIT-1, PROTEIN-COORD-PARTIAL-CACHE-1,
+  AM-JOIN-PATHS-INCOMPATIBLE-1, ESM2-CACHE-KEY-CONTEXT-1); section 10 records aa.2 (the score-free census of both
+  AlphaMissense GRCh38 products, the 93 accession positions with two reference letters, the FDX2 numbering difference
+  between the products, and the read-only measurement of Run 15's AlphaMissense column).
+- README.md: the status date and the 1R merge.
+- Research code and evidence stay outside the repository (deliveries ai and aj, 2026-11-26 and 2026-11-27); no
+  repository module imports them, measured with their isolation scan on b7983ab6.
+
 ## 2026-11-24 (evaluation infrastructure, reliability set 1R) -- family-weighted coverage, exact deferral, four silent coercions removed
 
-Built on main 2b55f06f (pull request #84). From the audit of the evaluation of twelve papers (2026-11-21) and of its two
+Built on main 2b55f06f (pull request #84); merged 2026-11-24 (pull request #85, main b7983ab6). From the audit of the evaluation of twelve papers (2026-11-21) and of its two
 research packages, every claim re-measured on this commit before use. Evaluation code only: no model is fitted, no
 feature, source, admission rule or record changes, and scientific training stays refused.
 

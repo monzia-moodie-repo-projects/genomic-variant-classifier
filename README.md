@@ -389,7 +389,7 @@ docs/                        - ROADMAP.md, CHANGELOG.md, incidents/, sessions/, 
 
 ## Status and next steps
 
-As of 2026-11-24 the project is in **Package 1D, the scientific repair** (phase D in
+As of 2026-11-27 the project is in **Package 1D, the scientific repair** (phase D in
 `docs/ROADMAP.md`). Engineering maturity is established; scientific maturity is not, and
 **no scientific training is reachable**: every scientific fit is refused until five readiness
 gates have a certifying authority. In order:
@@ -398,16 +398,18 @@ gates have a certifying authority. In order:
    transcript to protein-consequence qualification and transcript-aware REVEL (Rare Exome
    Variant Ensemble Learner); then SIFT (Sorting Intolerant From Tolerant), PolyPhen-2 and CADD
    (Combined Annotation Dependent Depletion) qualification, enforced admission and train-serve
-   certification.
+   certification. The AlphaMissense part of 1D-1c.2B has a research record (aa.2, in the roadmap's
+   changelog); it admits no source.
 2. **Stage 1D-1d, canonical leakage-disjoint evaluation** -- the splits grouped by resolved gene
    identity rather than gene-symbol strings.
 3. **Stage 1D-2, the corrected strict baseline** and its controlled comparisons.
 
 In parallel, evaluation infrastructure that fits nothing: family-weighted conformal coverage
 with explicit support states, and fixed-quota deferral with truth-class routing (reliability
-set 1R). A coverage figure at the family level is reported only on synthetic data until the
-canonical identities of 1D-1d and a qualified protein-family manifest exist; a variant-level
-coverage figure is not evidence of coverage for a new gene or protein family.
+set 1R, merged 2026-11-24). A coverage figure at the family level is reported only on
+synthetic data until the canonical identities of 1D-1d and a qualified protein-family
+manifest exist; a variant-level coverage figure is not evidence of coverage for a new gene
+or protein family.
 
 After the corrected baseline: **algorithm expansion and benchmarking** on identical folds;
 **conformal uncertainty** extended to ordinal five-class and multi-label sets; **multi-modal
