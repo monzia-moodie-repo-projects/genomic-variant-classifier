@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-24 (v9: the status synchronisation merged; reliability set 1R proposed)  |  Owner: Monzia Moodie**
+**Version: 2026-11-27 (v10: reliability set 1R merged; the AlphaMissense research record aa.2)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -121,7 +121,7 @@ mixed, unfiltered, ClinVar-ascertained extract; strict admission does not certif
 | 1D-1c.2A set "aw" -- the computational-predictor source audit (owner ruling e755519d): the publisher's REVEL v1.3 acquired and verified (MD5 as published, SHA-256 measured), the full dbNSFP index and the pilot's join measured, ABSENCE-AS-EVIDENCE-1 corrected (revision c, owner ruling ace92e09: 1,299,101 positives from no index score or an unmatched 0.5, of which 1,242,065 have no publisher score in the GRCh38 view -- 1,238,371 of those outside REVEL's domain -- and 57,036 have one), four defects registered with witnesses, three datasets registered, two label-blind CANDIDATE selections measured (ClinVar's preferred name by allele and amino-acid pair, 191,427 missense rows; the MANE Select transcript of the cohort's gene, 160,973; the 163 differing rows are policy disagreements, all with another amino-acid change), the append-only state SOURCE_ROW_WITHOUT_VALUE (counted only where it occurs, so no sealed record changes); the record `docs/census/PREDICTOR_SOURCES_1D1c2.json` | MERGED 2026-11-19 (pull request #81) |
 | 1D-1c.2A the dbNSFP containment (the owner's containment ruling of 2026-11-21) -- the legacy reader refuses a configured source it cannot read, a raw table with repeated allele keys and a non-numeric, non-finite or out-of-domain score (`DbNSFPSourceError`) instead of returning defaults (DBNSFP-PARSE-FAILURE-SILENT-DEFAULTS-1 retired); an explicit source takes precedence over a sibling index and no cache is written; one chromosome normaliser in both interfaces, so a chromosome read first no longer hides the others | MERGED 2026-11-22 (pull request #82) |
 | 1D-1c.2A the dbNSFP read follow-up (decision C of that ruling) -- chromosome membership by one normalisation, read by a literal set of the stored spellings (row groups pruned); stored keys normalised once; every source failure one error type with its cause; the index validated once per distinct value; every answer equal to the containment's | MERGED 2026-11-23 (pull request #83) |
-| 1D-1c.2B the allele -> transcript -> protein-consequence qualification and transcript-aware REVEL (owner ruling ace92e09: a clinical-context arm from ClinVar's preferred name and a prespecified arm from the GRCh38 locus, candidates kept apart from qualified contexts, agreement a sensitivity cohort; the ruling of 2026-11-21: a publisher row binds only on the full consequence for the identical versioned transcript, and source observation, release consequence, protein comparison, selection and use are five separately auditable facts); 2C SIFT, PolyPhen-2 and CADD source qualification (from dbNSFP 5.4a, acquired 2026-11-18); 2D derived-feature semantics (epoch `gvc.features/3`); 2E qualification. 1D-1c.3 EVE identity and the 310-row population reconciliation; 1D-1c.4 enforced admission; 1D-1c.5 train-serve certification | AFTER |
+| 1D-1c.2B the allele -> transcript -> protein-consequence qualification and transcript-aware REVEL (owner ruling ace92e09: a clinical-context arm from ClinVar's preferred name and a prespecified arm from the GRCh38 locus, candidates kept apart from qualified contexts, agreement a sensitivity cohort; the ruling of 2026-11-21: a publisher row binds only on the full consequence for the identical versioned transcript, and source observation, release consequence, protein comparison, selection and use are five separately auditable facts; research record aa.2 (2026-11-25 to 2026-11-27; research packages outside `src/`, nothing admitted): the AlphaMissense transcript partition of 82,332 product-transcript keys (82,213 distinct publisher transcripts) frozen, 78,325 keys compared on six facts by an independent reader that derives its own key universe, the other 4,007 keys excluded with a keyed reason (534 no publisher-release coding model, 2,864 no target model, 609 a non-coding target), the product census and the Run 15 AlphaMissense column measured (section 10)); 2C SIFT, PolyPhen-2 and CADD source qualification (from dbNSFP 5.4a, acquired 2026-11-18); 2D derived-feature semantics (epoch `gvc.features/3`); 2E qualification. 1D-1c.3 EVE identity and the 310-row population reconciliation; 1D-1c.4 enforced admission; 1D-1c.5 train-serve certification | AFTER |
 | 1D-1d canonical leakage-disjoint evaluation (components on the full identity graph before any eligibility projection) | AFTER 1D-1c |
 | 1D-2 the corrected strict baseline and the controlled comparisons (P, C, B, AF-free; source-shift; rare benign) | AFTER 1D-1d |
 
@@ -129,7 +129,7 @@ mixed, unfiltered, ClinVar-ascertained extract; strict admission does not certif
 
 | Unit | State |
 |---|---|
-| Reliability set 1R -- family-weighted class coverage with explicit support states; exact fixed-quota predicted-class deferral and truth-class routing (descriptive, not risk control); the Clopper-Pearson text corrected and a graded risk refused; four silent coercions in the coverage and calibration inputs removed | PROPOSED 2026-11-24 (delivery ab); this row is updated when it merges |
+| Reliability set 1R -- family-weighted class coverage with explicit support states; exact fixed-quota predicted-class deferral and truth-class routing (descriptive, not risk control); the Clopper-Pearson text corrected and a graded risk refused; four silent coercions in the coverage and calibration inputs removed | MERGED 2026-11-24 (pull request #85, main b7983ab6) |
 | Shortcut and ascertainment audit (annotation-availability-only negative control; length, family and curation matching beside the declared estimand) | AFTER 1D-1d (needs canonical identities) |
 | Family-level coverage claims on real predictions | AFTER 1D-1d and a qualified protein-family manifest; synthetic qualification only until then |
 
@@ -211,6 +211,19 @@ Present-state items, by identifier; each is recorded in full where it was filed.
 - **Repaired at reliability set 1R (2026-11-24, tests/unit/test_conformal_reliability_1r.py).** COVERAGE-SILENT-COERCION-1,
   CALIBRATE-NULL-GENE-POOL-1, CALIBRATE-SILENT-ROW-DROP-1, RISK-CONTROL-CP-GRADED-ROUNDING-1, RISK-CONTROL-CP-DOCSTRING-1;
   each was measured on 2b55f06f first (docs/CHANGELOG.md, 2026-11-24).
+- **Measured 2026-11-27 (aa.2), for epoch `gvc.features/3` (1D-1c.2D/2E).** Five consumer defects, each reproduced on
+  main b7983ab6 with synthetic records; entry into the census ledger with executable witnesses is part of that epoch's
+  first unit. AM-CONTIG-MT-SPELLING-1: `data/alphamissense.py` normalises contigs with `str.lstrip("chr")`, so `M`,
+  `chrM` and a malformed `hchrM` reach the source while the cohort's `MT` receives 0.5 (June 6 Run 15 metadata: 987 of
+  1,732 literal-MT observations had a source key). AM-SCORE-COORDINATE-ROW-SPLIT-1: the score connector keeps the
+  maximum score per allele across transcripts while `data/protein_coords.py` keeps the first row, so one feature row can
+  carry the score of one publisher row and the coordinate of another, and row order changes the coordinate.
+  PROTEIN-COORD-PARTIAL-CACHE-1: a coordinate index warmed on one cohort answers nothing for another cohort that a
+  clean index answers. AM-JOIN-PATHS-INCOMPATIBLE-1: `real_data_prep._join_alphamissense` raises ValueError on
+  repeated keys, and a connector call after a successful direct join raises KeyError. ESM2-CACHE-KEY-CONTEXT-1: the
+  variant-score key omits the peptide (two sequences share it) and storing a second model's embedding for one sequence
+  evicted the first. The repair is one selected publisher observation supplying both score and coordinate, chosen
+  before any value is read; nothing currently runnable is affected, because no scientific fit is reachable.
 - **Scheduled.** The legacy-roadmap carry-forward audit: 47 of the 55 item identifiers in the first archive were not
   mentioned in the roadmap when measured on 2026-09-28; absence is not resolution.
 
@@ -314,4 +327,20 @@ Present-state items, by identifier; each is recorded in full where it was filed.
   changelog and docs/CHANGELOG.md had not recorded the merges after 2026-11-18. Documentation only. Merged 2026-11-24
   (pull request #84, main 2b55f06f).
 - **2026-11-24 -- reliability set 1R (evaluation infrastructure).** Recorded in sections 5 and 6 and in docs/CHANGELOG.md.
-  9,645 -> 9,731 collected (+86 / -0).
+  9,645 -> 9,731 collected (+86 / -0). Merged 2026-11-24 (pull request #85, main b7983ab6).
+- **2026-11-25 to 2026-11-27 -- AlphaMissense research record aa.2 (stage 1D-1c.2B, research only).** Owner rulings
+  of 2026-11-25 and 2026-11-27; research packages `gvc_stage2b_ai` and `gvc_stage2b_aj` outside `src/` (no repository
+  module imports them). The issued partition is frozen (SHA-256 bd102f6c; rebuilt byte-identical under policy/4 with an
+  independent fact reader that derives its own key universe and receipts that name each physical publisher row).
+  Score-free product census: canonical 71,697,556 rows on 71,034,269 alleles (663,287 rows above one per allele),
+  isoform 144,559,028 rows on 56,661,771 alleles; 93 accession positions on 72 accessions carry two reference letters
+  (1,252 rows, all equal to their GENCODE v32 peptide, 620 different from UniProt 2021_02); FDX2 ENST00000393708.3 is
+  numbered 3 residues higher in the canonical than in the isoform product (1,170 alleles; GENCODE v32 and 50 peptide
+  editions). Reported to the publisher (2026-11-25 to 2026-11-27) and to GENCODE (ticket 902226, residue 1 of 175
+  incomplete-start transcripts). Run 15 AlphaMissense column (June 6 rerun, read-only): every stored value is reproduced
+  by the legacy maximum-or-0.5 rule (0 of 1,490,014 differ); 1,300,498 values are 0.5, one of them a publisher score;
+  reading `MT` as `M` would change 987 values (618 in training), a transcript choice at most 112 more; the matrix column
+  is (raw - mean) / population SD bit for bit. Run 15 stays INVALIDATED_EVALUATION; model effects need the four-arm
+  refit. aa.3 (score use) stays closed.
+- **2026-11-27 -- this status update (documentation only).** The version line and the 1R row had not recorded pull
+  request #85; the aa.2 record, the five consumer defects and the 4,007-key reconciliation were not yet here.
