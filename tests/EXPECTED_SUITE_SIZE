@@ -8559,4 +8559,9 @@
 #   to a Fraction oracle on 25 random cases, the measured subtraction collapse, exact decimal quotas; truth-class
 #   routing denominators; the Clopper-Pearson exact coverage by math.comb and a graded risk refused; a missing gene
 #   refused and dropped rows counted in calibrate). 77 of the 86 fail on 2b55f06f. (tests_drift/: unchanged, 22.)
-9731
+# 2026-11-27  THE RESEARCH SCOPE (documentation and one test file; delivery al) -- +6 / -0 by node identity (collected
+#   against main 5192459a). New file: +6 tests/unit/test_readme_package_inventory.py (the README's package list equals the
+#   package directories, the top-level modules and the directories without __init__.py; every path it names exists;
+#   every relative README link resolves). On b7983ab6's README the package test fails, naming information_sources.
+#   (tests_drift/: unchanged, 22.)
+9737
